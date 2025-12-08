@@ -1,5 +1,5 @@
 // /api/generate.js
-// Vyndow SEO – Backend with max_tokens and improved word-count handling
+// Vyndow SEO – Anatta blog generator backend (V1)
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -7,6 +7,18 @@ export default async function handler(req, res) {
       ok: true,
       message:
         "Vyndow SEO /api/generate is live. Please call this endpoint with POST and a JSON body.",
+      exampleBody: {
+        topic:
+          "How to Support a Loved One Struggling with Drug Dependency",
+        primaryKeyword: "support loved one drug dependency",
+        secondaryKeywords: [
+          "help someone with drug dependency",
+          "family support for addiction"
+        ],
+        wordCount: 1200,
+        seoIntent: "informational",
+        notes: "Keep the tone gentle, family-focused, and non-medical."
+      }
     });
   }
 
@@ -18,10 +30,11 @@ export default async function handler(req, res) {
     });
   }
 
-  // Brief coming from the frontend
+  // Brief coming from the front-end
   const brief = req.body || {};
 
-  const SYSTEM_PROMPT = `
+  // 1) System prompt: tells the model how Vyndow SEO should behave
+const SYSTEM_PROMPT = `
 You are VYNDOW SEO, an advanced professional SEO content engine.
 Your job is to take a blog brief plus a fixed brand profile and generate EXACTLY 15 outputs.
 You MUST respond ONLY with a valid JSON object with keys "output1" through "output15".
@@ -90,10 +103,19 @@ Now, given the blog brief provided in the user message, generate 15 outputs and 
 Remember: respond ONLY with this JSON object, and fully obey all the constraints above.
 `;
 
+
+  // 2) Build the user content with the brief
+  const userContent = `
+Here is the blog brief for this run:
+
+${JSON.stringify(brief, null, 2)}
+
+Use the fixed Anatta profile and the SYSTEM PROMPT instructions.
+Generate all 15 outputs as described, and return them as a single JSON object.
+`;
+
   try {
-    // -------------------------------------------
-    // CALL OPENAI WITH A HIGH max_tokens VALUE
-    // -------------------------------------------
+    // Call OpenAI Chat Completions API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -106,8 +128,7 @@ Remember: respond ONLY with this JSON object, and fully obey all the constraints
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userContent }
         ],
-        temperature: 0.7,
-        max_tokens: 12000  // <<<<<<<< THIS FIXES THE WORD COUNT SHORTENING
+        temperature: 0.7
       })
     });
 
@@ -121,15 +142,22 @@ Remember: respond ONLY with this JSON object, and fully obey all the constraints
     }
 
     const data = await response.json();
-    let raw = data.choices?.[0]?.message?.content || "";
+    const raw = data.choices?.[0]?.message?.content || "";
+
+    // 🔧 NEW: strip ```json ... ``` fences if present before JSON.parse
     let cleaned = raw.trim();
 
-    // Strip markdown fences if any
     if (cleaned.startsWith("```")) {
+      // remove first line (``` or ```json)
       const firstNewline = cleaned.indexOf("\n");
-      if (firstNewline !== -1) cleaned = cleaned.substring(firstNewline + 1);
+      if (firstNewline !== -1) {
+        cleaned = cleaned.substring(firstNewline + 1);
+      }
+      // remove trailing ```
       const lastFence = cleaned.lastIndexOf("```");
-      if (lastFence !== -1) cleaned = cleaned.substring(0, lastFence);
+      if (lastFence !== -1) {
+        cleaned = cleaned.substring(0, lastFence);
+      }
       cleaned = cleaned.trim();
     }
 
@@ -137,6 +165,7 @@ Remember: respond ONLY with this JSON object, and fully obey all the constraints
     try {
       outputs = JSON.parse(cleaned);
     } catch (e) {
+      // Fallback: put raw text in output8 if parsing fails
       outputs = {
         output1: "",
         output2: "",
@@ -152,7 +181,8 @@ Remember: respond ONLY with this JSON object, and fully obey all the constraints
         output12: "",
         output13: "",
         output14: "",
-        output15: "Model did not return valid JSON."
+        output15:
+          "Model did not respond with valid JSON; raw content placed into output8."
       };
     }
 
@@ -161,8 +191,8 @@ Remember: respond ONLY with this JSON object, and fully obey all the constraints
       receivedBrief: brief,
       outputs
     });
-
   } catch (err) {
+    console.error(err);
     return res.status(500).json({
       ok: false,
       error: "Unexpected server error",
