@@ -471,31 +471,31 @@
             var data = await resp.json();
             var out = data.outputs || {};
 
-            // First block combines outputs 1–7
-            var out1_7 = document.getElementById("out1_7");
-            if (out1_7) {
-              out1_7.textContent =
-                "Output 1: " +
-                (out.output1 || "") +
-                "\n\n" +
-                "Output 2: " +
-                (out.output2 || "") +
-                "\n\n" +
-                "Output 3: " +
-                (out.output3 || "") +
-                "\n\n" +
-                "Output 4: " +
-                (out.output4 || "") +
-                "\n\n" +
-                "Output 5: " +
-                (out.output5 || "") +
-                "\n\n" +
-                "Output 6: " +
-                (out.output6 || "") +
-                "\n\n" +
-                "Output 7: " +
-                (out.output7 || "");
-            }
+            // First block combines outputs 1–7 with real labels
+var out1_7 = document.getElementById("out1_7");
+if (out1_7) {
+  out1_7.textContent =
+    "Blog Title Recommendation: " +
+    (out.output1 || "") +
+    "\n\n" +
+    "H1: " +
+    (out.output2 || "") +
+    "\n\n" +
+    "SEO Title: " +
+    (out.output3 || "") +
+    "\n\n" +
+    "Meta Description: " +
+    (out.output4 || "") +
+    "\n\n" +
+    "URL Slug: " +
+    (out.output5 || "") +
+    "\n\n" +
+    "Primary Keyword: " +
+    (out.output6 || "") +
+    "\n\n" +
+    "Secondary Keywords: " +
+    (out.output7 || "");
+}
 
             // Map the remaining outputs to their <pre> blocks
             var map = {
