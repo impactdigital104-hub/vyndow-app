@@ -1,11 +1,16 @@
-export default function handler(req, res) {
+// /api/generate.js
+// Vyndow SEO – Anatta blog generator backend (V1)
+// You don't need to understand this – just paste and save.
+
+export default async function handler(req, res) {
   if (req.method !== "POST") {
-    // For now, guide the user to use POST
     return res.status(200).json({
       ok: true,
-      message: "Vyndow SEO /api/generate is live. Please call this endpoint with POST and a JSON body.",
+      message:
+        "Vyndow SEO /api/generate is live. Please call this endpoint with POST and a JSON body.",
       exampleBody: {
-        topic: "How to Support a Loved One Struggling with Drug Dependency",
+        topic:
+          "How to Support a Loved One Struggling with Drug Dependency",
         primaryKeyword: "support loved one drug dependency",
         secondaryKeywords: [
           "help someone with drug dependency",
@@ -18,38 +23,148 @@ export default function handler(req, res) {
     });
   }
 
-  // In the future, we will:
-  // 1) Read the body (blog brief)
-  // 2) Call the AI engine with Anatta config + master prompt
-  // 3) Return the real 15 outputs
-  //
-  // For now, we return a dummy, but correctly structured, 15-output bundle.
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({
+      ok: false,
+      error: "OPENAI_API_KEY is not set in environment variables."
+    });
+  }
 
-  // Just echo whatever brief is sent (if any)
+  // Brief coming from the front-end
   const brief = req.body || {};
 
-  const outputs = {
-    output1: "Dummy Output 1: Blog Title Recommendation will appear here.",
-    output2: "Dummy Output 2: H1 will appear here.",
-    output3: "Dummy Output 3: SEO Title will appear here.",
-    output4: "Dummy Output 4: Meta Description will appear here.",
-    output5: "Dummy Output 5: URL Slug Suggestion will appear here.",
-    output6: "Dummy Output 6: Primary Keyword (echoed from input) will appear here.",
-    output7: "Dummy Output 7: Up to 5 Secondary Keywords will appear here.",
-    output8: "Dummy Output 8: Full ~Article will appear here.",
-    output9: "Dummy Output 9: Internal Links Table will appear here.",
-    output10: "Dummy Output 10: 5 FAQs will appear here.",
-    output11: "Dummy Output 11: Image Alt Text suggestions will appear here.",
-    output12: "Dummy Output 12: Two Image Prompts will appear here.",
-    output13: "Dummy Output 13: JSON-LD Schema Markup will appear here.",
-    output14: "Dummy Output 14: Readability & Risk Metrics will appear here.",
-    output15: "Dummy Output 15: Checklist Verification will appear here."
-  };
+  // 1) System prompt: tells the model how Vyndow SEO should behave
+  const SYSTEM_PROMPT = `
+You are VYNDOW SEO, an advanced professional SEO content engine.
+Your job is to take a blog brief plus a fixed brand profile and generate EXACTLY 15 outputs.
+You MUST respond ONLY with a valid JSON object with keys "output1" through "output15".
+Each value MUST be a string. Do not include any other top-level keys.
 
-  res.status(200).json({
-    ok: true,
-    note: "This is a placeholder 15-output bundle. AI logic will replace these strings later.",
-    receivedBrief: brief,
-    outputs
-  });
+Brand profile (Anatta – fixed):
+
+- Luxury, confidential, voluntary, one-on-one residential support for people facing alcohol, drug, or behavioural dependency.
+- Non-medical, spiritual, compassionate, humanistic approach.
+- Target audience: affluent families and high-functioning professionals (30–55), often in metros like Mumbai/Pune, worried about a loved one or themselves.
+- Tone of voice: warm, empathetic, non-judgmental, clear, hopeful, adult-to-adult, non-clinical.
+- Values: dignity, privacy, confidentiality, compassion, acceptance, personal transformation, spiritual self-awareness.
+- Prohibited: no words like "cure", "100% success", "guaranteed recovery"; no diagnostic or medical claims; no graphic descriptions; no fear-based or shaming language.
+- Prefer "clients", "individuals", "loved one" instead of "addict" or "patient".
+- Internal links (use when relevant, a few times per article, not stuffed):
+  - https://anatta.in/alcohol-addiction-treatment
+  - https://anatta.in/drug-addiction-treatment
+  - https://anatta.in/signs-of-addiction
+  - https://anatta.in/alcohol-rehab
+  - https://anatta.in/drug-rehab
+  - https://anatta.in/luxury-rehab-centre-india
+
+Writing and SEO rules:
+
+- Respect the brief's primary keyword and secondary keywords.
+- Primary keyword MUST appear in: SEO Title, Meta Description, H1, first paragraph.
+- Use 3–5 secondary keywords naturally.
+- Maintain readability around Grade 8–9 (short paragraphs, clear subheadings, bullets where useful).
+- No hallucinated statistics or medical guarantees.
+- Output must be original and consistent with Anatta's tone.
+
+Now, given the blog brief provided in the user message, generate 15 outputs and return them in JSON form:
+
+{
+  "output1": "...",   // Unique Blog Title Recommendation
+  "output2": "...",   // H1
+  "output3": "...",   // SEO Title (<= 60 chars)
+  "output4": "...",   // Meta Description (<= 155 chars)
+  "output5": "...",   // URL Slug suggestion
+  "output6": "...",   // Primary keyword (repeat)
+  "output7": "...",   // Up to 5 secondary keywords (comma separated or bullet formatted)
+  "output8": "...",   // Full article (~wordcount from brief, +/-10%) with internal links embedded
+  "output9": "...",   // Internal links table (Anchor | URL | Purpose)
+  "output10": "...",  // 5 FAQs with answers
+  "output11": "...",  // Image alt text suggestions (3–5)
+  "output12": "...",  // Two detailed image prompts (hero + mid-article)
+  "output13": "...",  // JSON-LD schema (Article + FAQ) as a JSON-LD string
+  "output14": "...",  // Readability & risk metrics summary (plain text)
+  "output15": "..."   // Checklist verification (plain text with checkmarks or bullet points)
+}
+
+Remember: respond ONLY with this JSON object, nothing else.
+`;
+
+  // 2) Build the user content with the brief
+  const userContent = `
+Here is the blog brief for this run:
+
+${JSON.stringify(brief, null, 2)}
+
+Use the fixed Anatta profile and the SYSTEM PROMPT instructions.
+Generate all 15 outputs as described, and return them as a single JSON object.
+`;
+
+  try {
+    // Call OpenAI Chat Completions API
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userContent }
+        ],
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      return res.status(500).json({
+        ok: false,
+        error: "OpenAI API error",
+        detail: errText
+      });
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content || "";
+
+    let outputs;
+    try {
+      outputs = JSON.parse(raw);
+    } catch (e) {
+      // If the model didn't return valid JSON, just send back the raw text in output8
+      outputs = {
+        output1: "",
+        output2: "",
+        output3: "",
+        output4: "",
+        output5: "",
+        output6: brief.primaryKeyword || "",
+        output7: (brief.secondaryKeywords || []).join(", "),
+        output8: raw,
+        output9: "",
+        output10: "",
+        output11: "",
+        output12: "",
+        output13: "",
+        output14: "",
+        output15: "Model did not respond with valid JSON; raw content placed into output8."
+      };
+    }
+
+    return res.status(200).json({
+      ok: true,
+      receivedBrief: brief,
+      outputs
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      ok: false,
+      error: "Unexpected server error",
+      detail: String(err)
+    });
+  }
 }
