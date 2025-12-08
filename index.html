@@ -348,8 +348,8 @@
           <label><input type="radio" name="futureTopics" value="no" /> No</label>
         </div>
 
-        <button class="btn" disabled>
-          Generate Vyndow SEO Outputs (AI wiring later)
+<button class="btn" id="generateBtn">
+  Generate Vyndow SEO Outputs
         </button>
         <div class="small">
           This page currently captures all inputs. The Generate button will be wired to
@@ -359,56 +359,174 @@
 
       <!-- STEP 2: OUTPUT PLACEHOLDERS -->
       <div class="card">
-        <h2>Step 2: SEO Outputs (placeholders)</h2>
+        <h2>Step 2: SEO Outputs</h2>
         <p class="small">
           Once connected, the AI will fill these sections with Outputs 1–15.
         </p>
 
         <details open>
           <summary>Outputs 1–7: Titles &amp; Keywords</summary>
-          <pre>(Will show blog title, H1, SEO title, meta description, slug, primary &amp; secondary keywords.)</pre>
+          <pre id="out1_7">(Will show blog title, H1, SEO title, meta description, slug, primary &amp; secondary keywords.)</pre>
         </details>
 
         <details>
           <summary>Output 8: Full Article</summary>
-          <pre>(Will show the full article with internal links.)</pre>
+          <pre id="out8">(Will show the full article with internal links.)</pre>
         </details>
 
         <details>
           <summary>Output 9: Internal Links Table</summary>
-          <pre>(Will show a table of anchor text, URL, and purpose.)</pre>
+          <pre id="out9">(Will show a table of anchor text, URL, and purpose.)</pre>
         </details>
 
         <details>
           <summary>Output 10: FAQs</summary>
-          <pre>(Will show 5 FAQs and answers.)</pre>
+          <pre id="out10">(Will show 5 FAQs and answers.)</pre>
         </details>
 
         <details>
           <summary>Output 11: Image Alt Texts</summary>
-          <pre>(Will show 3–5 alt text suggestions.)</pre>
+          <pre id="out11">(Will show 3–5 alt text suggestions.)</pre>
         </details>
 
         <details>
           <summary>Output 12: Image Prompts</summary>
-          <pre>(Will show 2 detailed image prompts.)</pre>
+          <pre id="out12">(Will show 2 detailed image prompts.)</pre>
         </details>
 
         <details>
           <summary>Output 13: JSON-LD Schema</summary>
-          <pre>(Will show the Article + FAQ JSON-LD schema.)</pre>
+          <pre id="out13">(Will show the Article + FAQ JSON-LD schema.)</pre>
         </details>
 
         <details>
           <summary>Output 14: Readability &amp; Risk Metrics</summary>
-          <pre>(Will show reading level, passive voice estimate, plagiarism risk.)</pre>
+          <pre id="out14">(Will show reading level, passive voice estimate, plagiarism risk.)</pre>
         </details>
 
         <details>
           <summary>Output 15: Checklist Verification</summary>
-          <pre>(Will show a checklist confirming SEO and compliance.)</pre>
+          <pre id="out15">(Will show a checklist confirming SEO and compliance.)</pre>
         </details>
       </div>
     </div>
+        <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var btn = document.getElementById("generateBtn");
+        if (!btn) return;
+
+        btn.addEventListener("click", async function () {
+          btn.disabled = true;
+          var originalText = btn.textContent;
+          btn.textContent = "Generating...";
+
+          // Collect a simple brief from a few key fields
+          var topic =
+            (document.getElementById("topic") &&
+              document.getElementById("topic").value) ||
+            "";
+          var primaryKeyword =
+            (document.getElementById("primaryKeyword") &&
+              document.getElementById("primaryKeyword").value) ||
+            "";
+          var secondaryRaw =
+            (document.getElementById("secondaryKeywords") &&
+              document.getElementById("secondaryKeywords").value) ||
+            "";
+          var wordCountSelect = document.getElementById("wordCount");
+          var wordCount =
+            (wordCountSelect && wordCountSelect.value) || "1200";
+          var seoIntentSelect = document.getElementById("seoIntent");
+          var seoIntent =
+            (seoIntentSelect && seoIntentSelect.value) ||
+            "informational";
+          var notes =
+            (document.getElementById("notes") &&
+              document.getElementById("notes").value) ||
+            "";
+
+          var secondaryKeywords = secondaryRaw
+            .split(/[\n,]/)
+            .map(function (s) {
+              return s.trim();
+            })
+            .filter(Boolean);
+
+          try {
+            var resp = await fetch("/api/generate", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                topic: topic,
+                primaryKeyword: primaryKeyword,
+                secondaryKeywords: secondaryKeywords,
+                wordCount: Number(wordCount) || 1200,
+                seoIntent: seoIntent,
+                notes: notes
+              })
+            });
+
+            var data = await resp.json();
+            var out = data.outputs || {};
+
+            // First block combines outputs 1–7
+            var out1_7 = document.getElementById("out1_7");
+            if (out1_7) {
+              out1_7.textContent =
+                "Output 1: " +
+                (out.output1 || "") +
+                "\n\n" +
+                "Output 2: " +
+                (out.output2 || "") +
+                "\n\n" +
+                "Output 3: " +
+                (out.output3 || "") +
+                "\n\n" +
+                "Output 4: " +
+                (out.output4 || "") +
+                "\n\n" +
+                "Output 5: " +
+                (out.output5 || "") +
+                "\n\n" +
+                "Output 6: " +
+                (out.output6 || "") +
+                "\n\n" +
+                "Output 7: " +
+                (out.output7 || "");
+            }
+
+            // Map the remaining outputs to their <pre> blocks
+            var map = {
+              out8: "output8",
+              out9: "output9",
+              out10: "output10",
+              out11: "output11",
+              out12: "output12",
+              out13: "output13",
+              out14: "output14",
+              out15: "output15"
+            };
+
+            Object.keys(map).forEach(function (id) {
+              var el = document.getElementById(id);
+              if (el) {
+                el.textContent =
+                  out[map[id]] || "(No data returned for " + map[id] + ")";
+              }
+            });
+          } catch (e) {
+            console.error(e);
+            alert(
+              "Something went wrong calling /api/generate. Please try again."
+            );
+          } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+          }
+        });
+      });
+    </script>
   </body>
 </html>
