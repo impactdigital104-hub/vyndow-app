@@ -103,7 +103,7 @@ Generate all 15 outputs following the SYSTEM PROMPT exactly.
           { role: "user", content: userContent }
         ],
         temperature: 0.7,
-        max_tokens: 4096   // <<<<<<<< THIS FIXES THE WORD COUNT SHORTENING
+        max_tokens: 12000  // <<<<<<<< THIS FIXES THE WORD COUNT SHORTENING
       })
     });
 
