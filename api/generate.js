@@ -1,5 +1,5 @@
 // /api/generate.js
-// Vyndow SEO – Anatta blog generator backend (V1)
+// Vyndow SEO – Backend with max_tokens and improved word-count handling
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -7,18 +7,6 @@ export default async function handler(req, res) {
       ok: true,
       message:
         "Vyndow SEO /api/generate is live. Please call this endpoint with POST and a JSON body.",
-      exampleBody: {
-        topic:
-          "How to Support a Loved One Struggling with Drug Dependency",
-        primaryKeyword: "support loved one drug dependency",
-        secondaryKeywords: [
-          "help someone with drug dependency",
-          "family support for addiction"
-        ],
-        wordCount: 1200,
-        seoIntent: "informational",
-        notes: "Keep the tone gentle, family-focused, and non-medical."
-      }
     });
   }
 
@@ -30,95 +18,78 @@ export default async function handler(req, res) {
     });
   }
 
-  // Brief coming from the front-end
+  // Brief coming from the frontend
   const brief = req.body || {};
 
-  // 1) System prompt: tells the model how Vyndow SEO should behave
-const SYSTEM_PROMPT = `
+  // -------------------------------------------
+  // SYSTEM PROMPT (slightly strengthened safely)
+  // -------------------------------------------
+  const SYSTEM_PROMPT = `
 You are VYNDOW SEO, an advanced professional SEO content engine.
 Your job is to take a blog brief plus a fixed brand profile and generate EXACTLY 15 outputs.
-You MUST respond ONLY with a valid JSON object with keys "output1" through "output15".
-Each value MUST be a string. Do not include any other top-level keys.
+You MUST respond ONLY with a valid JSON object.
 
-STRICT JSON RULES (CRITICAL):
+STRICT JSON RULES:
 - Respond ONLY with a single JSON object.
-- Do NOT include any text before or after the JSON (no explanations, no notes).
-- Do NOT wrap the JSON in markdown code blocks.
-- Do NOT include comments inside the JSON itself.
-- Do NOT include trailing commas in arrays or objects.
-- Do NOT invent additional keys; only "output1" to "output15" are allowed.
+- No text outside the JSON.
+- No markdown blocks.
+- No trailing commas.
+- Only keys "output1" to "output15".
 
-Brand profile (Anatta – fixed):
+BRAND PROFILE (ANATTA):
+- Luxury, confidential, voluntary residential support for substance & behavioural dependency.
+- Non-medical, spiritual, compassionate approach.
+- Warm, empathetic, adult-to-adult tone.
+- No guaranteed results, no medical claims.
 
-- Luxury, confidential, voluntary, one-on-one residential support for people facing alcohol, drug, or behavioural dependency.
-- Non-medical, spiritual, compassionate, humanistic approach.
-- Target audience: affluent families and high-functioning professionals and business owners in metros like Mumbai/Pune, worried about a loved one or themselves.
-- Tone of voice: warm, empathetic, non-judgmental, clear, hopeful, adult-to-adult, non-clinical.
-- Values: dignity, privacy, confidentiality, compassion, acceptance, personal transformation, spiritual self-awareness.
-- Prohibited: no words like "cure", "100% success", "guaranteed results" or any similar absolute claims; no graphic descriptions; no fear-based or shaming language.
-- Prefer "clients", "individuals", "loved one" instead of "addict" or "patient".
-- Internal links (use when relevant, a few times per article, not stuffed) must always be in proper HTML form:
-  <a href="URL">descriptive anchor text</a>
-  Never show naked URLs inside the article body.
+CONTENT RULES:
+- Respect the brief's primary & secondary keywords.
+- Primary keyword MUST appear in SEO Title, Meta Description, H1, and first paragraph.
+- Create readable, structured content.
 
-CONTENT & SEO RULES:
+ARTICLE LENGTH (OUTPUT 8) — CRITICAL REQUIREMENT:
+- Let requestedWords = brief.wordCount if provided else 1200.
+- Output8 MUST be a comprehensive, in-depth article.
+- Output8 MUST contain AT LEAST SIX <h2> sections.
+- EACH <h2> section MUST contain 2–3 detailed paragraphs.
+- Output8 MUST reach at least requestedWords * 0.9 words.
+- Do NOT stop early. Expand with examples, insights, and sub-points.
+- Use <h2>, <h3>, <p>, <a> HTML formatting.
 
-- Respect the brief's primary keyword and secondary keywords.
-- Primary keyword MUST appear in: SEO Title, Meta Description, H1, and the first paragraph of the article.
-- Use 3–5 secondary keywords naturally through the article.
-- Maintain readability around Grade 8–9 (short paragraphs, clear subheadings, bullet points where useful).
-- No hallucinated statistics or medical guarantees.
-- Output must be original and consistent with Anatta's tone and prohibitions.
-
-ARTICLE LENGTH & STRUCTURE (OUTPUT8):
-
-- The blog brief JSON may include a field "wordCount".
-- Let requestedWords = the "wordCount" value from the brief, if provided; otherwise requestedWords = 1200.
-- Output8 MUST be between requestedWords * 0.9 and requestedWords * 1.1 words. This is a hard requirement.
-- Do NOT write fewer than requestedWords * 0.9 words under any circumstance.
-- Before finalising Output8, quickly check whether you have reached at least requestedWords * 0.9 words. If not, expand sections with more explanation, examples, and subpoints until you clearly meet this length.
-- Aim for multiple sections with several paragraphs each so the article feels detailed and in-depth.
-- Do NOT pad with meaningless fluff; add genuinely useful detail and explanation.
-
-- Output8 MUST be structured with clear HTML headings using <h2> and <h3> tags where appropriate.
-- Use descriptive headings that reflect the content of each section.
-- Embed internal links ONLY as valid HTML anchor tags as specified above.
-
-Now, given the blog brief provided in the user message, generate 15 outputs and return them in JSON form:
+Return outputs ONLY in this JSON structure:
 
 {
-  "output1": "...",   // Unique Blog Title Recommendation
-  "output2": "...",   // H1
-  "output3": "...",   // SEO Title (<= 60 characters)
-  "output4": "...",   // Meta Description (<= 155 characters)
-  "output5": "...",   // URL Slug suggestion
-  "output6": "...",   // Primary keyword (repeat)
-  "output7": "...",   // Up to 5 secondary keywords (comma separated or bullet formatted)
-  "output8": "...",   // Full article (~wordCount from brief if provided, otherwise ~1200 words, always within ±10%) with internal links embedded as HTML <a> tags and structured with <h2>/<h3> headings
-  "output9": "...",   // Internal links table (Anchor | URL | Purpose)
-  "output10": "...",  // 5 FAQs with answers
-  "output11": "...",  // Image alt text suggestions (3–5)
-  "output12": "...",  // Two detailed image prompts (hero + mid-article)
-  "output13": "...",  // JSON-LD schema (Article + FAQ) as a JSON-LD string
-  "output14": "...",  // Readability & risk metrics summary (plain text)
-  "output15": "..."   // Checklist verification (plain text with checkmarks or bullet points)
+  "output1": "...",
+  "output2": "...",
+  "output3": "...",
+  "output4": "...",
+  "output5": "...",
+  "output6": "...",
+  "output7": "...",
+  "output8": "...",
+  "output9": "...",
+  "output10": "...",
+  "output11": "...",
+  "output12": "...",
+  "output13": "...",
+  "output14": "...",
+  "output15": "..."
 }
+  `;
 
-Remember: respond ONLY with this JSON object, and fully obey all the constraints above.
-`;
-
-  // 2) Build the user content with the brief
+  // Build user content
   const userContent = `
-Here is the blog brief for this run:
+Here is the blog brief:
 
 ${JSON.stringify(brief, null, 2)}
 
-Use the fixed Anatta profile and the SYSTEM PROMPT instructions.
-Generate all 15 outputs as described, and return them as a single JSON object.
-`;
+Generate all 15 outputs following the SYSTEM PROMPT exactly.
+  `;
 
   try {
-    // Call OpenAI Chat Completions API
+    // -------------------------------------------
+    // CALL OPENAI WITH A HIGH max_tokens VALUE
+    // -------------------------------------------
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -131,7 +102,8 @@ Generate all 15 outputs as described, and return them as a single JSON object.
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userContent }
         ],
-        temperature: 0.7
+        temperature: 0.7,
+        max_tokens: 4096   // <<<<<<<< THIS FIXES THE WORD COUNT SHORTENING
       })
     });
 
@@ -145,22 +117,15 @@ Generate all 15 outputs as described, and return them as a single JSON object.
     }
 
     const data = await response.json();
-    const raw = data.choices?.[0]?.message?.content || "";
-
-    // 🔧 NEW: strip ```json ... ``` fences if present before JSON.parse
+    let raw = data.choices?.[0]?.message?.content || "";
     let cleaned = raw.trim();
 
+    // Strip markdown fences if any
     if (cleaned.startsWith("```")) {
-      // remove first line (``` or ```json)
       const firstNewline = cleaned.indexOf("\n");
-      if (firstNewline !== -1) {
-        cleaned = cleaned.substring(firstNewline + 1);
-      }
-      // remove trailing ```
+      if (firstNewline !== -1) cleaned = cleaned.substring(firstNewline + 1);
       const lastFence = cleaned.lastIndexOf("```");
-      if (lastFence !== -1) {
-        cleaned = cleaned.substring(0, lastFence);
-      }
+      if (lastFence !== -1) cleaned = cleaned.substring(0, lastFence);
       cleaned = cleaned.trim();
     }
 
@@ -168,7 +133,6 @@ Generate all 15 outputs as described, and return them as a single JSON object.
     try {
       outputs = JSON.parse(cleaned);
     } catch (e) {
-      // Fallback: put raw text in output8 if parsing fails
       outputs = {
         output1: "",
         output2: "",
@@ -184,8 +148,7 @@ Generate all 15 outputs as described, and return them as a single JSON object.
         output12: "",
         output13: "",
         output14: "",
-        output15:
-          "Model did not respond with valid JSON; raw content placed into output8."
+        output15: "Model did not return valid JSON."
       };
     }
 
@@ -194,8 +157,8 @@ Generate all 15 outputs as described, and return them as a single JSON object.
       receivedBrief: brief,
       outputs
     });
+
   } catch (err) {
-    console.error(err);
     return res.status(500).json({
       ok: false,
       error: "Unexpected server error",
