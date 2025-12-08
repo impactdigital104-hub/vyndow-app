@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Vyndow SEO – Anatta Blog Generator</title>
+    <title>Vyndow SEO — Input Blueprint UI (V1)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       body {
@@ -12,7 +12,7 @@
         background: #f7f7f7;
       }
       .page {
-        max-width: 960px;
+        max-width: 1080px;
         margin: 0 auto;
         padding: 24px 16px 48px;
       }
@@ -43,6 +43,13 @@
       .card h2 {
         margin-top: 0;
         font-size: 18px;
+      }
+      .section-title {
+        margin-top: 12px;
+        margin-bottom: 6px;
+        font-size: 15px;
+        font-weight: 700;
+        color: #333;
       }
       label {
         display: block;
@@ -107,93 +114,264 @@
         overflow-x: auto;
         font-size: 13px;
       }
+      @media (max-width: 768px) {
+        .page {
+          padding: 16px 12px 32px;
+        }
+      }
     </style>
   </head>
   <body>
     <div class="page">
-      <h1>Vyndow SEO – Anatta Blog Generator (V1)</h1>
+      <h1>Vyndow SEO — Blog Generator (V1)</h1>
       <p class="sub">
-        Generate Anatta-aligned, SEO-ready blog drafts with one brief.
+        Fill the full Vyndow SEO Input Blueprint. Vyndow will use this to generate 15 SEO outputs.
       </p>
-      <div class="pill">Client Profile Loaded: Anatta</div>
+      <div class="pill">Input Blueprint: Sections A–E</div>
 
-      <!-- Step 1: Blog Brief -->
+      <!-- STEP 1: FULL INPUT BLUEPRINT -->
       <div class="card">
-        <h2>Step 1: Enter the Blog Brief</h2>
+        <h2>Step 1: Enter Inputs</h2>
 
-        <label for="topic">Blog Topic / Working Title</label>
+        <!-- SECTION A — BRAND & VOICE -->
+        <div class="section-title">A. Brand &amp; Voice Information</div>
+
+        <label for="brandDescription">A1. Brand Description</label>
+        <textarea
+          id="brandDescription"
+          placeholder="Describe what the brand does, who it serves, and what makes it unique."
+        ></textarea>
+
+        <label for="audiencePersona">A2. Target Audience Persona</label>
+        <textarea
+          id="audiencePersona"
+          placeholder="Describe key audience segments, pain points, demographics, etc."
+        ></textarea>
+
+        <label>A3. Tone of Voice (select one or more)</label>
+        <div class="inline-options">
+          <label><input type="checkbox" /> Warm &amp; Empathetic</label>
+          <label><input type="checkbox" /> Expert &amp; Authoritative</label>
+          <label><input type="checkbox" /> Educational &amp; Insightful</label>
+          <label><input type="checkbox" /> Conversational &amp; Easy-to-read</label>
+          <label><input type="checkbox" /> Formal Clinical</label>
+          <label><input type="checkbox" /> Motivational</label>
+          <label><input type="checkbox" /> Brand Custom</label>
+        </div>
+
+        <label for="toneCustom">A3b. Custom Tone Description (if applicable)</label>
         <input
-          id="topic"
+          id="toneCustom"
           type="text"
-          placeholder="How to Support a Loved One Struggling with Drug Dependency"
+          placeholder="Describe any custom tone of voice."
         />
 
-        <label for="primaryKeyword">Primary Keyword</label>
+        <label for="brandValues">A4. Brand Values</label>
+        <input
+          id="brandValues"
+          type="text"
+          placeholder="privacy, dignity, discretion, compassion..."
+        />
+
+        <label for="prohibitedWords">A5. Prohibited Words or Claims</label>
+        <textarea
+          id="prohibitedWords"
+          placeholder="No medical guarantees, no 100% success claims, etc."
+        ></textarea>
+
+        <label for="readingLevel">A6. Reading Level Preference</label>
+        <select id="readingLevel">
+          <option value="grade_6_7">Grade 6–7 (easy reading)</option>
+          <option value="grade_8_9" selected>Grade 8–9 (standard blog)</option>
+          <option value="grade_10_plus">Grade 10+ (more complex)</option>
+        </select>
+
+        <!-- SECTION B — SEO INPUTS -->
+        <div class="section-title">B. SEO Inputs</div>
+
+        <label for="primaryKeyword">B1. Primary Keyword</label>
         <input
           id="primaryKeyword"
           type="text"
-          placeholder="support loved one drug dependency"
+          placeholder="Core keyword for this blog"
         />
 
-        <label for="secondaryKeywords">Secondary Keywords (optional)</label>
+        <label for="secondaryKeywords">B2. Secondary Keywords (up to 10)</label>
         <textarea
           id="secondaryKeywords"
-          placeholder="help someone with drug dependency&#10;family support for addiction"
+          placeholder="Enter one per line or separated by commas."
         ></textarea>
-        <div class="small">One per line or separated by commas.</div>
 
-        <label for="wordCount">Desired Word Count</label>
-        <select id="wordCount">
-          <option value="1000">1000 words</option>
-          <option value="1200" selected>1200 words (recommended)</option>
-          <option value="1500">1500 words</option>
+        <label for="longTail">B3. Related Long-Tail Phrases (optional)</label>
+        <textarea
+          id="longTail"
+          placeholder="e.g., how to find the best rehab for alcohol addiction"
+        ></textarea>
+
+        <label for="existingBlogs">B4. URLs of Existing Blogs (for internal linking)</label>
+        <textarea
+          id="existingBlogs"
+          placeholder="https://example.com/blog-1 | suggested anchor text&#10;https://example.com/blog-2"
+        ></textarea>
+        <div class="small">One URL per line, optional “| anchor text”.</div>
+
+        <label for="competitorBlogs">B5. Competitor Blog URLs (optional)</label>
+        <textarea
+          id="competitorBlogs"
+          placeholder="https://competitor.com/blog-1&#10;https://competitor.com/blog-2"
+        ></textarea>
+
+        <label for="seoIntent">B6. SEO Intent</label>
+        <select id="seoIntent">
+          <option value="informational" selected>Informational</option>
+          <option value="commercial">Commercial</option>
+          <option value="transactional">Transactional</option>
+          <option value="mixed">Mixed</option>
         </select>
 
-        <label>SEO Intent</label>
-        <div class="inline-options">
-          <label><input type="radio" name="intent" value="informational" checked /> Informational</label>
-          <label><input type="radio" name="intent" value="commercial" /> Commercial</label>
-          <label><input type="radio" name="intent" value="mixed" /> Mixed</label>
-        </div>
+        <label for="geoTarget">B7. Geographic Target (optional)</label>
+        <input
+          id="geoTarget"
+          type="text"
+          placeholder="e.g., India – primarily Mumbai, Pune"
+        />
 
-        <label>Writing Style Preference (optional)</label>
+        <!-- SECTION C — ARTICLE SPECIFICATION -->
+        <div class="section-title">C. Article Specification Inputs</div>
+
+        <label for="topic">C1. Blog Topic or Working Title</label>
+        <input
+          id="topic"
+          type="text"
+          placeholder="How to Identify the Early Signs of Alcohol Addiction"
+        />
+
+        <label for="wordCount">C2. Desired Word Count</label>
+        <select id="wordCount">
+          <option value="1000">1000 words</option>
+          <option value="1200" selected>1200 words</option>
+          <option value="1500">1500 words</option>
+          <option value="custom">Custom</option>
+        </select>
+
+        <label>C3. Writing Style Preferences</label>
         <div class="inline-options">
           <label><input type="checkbox" /> Storytelling</label>
+          <label><input type="checkbox" /> Data-backed</label>
           <label><input type="checkbox" /> Step-by-step</label>
           <label><input type="checkbox" /> Listicle</label>
-          <label><input type="checkbox" /> Case-study</label>
+          <label><input type="checkbox" /> Case-study style</label>
+          <label><input type="checkbox" /> Editorial</label>
+          <label><input type="checkbox" /> Journalistic</label>
+          <label><input type="checkbox" /> Brand Custom</label>
         </div>
 
-        <label for="notes">Special Notes (optional)</label>
+        <label for="internalLinksPref">C4. Internal Linking Preference</label>
+        <select id="internalLinksPref">
+          <option value="auto_recommended" selected>
+            Add automatically (recommended)
+          </option>
+          <option value="minimal">Add minimally</option>
+          <option value="only_relevant">Add only when highly relevant</option>
+          <option value="none">Do not add internal links</option>
+        </select>
+
+        <label for="imagePref">C5. Image Preference (for prompts)</label>
+        <select id="imagePref">
+          <option value="photorealistic" selected>Photorealistic (default)</option>
+          <option value="minimal_illustration">Minimal illustration</option>
+          <option value="isometric">Isometric</option>
+          <option value="vector_style">Vector style</option>
+          <option value="abstract">Abstract</option>
+        </select>
+
+        <label>C6. Article Layout Preference (optional)</label>
+        <div class="inline-options">
+          <label><input type="checkbox" /> Short paragraphs</label>
+          <label><input type="checkbox" /> Heavy bulleting</label>
+          <label><input type="checkbox" /> More narrative</label>
+          <label><input type="checkbox" /> More visual cues</label>
+          <label><input type="checkbox" /> Include real examples</label>
+          <label><input type="checkbox" /> Include metaphors</label>
+          <label><input type="checkbox" /> Include statistics</label>
+        </div>
+
+        <!-- SECTION D — COMPLIANCE & SENSITIVITY -->
+        <div class="section-title">D. Compliance &amp; Sensitivity Inputs</div>
+
+        <label>D1. Industry Restrictions</label>
+        <div class="inline-options">
+          <label><input type="checkbox" /> No medical claims</label>
+          <label><input type="checkbox" /> No clinical diagnosis</label>
+          <label><input type="checkbox" /> No financial advice</label>
+          <label><input type="checkbox" /> No legal advice</label>
+          <label><input type="checkbox" /> Custom restriction</label>
+        </div>
+
+        <label for="customRestrictions">D1b. Custom Restrictions Description</label>
         <textarea
-          id="notes"
-          placeholder="Keep the tone gentle, family-focused, and non-medical."
+          id="customRestrictions"
+          placeholder="Describe any additional restrictions or forbidden areas."
         ></textarea>
 
+        <label for="sensitivityNotes">D2. Sensitivity Notes</label>
+        <textarea
+          id="sensitivityNotes"
+          placeholder="Do not suggest self-detox. Avoid triggering descriptions, etc."
+        ></textarea>
+
+        <label for="approvedLanguage">D3. Brand-Approved Language</label>
+        <textarea
+          id="approvedLanguage"
+          placeholder="Use 'clients' instead of 'patients', etc."
+        ></textarea>
+
+        <!-- SECTION E — OPTIONAL PREMIUM INPUTS -->
+        <div class="section-title">E. Optional Premium Inputs</div>
+
+        <label for="contentPillar">E1. Content Pillar or Category</label>
+        <input
+          id="contentPillar"
+          type="text"
+          placeholder="e.g., Alcohol addiction, Family support, Relapse management"
+        />
+
+        <label for="competitorGapNotes">E2. Competitor Gap Notes</label>
+        <textarea
+          id="competitorGapNotes"
+          placeholder="Where are competitors weak? e.g., relapse management content."
+        ></textarea>
+
+        <label>E3. Desired Future Topic Suggestions?</label>
+        <div class="inline-options">
+          <label><input type="radio" name="futureTopics" value="yes" checked /> Yes</label>
+          <label><input type="radio" name="futureTopics" value="no" /> No</label>
+        </div>
+
         <button class="btn" disabled>
-          Generate Vyndow SEO Outputs (Hook up later)
+          Generate Vyndow SEO Outputs (AI wiring later)
         </button>
         <div class="small">
-          This is just the layout. The Generate button will be wired to the AI
-          in the next phase.
+          This page currently captures all inputs. The Generate button will be wired to
+          the AI engine in the next phase.
         </div>
       </div>
 
-      <!-- Step 2: Outputs -->
+      <!-- STEP 2: OUTPUT PLACEHOLDERS -->
       <div class="card">
         <h2>Step 2: SEO Outputs (placeholders)</h2>
         <p class="small">
-          Below are placeholders for Outputs 1–15. Once wired, the AI will fill these sections.
+          Once connected, the AI will fill these sections with Outputs 1–15.
         </p>
 
         <details open>
           <summary>Outputs 1–7: Titles &amp; Keywords</summary>
-          <pre>(Will show blog title, H1, SEO title, meta description, slug, primary & secondary keywords.)</pre>
+          <pre>(Will show blog title, H1, SEO title, meta description, slug, primary &amp; secondary keywords.)</pre>
         </details>
 
         <details>
           <summary>Output 8: Full Article</summary>
-          <pre>(Will show the full ~1200-word article with internal links.)</pre>
+          <pre>(Will show the full article with internal links.)</pre>
         </details>
 
         <details>
