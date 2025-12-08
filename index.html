@@ -1,11 +1,236 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Vyndow SEO – Coming Soon</title>
+    <meta charset="UTF-8" />
+    <title>Vyndow SEO – Anatta Blog Generator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f7f7f7;
+      }
+      .page {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px 16px 48px;
+      }
+      h1 {
+        margin-bottom: 4px;
+      }
+      .sub {
+        color: #555;
+        margin-top: 0;
+        margin-bottom: 16px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #eef;
+        color: #334;
+        font-size: 12px;
+        margin-bottom: 24px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 16px 16px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      }
+      .card h2 {
+        margin-top: 0;
+        font-size: 18px;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-top: 10px;
+        margin-bottom: 4px;
+      }
+      input[type="text"],
+      textarea,
+      select {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      textarea {
+        min-height: 80px;
+        resize: vertical;
+      }
+      .small {
+        font-size: 12px;
+        color: #666;
+        margin-top: 2px;
+      }
+      .inline-options {
+        margin-top: 4px;
+        font-size: 14px;
+      }
+      .inline-options label {
+        display: inline-block;
+        font-weight: 400;
+        margin-right: 12px;
+      }
+      .btn {
+        display: inline-block;
+        margin-top: 16px;
+        padding: 10px 18px;
+        background: #2c6bed;
+        color: #fff;
+        border-radius: 4px;
+        border: none;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .btn:disabled {
+        background: #999;
+        cursor: default;
+      }
+      details summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      details {
+        margin-bottom: 10px;
+      }
+      pre {
+        background: #f0f0f0;
+        padding: 8px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-size: 13px;
+      }
+    </style>
   </head>
-  <body style="font-family: Arial; padding: 40px;">
-    <h1>Vyndow SEO MVP</h1>
-    <p>This page will soon contain the SEO Blog Generator.</p>
-    <p>If you're seeing this, deployment is working correctly.</p>
+  <body>
+    <div class="page">
+      <h1>Vyndow SEO – Anatta Blog Generator (V1)</h1>
+      <p class="sub">
+        Generate Anatta-aligned, SEO-ready blog drafts with one brief.
+      </p>
+      <div class="pill">Client Profile Loaded: Anatta</div>
+
+      <!-- Step 1: Blog Brief -->
+      <div class="card">
+        <h2>Step 1: Enter the Blog Brief</h2>
+
+        <label for="topic">Blog Topic / Working Title</label>
+        <input
+          id="topic"
+          type="text"
+          placeholder="How to Support a Loved One Struggling with Drug Dependency"
+        />
+
+        <label for="primaryKeyword">Primary Keyword</label>
+        <input
+          id="primaryKeyword"
+          type="text"
+          placeholder="support loved one drug dependency"
+        />
+
+        <label for="secondaryKeywords">Secondary Keywords (optional)</label>
+        <textarea
+          id="secondaryKeywords"
+          placeholder="help someone with drug dependency&#10;family support for addiction"
+        ></textarea>
+        <div class="small">One per line or separated by commas.</div>
+
+        <label for="wordCount">Desired Word Count</label>
+        <select id="wordCount">
+          <option value="1000">1000 words</option>
+          <option value="1200" selected>1200 words (recommended)</option>
+          <option value="1500">1500 words</option>
+        </select>
+
+        <label>SEO Intent</label>
+        <div class="inline-options">
+          <label><input type="radio" name="intent" value="informational" checked /> Informational</label>
+          <label><input type="radio" name="intent" value="commercial" /> Commercial</label>
+          <label><input type="radio" name="intent" value="mixed" /> Mixed</label>
+        </div>
+
+        <label>Writing Style Preference (optional)</label>
+        <div class="inline-options">
+          <label><input type="checkbox" /> Storytelling</label>
+          <label><input type="checkbox" /> Step-by-step</label>
+          <label><input type="checkbox" /> Listicle</label>
+          <label><input type="checkbox" /> Case-study</label>
+        </div>
+
+        <label for="notes">Special Notes (optional)</label>
+        <textarea
+          id="notes"
+          placeholder="Keep the tone gentle, family-focused, and non-medical."
+        ></textarea>
+
+        <button class="btn" disabled>
+          Generate Vyndow SEO Outputs (Hook up later)
+        </button>
+        <div class="small">
+          This is just the layout. The Generate button will be wired to the AI
+          in the next phase.
+        </div>
+      </div>
+
+      <!-- Step 2: Outputs -->
+      <div class="card">
+        <h2>Step 2: SEO Outputs (placeholders)</h2>
+        <p class="small">
+          Below are placeholders for Outputs 1–15. Once wired, the AI will fill these sections.
+        </p>
+
+        <details open>
+          <summary>Outputs 1–7: Titles &amp; Keywords</summary>
+          <pre>(Will show blog title, H1, SEO title, meta description, slug, primary & secondary keywords.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 8: Full Article</summary>
+          <pre>(Will show the full ~1200-word article with internal links.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 9: Internal Links Table</summary>
+          <pre>(Will show a table of anchor text, URL, and purpose.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 10: FAQs</summary>
+          <pre>(Will show 5 FAQs and answers.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 11: Image Alt Texts</summary>
+          <pre>(Will show 3–5 alt text suggestions.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 12: Image Prompts</summary>
+          <pre>(Will show 2 detailed image prompts.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 13: JSON-LD Schema</summary>
+          <pre>(Will show the Article + FAQ JSON-LD schema.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 14: Readability &amp; Risk Metrics</summary>
+          <pre>(Will show reading level, passive voice estimate, plagiarism risk.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 15: Checklist Verification</summary>
+          <pre>(Will show a checklist confirming SEO and compliance.)</pre>
+        </details>
+      </div>
+    </div>
   </body>
 </html>
