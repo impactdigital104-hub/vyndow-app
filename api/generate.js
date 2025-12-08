@@ -1,6 +1,5 @@
 // /api/generate.js
 // Vyndow SEO – Anatta blog generator backend (V1)
-// You don't need to understand this – just paste and save.
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -130,11 +129,28 @@ Generate all 15 outputs as described, and return them as a single JSON object.
     const data = await response.json();
     const raw = data.choices?.[0]?.message?.content || "";
 
+    // 🔧 NEW: strip ```json ... ``` fences if present before JSON.parse
+    let cleaned = raw.trim();
+
+    if (cleaned.startsWith("```")) {
+      // remove first line (``` or ```json)
+      const firstNewline = cleaned.indexOf("\n");
+      if (firstNewline !== -1) {
+        cleaned = cleaned.substring(firstNewline + 1);
+      }
+      // remove trailing ```
+      const lastFence = cleaned.lastIndexOf("```");
+      if (lastFence !== -1) {
+        cleaned = cleaned.substring(0, lastFence);
+      }
+      cleaned = cleaned.trim();
+    }
+
     let outputs;
     try {
-      outputs = JSON.parse(raw);
+      outputs = JSON.parse(cleaned);
     } catch (e) {
-      // If the model didn't return valid JSON, just send back the raw text in output8
+      // Fallback: put raw text in output8 if parsing fails
       outputs = {
         output1: "",
         output2: "",
@@ -150,7 +166,8 @@ Generate all 15 outputs as described, and return them as a single JSON object.
         output12: "",
         output13: "",
         output14: "",
-        output15: "Model did not respond with valid JSON; raw content placed into output8."
+        output15:
+          "Model did not respond with valid JSON; raw content placed into output8."
       };
     }
 
