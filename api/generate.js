@@ -1,24 +1,12 @@
 // /api/generate.js
-// Vyndow SEO – Anatta blog generator backend (V1)
+// Two-step generation architecture for 1500-word article reliability
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(200).json({
       ok: true,
       message:
-        "Vyndow SEO /api/generate is live. Please call this endpoint with POST and a JSON body.",
-      exampleBody: {
-        topic:
-          "How to Support a Loved One Struggling with Drug Dependency",
-        primaryKeyword: "support loved one drug dependency",
-        secondaryKeywords: [
-          "help someone with drug dependency",
-          "family support for addiction"
-        ],
-        wordCount: 1200,
-        seoIntent: "informational",
-        notes: "Keep the tone gentle, family-focused, and non-medical."
-      }
+        "Vyndow SEO /api/generate is live. Use POST with JSON body.",
     });
   }
 
@@ -26,178 +14,167 @@ export default async function handler(req, res) {
   if (!apiKey) {
     return res.status(500).json({
       ok: false,
-      error: "OPENAI_API_KEY is not set in environment variables."
+      error: "OPENAI_API_KEY is missing."
     });
   }
 
-  // Brief coming from the front-end
+  // Receive the brief from frontend
   const brief = req.body || {};
+  const requestedWords = brief.wordCount || 1200;
 
-  // 1) System prompt: tells the model how Vyndow SEO should behave
-const SYSTEM_PROMPT = `
-You are VYNDOW SEO, an advanced professional SEO content engine.
-Your job is to take a blog brief plus a fixed brand profile and generate EXACTLY 15 outputs.
-You MUST respond ONLY with a valid JSON object with keys "output1" through "output15".
-Each value MUST be a string. Do not include any other top-level keys.
+  // ---------------------------------------
+  // STEP 1 — PROMPT FOR THE LONG ARTICLE
+  // ---------------------------------------
+  const LONG_ARTICLE_PROMPT = `
+You are VYNDOW SEO, an expert long-form SEO writer for Anatta.
 
-STRICT JSON RULES (CRITICAL):
-- Respond ONLY with a single JSON object.
-- Do NOT include any text before or after the JSON (no explanations, no notes).
-- Do NOT wrap the JSON in markdown code blocks.
-- Do NOT include comments inside the JSON itself.
-- Do NOT include trailing commas in arrays or objects.
-- Do NOT invent additional keys; only "output1" to "output15" are allowed.
+Write a comprehensive, deeply detailed, 1500-word article in clean HTML (<h2>, <h3>, <p>, <a>).
+Absolutely NO JSON for this step.
 
-Brand profile (Anatta – fixed):
+CRITICAL REQUIREMENTS:
+- Length: At least ${requestedWords * 0.9} words (minimum), target ${requestedWords}–1500 words.
+- Include AT LEAST six <h2> sections.
+- Each <h2> section must have 2–4 rich paragraphs.
+- Use <h3> sub-sections wherever helpful.
+- Embed internal links ONLY as:
+  <a href="URL">anchor text</a>
+- Do NOT be concise. Go deep, give examples, explanations, and insights.
 
-- Luxury, confidential, voluntary, one-on-one residential support for people facing alcohol, drug, or behavioural dependency.
-- Non-medical, spiritual, compassionate, humanistic approach.
-- Target audience: affluent families and high-functioning professionals and business owners in metros like Mumbai/Pune, worried about a loved one or themselves.
-- Tone of voice: warm, empathetic, non-judgmental, clear, hopeful, adult-to-adult, non-clinical.
-- Values: dignity, privacy, confidentiality, compassion, acceptance, personal transformation, spiritual self-awareness.
-- Prohibited: no words like "cure", "100% success", "guaranteed results" or any similar absolute claims; no graphic descriptions; no fear-based or shaming language.
-- Prefer "clients", "individuals", "loved one" instead of "addict" or "patient".
-- Internal links (use when relevant, a few times per article, not stuffed) must always be in proper HTML form:
-  <a href="URL">descriptive anchor text</a>
-  Never show naked URLs inside the article body.
+Brand Tone:
+- Warm, empathetic, non-judgmental, confidential, spiritual.
+- No guaranteed results, no medical claims.
 
-CONTENT & SEO RULES:
+Primary Keyword: ${brief.primaryKeyword || ""}
+Secondary Keywords: ${(brief.secondaryKeywords || []).join(", ")}
 
-- Respect the brief's primary keyword and secondary keywords.
-- Primary keyword MUST appear in: SEO Title, Meta Description, H1, and the first paragraph of the article.
-- Use 3–5 secondary keywords naturally through the article.
-- Maintain readability around Grade 8–9 (short paragraphs, clear subheadings, bullet points where useful).
-- No hallucinated statistics or medical guarantees.
-- Output must be original and consistent with Anatta's tone and prohibitions.
+Topic: ${brief.topic || ""}
 
-ARTICLE LENGTH & STRUCTURE (OUTPUT8):
+Write the full article now. Only return HTML.
+  `;
 
-- The blog brief JSON may include a field "wordCount".
-- If "wordCount" is provided in the brief, Output8 MUST be approximately that many words, within plus or minus 10 percent.
-- If "wordCount" is not provided, Output8 MUST be approximately 1200 words, within plus or minus 10 percent.
-- Do NOT stop the article early; ensure it feels complete and properly concluded.
-- Output8 MUST be structured with clear HTML headings using <h2> and <h3> tags where appropriate.
-- Use descriptive headings that reflect the content of each section.
-- Embed internal links ONLY as valid HTML anchor tags as specified above.
-
-Now, given the blog brief provided in the user message, generate 15 outputs and return them in JSON form:
-
-{
-  "output1": "...",   // Unique Blog Title Recommendation
-  "output2": "...",   // H1
-  "output3": "...",   // SEO Title (<= 60 characters)
-  "output4": "...",   // Meta Description (<= 155 characters)
-  "output5": "...",   // URL Slug suggestion
-  "output6": "...",   // Primary keyword (repeat)
-  "output7": "...",   // Up to 5 secondary keywords (comma separated or bullet formatted)
-  "output8": "...",   // Full article (~wordCount from brief if provided, otherwise ~1200 words, always within ±10%) with internal links embedded as HTML <a> tags and structured with <h2>/<h3> headings
-  "output9": "...",   // Internal links table (Anchor | URL | Purpose)
-  "output10": "...",  // 5 FAQs with answers
-  "output11": "...",  // Image alt text suggestions (3–5)
-  "output12": "...",  // Two detailed image prompts (hero + mid-article)
-  "output13": "...",  // JSON-LD schema (Article + FAQ) as a JSON-LD string
-  "output14": "...",  // Readability & risk metrics summary (plain text)
-  "output15": "..."   // Checklist verification (plain text with checkmarks or bullet points)
-}
-
-Remember: respond ONLY with this JSON object, and fully obey all the constraints above.
-`;
-
-
-  // 2) Build the user content with the brief
-  const userContent = `
-Here is the blog brief for this run:
-
-${JSON.stringify(brief, null, 2)}
-
-Use the fixed Anatta profile and the SYSTEM PROMPT instructions.
-Generate all 15 outputs as described, and return them as a single JSON object.
-`;
-
+  // -----------------------------
+  // STEP 1 — CALL OPENAI
+  // -----------------------------
+  let articleText = "";
   try {
-    // Call OpenAI Chat Completions API
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userContent }
-        ],
-        temperature: 0.7,
-        max_tokens: 12000
-      })
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      return res.status(500).json({
-        ok: false,
-        error: "OpenAI API error",
-        detail: errText
-      });
-    }
-
-    const data = await response.json();
-    const raw = data.choices?.[0]?.message?.content || "";
-
-    // 🔧 NEW: strip ```json ... ``` fences if present before JSON.parse
-    let cleaned = raw.trim();
-
-    if (cleaned.startsWith("```")) {
-      // remove first line (``` or ```json)
-      const firstNewline = cleaned.indexOf("\n");
-      if (firstNewline !== -1) {
-        cleaned = cleaned.substring(firstNewline + 1);
+    const longResponse = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: LONG_ARTICLE_PROMPT }],
+          temperature: 0.7,
+          max_tokens: 12000 // plenty of room for long article
+        }),
       }
-      // remove trailing ```
-      const lastFence = cleaned.lastIndexOf("```");
-      if (lastFence !== -1) {
-        cleaned = cleaned.substring(0, lastFence);
-      }
-      cleaned = cleaned.trim();
-    }
+    );
 
-    let outputs;
-    try {
-      outputs = JSON.parse(cleaned);
-    } catch (e) {
-      // Fallback: put raw text in output8 if parsing fails
-      outputs = {
-        output1: "",
-        output2: "",
-        output3: "",
-        output4: "",
-        output5: "",
-        output6: brief.primaryKeyword || "",
-        output7: (brief.secondaryKeywords || []).join(", "),
-        output8: raw,
-        output9: "",
-        output10: "",
-        output11: "",
-        output12: "",
-        output13: "",
-        output14: "",
-        output15:
-          "Model did not respond with valid JSON; raw content placed into output8."
-      };
-    }
-
-    return res.status(200).json({
-      ok: true,
-      receivedBrief: brief,
-      outputs
-    });
+    const longData = await longResponse.json();
+    articleText =
+      longData.choices?.[0]?.message?.content ||
+      "(Article generation failed.)";
   } catch (err) {
-    console.error(err);
     return res.status(500).json({
       ok: false,
-      error: "Unexpected server error",
-      detail: String(err)
+      error: "Error generating long article.",
+      detail: String(err),
     });
   }
+
+  // ---------------------------------------
+  // STEP 2 — PROMPT FOR SHORT OUTPUTS
+  // ---------------------------------------
+  const SHORT_OUTPUTS_PROMPT = `
+You are VYNDOW SEO. Generate ONLY the remaining 14 SEO outputs for the blog.
+
+Return ONLY a JSON object using EXACT keys: output1 to output7 and output9 to output15.
+DO NOT include output8 (the article is already generated).
+DO NOT include any commentary or text outside the JSON.
+DO NOT include markdown fences.
+
+Here is the blog brief:
+${JSON.stringify(brief, null, 2)}
+
+The long article has already been generated separately.
+Generate the rest of the outputs exactly as described:
+
+1 → Blog Title Recommendation  
+2 → H1  
+3 → SEO Title (<= 60 chars)  
+4 → Meta Description (<= 155 chars)  
+5 → URL Slug  
+6 → Primary Keyword  
+7 → Secondary Keywords (comma-separated)  
+
+9 → Internal links table  
+10 → FAQs  
+11 → Image alt text suggestions  
+12 → Image prompts  
+13 → JSON-LD schema  
+14 → Readability & risk notes  
+15 → Checklist verification
+
+Return strictly valid JSON now.
+  `;
+
+  // -----------------------------
+  // STEP 2 — CALL OPENAI
+  // -----------------------------
+  let outputsPartial = {};
+  try {
+    const shortResponse = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: SHORT_OUTPUTS_PROMPT }],
+          temperature: 0.5,
+          max_tokens: 3000
+        }),
+      }
+    );
+
+    const shortRaw = await shortResponse.json();
+    let text = shortRaw.choices?.[0]?.message?.content || "";
+
+    // Clean markdown fences
+    if (text.startsWith("```")) {
+      const firstNL = text.indexOf("\n");
+      text = text.substring(firstNL + 1);
+      const lastFence = text.lastIndexOf("```");
+      if (lastFence !== -1) text = text.substring(0, lastFence);
+    }
+
+    outputsPartial = JSON.parse(text.trim());
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      error: "Error generating secondary outputs.",
+      detail: String(err),
+    });
+  }
+
+  // ---------------------------------------
+  // STITCH FINAL OUTPUT
+  // ---------------------------------------
+  const finalOutputs = {
+    ...outputsPartial,
+    output8: articleText // insert long article
+  };
+
+  return res.status(200).json({
+    ok: true,
+    receivedBrief: brief,
+    outputs: finalOutputs
+  });
 }
