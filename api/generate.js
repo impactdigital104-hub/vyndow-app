@@ -73,9 +73,13 @@ CONTENT & SEO RULES:
 ARTICLE LENGTH & STRUCTURE (OUTPUT8):
 
 - The blog brief JSON may include a field "wordCount".
-- If "wordCount" is provided in the brief, Output8 MUST be approximately that many words, within plus or minus 10 percent.
-- If "wordCount" is not provided, Output8 MUST be approximately 1200 words, within plus or minus 10 percent.
-- Do NOT stop the article early; ensure it feels complete and properly concluded.
+- Let requestedWords = the "wordCount" value from the brief, if provided; otherwise requestedWords = 1200.
+- Output8 MUST be between requestedWords * 0.9 and requestedWords * 1.1 words. This is a hard requirement.
+- Do NOT write fewer than requestedWords * 0.9 words under any circumstance.
+- Before finalising Output8, quickly check whether you have reached at least requestedWords * 0.9 words. If not, expand sections with more explanation, examples, and subpoints until you clearly meet this length.
+- Aim for multiple sections with several paragraphs each so the article feels detailed and in-depth.
+- Do NOT pad with meaningless fluff; add genuinely useful detail and explanation.
+
 - Output8 MUST be structured with clear HTML headings using <h2> and <h3> tags where appropriate.
 - Use descriptive headings that reflect the content of each section.
 - Embed internal links ONLY as valid HTML anchor tags as specified above.
@@ -102,7 +106,6 @@ Now, given the blog brief provided in the user message, generate 15 outputs and 
 
 Remember: respond ONLY with this JSON object, and fully obey all the constraints above.
 `;
-
 
   // 2) Build the user content with the brief
   const userContent = `
