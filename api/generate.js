@@ -44,23 +44,39 @@ Brand profile (Anatta – fixed):
 
 - Luxury, confidential, voluntary, one-on-one residential support for people facing alcohol, drug, or behavioural dependency.
 - Non-medical, spiritual, compassionate, humanistic approach.
-- Target audience: affluent families and high-functioning professionals and business owners in metros like Mumbai/Pune, worried about a loved one or themselves.
+- Target audience: affluent families and high-functioning professionals (30–55), often in metros like Mumbai/Pune, worried about a loved one or themselves.
 - Tone of voice: warm, empathetic, non-judgmental, clear, hopeful, adult-to-adult, non-clinical.
 - Values: dignity, privacy, confidentiality, compassion, acceptance, personal transformation, spiritual self-awareness.
-- Prohibited: no words like "cure", "100% success", "guaranteed results" or any similar absolute claims; no graphic descriptions; no fear-based or shaming language.
+- Prohibited: no words like "cure", "100% success", "guaranteed recovery"; no diagnostic or medical claims; no graphic descriptions; no fear-based or shaming language.
 - Prefer "clients", "individuals", "loved one" instead of "addict" or "patient".
+- Internal links (use when relevant, a few times per article, not stuffed):
+  - https://anatta.in/alcohol-addiction-treatment
+  - https://anatta.in/drug-addiction-treatment
+  - https://anatta.in/signs-of-addiction
+  - https://anatta.in/alcohol-rehab
+  - https://anatta.in/drug-rehab
+  - https://anatta.in/luxury-rehab-centre-india
+
+Writing and SEO rules:
+
+- Respect the brief's primary keyword and secondary keywords.
+- Primary keyword MUST appear in: SEO Title, Meta Description, H1, first paragraph.
+- Use 3–5 secondary keywords naturally.
+- Maintain readability around Grade 8–9 (short paragraphs, clear subheadings, bullets where useful).
+- No hallucinated statistics or medical guarantees.
+- Output must be original and consistent with Anatta's tone.
 
 Now, given the blog brief provided in the user message, generate 15 outputs and return them in JSON form:
 
 {
   "output1": "...",   // Unique Blog Title Recommendation
   "output2": "...",   // H1
-  "output3": "...",   // SEO Title (<= 60 characters)
-  "output4": "...",   // Meta Description (<= 155 characters)
+  "output3": "...",   // SEO Title (<= 60 chars)
+  "output4": "...",   // Meta Description (<= 155 chars)
   "output5": "...",   // URL Slug suggestion
   "output6": "...",   // Primary keyword (repeat)
   "output7": "...",   // Up to 5 secondary keywords (comma separated or bullet formatted)
-  "output8": "...",   // Full article (~1200 words, ±10%) with some internal links embedded as plain URLs
+  "output8": "...",   // Full article (~wordcount from brief, +/-10%) with internal links embedded
   "output9": "...",   // Internal links table (Anchor | URL | Purpose)
   "output10": "...",  // 5 FAQs with answers
   "output11": "...",  // Image alt text suggestions (3–5)
@@ -70,7 +86,7 @@ Now, given the blog brief provided in the user message, generate 15 outputs and 
   "output15": "..."   // Checklist verification (plain text with checkmarks or bullet points)
 }
 
-Remember: respond ONLY with this JSON object, and fully obey all the constraints above.
+Remember: respond ONLY with this JSON object, nothing else.
 `;
 
   // 2) Build the user content with the brief
@@ -113,7 +129,7 @@ Generate all 15 outputs as described, and return them as a single JSON object.
     const data = await response.json();
     const raw = data.choices?.[0]?.message?.content || "";
 
-    // 🔧 strip ```json ... ``` fences if present before JSON.parse
+    // 🔧 NEW: strip ```json ... ``` fences if present before JSON.parse
     let cleaned = raw.trim();
 
     if (cleaned.startsWith("```")) {
