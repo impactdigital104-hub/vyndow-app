@@ -128,7 +128,8 @@ Generate all 15 outputs as described, and return them as a single JSON object.
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userContent }
         ],
-        temperature: 0.7
+        temperature: 0.7,
+        max_tokens: 12000
       })
     });
 
