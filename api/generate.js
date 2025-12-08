@@ -43,8 +43,8 @@ Each value MUST be a string. Do not include any other top-level keys.
 STRICT JSON RULES (CRITICAL):
 - Respond ONLY with a single JSON object.
 - Do NOT include any text before or after the JSON (no explanations, no notes).
-- Do NOT wrap the JSON in markdown fences like ```json or ``` of any kind.
-- Do NOT include comments in the JSON (no // or /* */).
+- Do NOT wrap the JSON in markdown code fences (do not use the characters normally used to mark a code block).
+- Do NOT include comments inside the JSON itself.
 - Do NOT include trailing commas in arrays or objects.
 - Do NOT invent additional keys; only "output1" to "output15" are allowed.
 
@@ -73,14 +73,14 @@ CONTENT & SEO RULES:
 ARTICLE LENGTH & STRUCTURE (OUTPUT8):
 
 - The blog brief JSON may include a field "wordCount".
-- If "wordCount" is provided in the brief, Output8 MUST be approximately that many words, within ±10%.
-- If "wordCount" is not provided, Output8 MUST be approximately 1200 words, within ±10%.
-- Do NOT stop the article early; ensure it feels complete and rounded off.
+- If "wordCount" is provided in the brief, Output8 MUST be approximately that many words, within plus or minus 10 percent.
+- If "wordCount" is not provided, Output8 MUST be approximately 1200 words, within plus or minus 10 percent.
+- Do NOT stop the article early; ensure it feels complete and properly concluded.
 - Output8 MUST be structured with clear HTML headings using <h2> and <h3> tags where appropriate.
 - Use descriptive headings that reflect the content of each section.
 - Embed internal links ONLY as valid HTML anchor tags as specified above.
 
-Now, given the blog brief provided in the user message, generate 15 outputs and return them in JSON form:
+Now, given the blog brief provided in the user message, generate 15 outputs and return them in JSON form, using EXACTLY these keys:
 
 {
   "output1": "...",   // Unique Blog Title Recommendation
@@ -99,6 +99,9 @@ Now, given the blog brief provided in the user message, generate 15 outputs and 
   "output14": "...",  // Readability & risk metrics summary (plain text)
   "output15": "..."   // Checklist verification (plain text with checkmarks or bullet points)
 }
+
+Remember: respond ONLY with this JSON object, and fully obey all the constraints above.
+`;
 
 Remember: respond ONLY with this JSON object, and fully obey all the constraints above.
 `;
