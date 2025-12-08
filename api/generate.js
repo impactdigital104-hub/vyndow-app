@@ -102,9 +102,6 @@ Now, given the blog brief provided in the user message, generate 15 outputs and 
 
 Remember: respond ONLY with this JSON object, and fully obey all the constraints above.
 `;
-
-
-
   // 2) Build the user content with the brief
   const userContent = `
 Here is the blog brief for this run:
