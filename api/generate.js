@@ -108,6 +108,10 @@ Return ONLY a JSON object using EXACT keys: output1 to output7 and output9 to ou
 DO NOT include output8 (the article is already generated).
 DO NOT include any commentary or text outside the JSON.
 DO NOT include markdown fences.
+CRITICAL FORMAT RULE:
+- Every output value (output1, output2, ..., output7, output9, ..., output15) MUST be a SINGLE STRING.
+- Never return arrays or nested objects for any output. If you need multiple rows/items, put them inside one string separated by line breaks.
+
 
 Here is the blog brief:
 ${JSON.stringify(brief, null, 2)}
@@ -123,7 +127,8 @@ Generate the rest of the outputs exactly as described:
 6 → Primary Keyword  
 7 → Secondary Keywords (comma-separated)  
 
-9 → Internal links table  
+9 → Internal links table as a single multiline string in plain text, e.g.
+"Anchor | URL | Purpose\nSupport program | https://... | To link to services\nApproach | https://... | To explain the method"
 10 → FAQs  
 11 → Image alt text suggestions  
 12 → Image prompts  
