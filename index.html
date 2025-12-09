@@ -366,8 +366,9 @@
         </div>
       </div>
       <div
+<div
   id="errorBox"
-  style="margin-top: 8px; color: #b00020; font-size: 14px; display: none;"
+  style="margin-top: 8px; color: #b00020; font-size: 14px; display: none; white-space: pre-wrap;"
 ></div>
 
       <!-- STEP 2: OUTPUT PLACEHOLDERS -->
@@ -503,18 +504,32 @@ try {
   });
 
   // 🔴 NEW: if backend returns 400 (missing mandatory fields), show message and stop
-  if (!resp.ok) {
+   if (!resp.ok) {
     var errData = await resp.json();
-    var msg =
-      (errData && errData.error) ||
-      "There was a problem with your inputs.";
+
+    // Start with a friendly heading
+    var msg = "Please fill the following fields before generating:\n";
 
     if (
       errData &&
       Array.isArray(errData.details) &&
       errData.details.length > 0
     ) {
-      msg += " " + errData.details.join(" ");
+      // Turn each "A1 (Brand Description) is required." into "• Brand Description"
+      var pretty = errData.details.map(function (d) {
+        // Try to extract the text inside brackets, e.g. (Brand Description)
+        var match = d.match(/\(([^)]+)\)/);
+        if (match && match[1]) {
+          return "• " + match[1];
+        }
+        // If pattern doesn't match, show the whole thing
+        return "• " + d;
+      });
+
+      msg += pretty.join("\n");
+    } else if (errData && errData.error) {
+      // Fallback if no details[] array is present
+      msg = errData.error;
     }
 
     if (errorBox) {
@@ -522,13 +537,14 @@ try {
       errorBox.style.display = "block";
     }
 
-    // Re-enable button text before stopping (optional but nice)
+    // Re-enable button text before stopping
     btn.disabled = false;
     btn.textContent = originalText;
 
     // Stop here: do NOT try to read outputs
     return;
   }
+
 
   // If we reach here, response was OK (200)
   var data = await resp.json();
