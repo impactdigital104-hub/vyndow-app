@@ -114,6 +114,15 @@
         overflow-x: auto;
         font-size: 13px;
       }
+            .article-block {
+        background: #f0f0f0;
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 13px;
+        line-height: 1.5;
+        white-space: normal;
+      }
+
       @media (max-width: 768px) {
         .page {
           padding: 16px 12px 32px;
@@ -500,9 +509,15 @@ if (out1_7) {
     (out.output7 || "");
 }
 
+            // Handle Output 8 (full article) separately so we can render HTML
+            var articleEl = document.getElementById("out8");
+            if (articleEl) {
+              articleEl.innerHTML =
+                out.output8 || "(No data returned for output8)";
+            }
+
             // Map the remaining outputs to their <pre> blocks
             var map = {
-              out8: "output8",
               out9: "output9",
               out10: "output10",
               out11: "output11",
@@ -519,6 +534,7 @@ if (out1_7) {
                   out[map[id]] || "(No data returned for " + map[id] + ")";
               }
             });
+
           } catch (e) {
             console.error(e);
             alert(
