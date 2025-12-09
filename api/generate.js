@@ -17,9 +17,149 @@ export default async function handler(req, res) {
       error: "OPENAI_API_KEY is missing."
     });
   }
+  // Helper: check mandatory fields and apply defaults
+  function normalizeBrief(raw) {
+    const b = raw || {};
+    const errors = [];
 
-  // Receive the brief from frontend
-  const brief = req.body || {};
+    function isBlank(value) {
+      return (
+        value === undefined ||
+        value === null ||
+        (typeof value === "string" && value.trim() === "")
+      );
+    }
+
+    // ---------------------------
+    // MANDATORY FIELDS (no defaults)
+    // ---------------------------
+
+    // A1: Brand Description
+    if (isBlank(b.brandDescription)) {
+      errors.push("A1 (Brand Description) is required.");
+    }
+
+    // A2: Target Audience Persona
+    if (isBlank(b.targetAudience)) {
+      errors.push("A2 (Target Audience Persona) is required.");
+    }
+
+    // B1: Primary Keyword
+    if (isBlank(b.primaryKeyword)) {
+      errors.push("B1 (Primary Keyword) is required.");
+    }
+
+    // C1: Blog Topic / Working Title
+    if (isBlank(b.topic)) {
+      errors.push("C1 (Blog Topic / Working Title) is required.");
+    }
+
+    // C2: Desired Word Count
+    if (isBlank(b.wordCount)) {
+      errors.push("C2 (Desired Word Count) is required.");
+    }
+
+    // ---------------------------
+    // OPTIONAL FIELDS WITH DEFAULTS
+    // ---------------------------
+
+    const normalized = {
+      ...b,
+
+      // A3: Tone of Voice
+      toneOfVoice: !isBlank(b.toneOfVoice)
+        ? b.toneOfVoice
+        : "Conversational, easy-to-read, warm and reassuring.",
+
+      // A4: Brand Values
+      brandValues: !isBlank(b.brandValues)
+        ? b.brandValues
+        : "Empathetic, ethical, helpful, non-judgmental.",
+
+      // A5: Prohibited Words / Claims
+      prohibitedClaims: !isBlank(b.prohibitedClaims)
+        ? b.prohibitedClaims
+        : "Avoid medical diagnoses, promises of cure, self-detox advice, and triggering or sensational language.",
+
+      // B2: Secondary Keywords (ensure array)
+      secondaryKeywords: Array.isArray(b.secondaryKeywords)
+        ? b.secondaryKeywords
+        : [],
+
+      // B3: Long-tail phrases (if you add this later)
+      longTailPhrases: Array.isArray(b.longTailPhrases)
+        ? b.longTailPhrases
+        : [],
+
+      // B4: Existing blogs for internal links (B4)
+      existingBlogs: !isBlank(b.existingBlogs) ? b.existingBlogs : "",
+
+      // B5: Competitor URLs
+      competitorUrls: Array.isArray(b.competitorUrls)
+        ? b.competitorUrls
+        : [],
+
+      // B6: SEO Intent
+      seoIntent: !isBlank(b.seoIntent) ? b.seoIntent : "informational",
+
+      // B7: Geography
+      geography: !isBlank(b.geography)
+        ? b.geography
+        : "Global / not region-specific.",
+
+      // C3: Writing Style
+      stylePreferences: !isBlank(b.stylePreferences)
+        ? b.stylePreferences
+        : "Clear, structured, educational and empathetic, with smooth flow.",
+
+      // C4: Internal linking preference
+      internalLinkingPreference: !isBlank(b.internalLinkingPreference)
+        ? b.internalLinkingPreference
+        : "Add internal links contextually (recommended).",
+
+      // C5: Image preference
+      imagePreference: !isBlank(b.imagePreference)
+        ? b.imagePreference
+        : "Photorealistic, human-centric, warm and hopeful.",
+
+      // C6: Layout preference
+      layoutPreference: !isBlank(b.layoutPreference)
+        ? b.layoutPreference
+        : "Short paragraphs, meaningful sub-headings, and some bullet points for readability.",
+
+      // D1: Industry restrictions
+      industryRestrictions: !isBlank(b.industryRestrictions)
+        ? b.industryRestrictions
+        : "Follow standard ethical guidelines: no medical, legal, or financial advice; no guarantees of outcomes; no unsafe or self-harm recommendations.",
+
+      // D2: Sensitivity notes
+      sensitivityNotes: !isBlank(b.sensitivityNotes)
+        ? b.sensitivityNotes
+        : "",
+
+      // E1–E3: Optional premium inputs
+      contentPillar: !isBlank(b.contentPillar) ? b.contentPillar : "",
+      competitorGaps: !isBlank(b.competitorGaps) ? b.competitorGaps : "",
+      futureTopicHints: !isBlank(b.futureTopicHints)
+        ? b.futureTopicHints
+        : ""
+    };
+
+    return { brief: normalized, errors };
+  }
+  
+   // Receive and normalize the brief from frontend
+  const { brief, errors } = normalizeBrief(req.body);
+
+  // If mandatory fields are missing, stop and send a clear error
+  if (errors.length > 0) {
+    return res.status(400).json({
+      ok: false,
+      error: "Missing or invalid required fields in the Vyndow brief.",
+      details: errors
+    });
+  }
+
   const requestedWords = brief.wordCount || 1200;
 
   // ---------------------------------------
