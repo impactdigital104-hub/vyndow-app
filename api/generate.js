@@ -188,10 +188,11 @@ CRITICAL REQUIREMENTS:
 - Output 8 is the highest-priority task. If there is any trade-off, spend 
   more depth and length here.
 - Use <h3> sub-sections wherever helpful.
-- Embed internal links using standard HTML:
-  <a href="FULL_URL">anchor text</a>
-- When linking to Anatta internal pages, use the actual URLs provided in the brief (e.g. internalLink1, internalLink2, internalLink3).
-- Never write placeholders like "URL" or "<URL1 from brief>" inside href. Always use a real URL string.
+
+- IMPORTANT: Do NOT create any HTML hyperlinks in this article.
+  - Do NOT use <a> tags at all.
+  - Do NOT include any href="" attributes.
+  - If you want to highlight phrases, use <strong> or <em>, but never <a>.
 
 - Do NOT be concise. Go deep, give examples, explanations, and insights.
 
@@ -233,6 +234,14 @@ Write the full article now. Only return HTML.
     articleText =
       longData.choices?.[0]?.message?.content ||
       "(Article generation failed.)";
+    // Extra safety: remove any HTML links if the model still adds them
+if (typeof articleText === "string") {
+  // Remove opening <a ...> tags
+  articleText = articleText.replace(/<a\b[^>]*>/gi, "");
+  // Remove closing </a> tags
+  articleText = articleText.replace(/<\/a>/gi, "");
+}
+
   } catch (err) {
     return res.status(500).json({
       ok: false,
