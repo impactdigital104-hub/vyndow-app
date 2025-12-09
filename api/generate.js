@@ -28,8 +28,10 @@ export default async function handler(req, res) {
   const LONG_ARTICLE_PROMPT = `
 You are VYNDOW SEO, an expert long-form SEO writer for Anatta.
 
-Write a comprehensive, deeply detailed, 1500-word article in clean HTML (<h2>, <h3>, <p>, <a>).
+Write a comprehensive, deeply detailed, 1500-word article in clean HTML (<h1>, <h2>, <h3>, <p>, <a>).
 Absolutely NO JSON for this step.
+Do NOT include any <!DOCTYPE>, <html>, <head>, or <body> tags.
+Start directly with the main content (for example, an <h1> or <h2>), followed by <p> paragraphs, etc.
 
 CRITICAL REQUIREMENTS:
 
