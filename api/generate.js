@@ -127,8 +127,11 @@ Generate the rest of the outputs exactly as described:
 6 → Primary Keyword  
 7 → Secondary Keywords (comma-separated)  
 
-9 → Internal links table as a single multiline string in plain text, e.g.
-"Anchor | URL | Purpose\nSupport program | https://... | To link to services\nApproach | https://... | To explain the method"
+9 → Internal links table as a single multiline string in plain text.
+Use ONE row for EACH internal link provided in the brief (for example, 3 links = 3 rows).
+Always use the ACTUAL URLs from the brief. Do NOT invent "yourwebsite.com".
+Format exactly like:
+"Anchor | URL | Purpose\nAnchor text 1 | <URL1 from brief> | Short purpose\nAnchor text 2 | <URL2 from brief> | Short purpose\nAnchor text 3 | <URL3 from brief> | Short purpose"
 10 → FAQs  
 11 → Image alt text suggestions  
 12 → Image prompts  
