@@ -287,6 +287,7 @@ Write the table in plain text with a header row "Anchor | URL | Purpose" and the
 Anchor | URL | Purpose
 Anchor text 1 | <actual URL from the brief> | Short purpose
 Anchor text 2 | <actual URL from the brief> | Short purpose
+10 → FAQs as one multiline string. Include 4–5 Q/A pairs. Each answer must be at least 50 words. Use the format: "Q1. ...\nA1. ...\n\nQ2. ...\nA2. ..." etc.
 11 → Image alt text suggestions  
 12 → Image prompts  
 13 → JSON-LD schema  
