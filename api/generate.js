@@ -132,11 +132,12 @@ Generate the rest of the outputs exactly as described:
 
 9 → Internal links table as a single multiline string in plain text.
 Use ONE row for EACH internal link provided in the brief (for example, 3 links = 3 rows).
-For the URL column, copy the exact URL text from the brief (e.g. "https://www.example.com/page").
-Never write things like "URL", "<URL1 from brief>" or any placeholder. Always use the real URL from the brief.
-Format exactly like:
-"Anchor | URL | Purpose\nAnchor text 1 | https://example.com/page1 | Short purpose\nAnchor text 2 | https://example.com/page2 | Short purpose\n..."
-10 → FAQs  
+For the URL column, always copy the actual URL from the brief exactly as it appears.
+Never invent domains like "example.com" or placeholders like "URL1 from brief".
+Write the table in plain text with a header row "Anchor | URL | Purpose" and then one row per link, for example:
+Anchor | URL | Purpose
+Anchor text 1 | <actual URL from the brief> | Short purpose
+Anchor text 2 | <actual URL from the brief> | Short purpose
 11 → Image alt text suggestions  
 12 → Image prompts  
 13 → JSON-LD schema  
