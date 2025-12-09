@@ -311,9 +311,29 @@ Each prompt must:
 - Be safe and on-brand for sensitive topics (no graphic imagery, no pills/needles/self-harm; focus on people, environment, emotions, and recovery).
 - Be around 25–45 words.
 
-13 → JSON-LD schema  
+13 → JSON-LD schemas as one multiline string.
+Produce TWO numbered schemas:
+
+1. Blog schema as a JSON-LD object with "@type": "BlogPosting".
+   - Use the topic and brief to fill "headline" and "description".
+   - If possible, infer a sensible "mainEntityOfPage" from the slug or URL info.
+   - Use the brand/organization name from the brief where appropriate (e.g. as author or publisher).
+
+2. FAQ schema as a JSON-LD object with "@type": "FAQPage".
+   - Include 4–5 Question/acceptedAnswer pairs.
+   - Questions and answers must align with the topic, brand description, and target audience.
+   - Answers should be concise but informative (roughly 40–80 words).
+
+Format everything as a single multiline STRING like:
+
+1. { ...BlogPosting JSON-LD... }
+2. { ...FAQPage JSON-LD... }
+
+Do NOT include markdown fences or commentary. The outer response must remain valid JSON where output13 is a single string value containing these two numbered JSON-LD blocks.
+
 14 → Readability & risk notes  
 15 → Checklist verification
+
 
 
 Return strictly valid JSON now.
