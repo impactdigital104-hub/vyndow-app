@@ -268,6 +268,11 @@ CRITICAL FORMAT RULE:
 Here is the blog brief:
 ${JSON.stringify(brief, null, 2)}
 
+// The brief includes an "imagePreference" field that describes the desired
+// visual style (for example: "photorealistic", "flat vector illustration",
+// "isometric", etc.). Always honour this imagePreference when generating
+// output11 (image alt texts) and output12 (image prompts).
+
 The long article has already been generated separately.
 Generate the rest of the outputs exactly as described:
 
@@ -288,11 +293,28 @@ Anchor | URL | Purpose
 Anchor text 1 | <actual URL from the brief> | Short purpose
 Anchor text 2 | <actual URL from the brief> | Short purpose
 10 → FAQs as one multiline string. Include 4–5 Q/A pairs. Each answer must be at least 50 words. Use the format: "Q1. ...\nA1. ...\n\nQ2. ...\nA2. ..." etc.
-11 → Image alt text suggestions  
-12 → Image prompts  
+11 → Image alt text suggestions as one multiline string.
+Each line must start with "1. ", "2. ", "3. ", etc.
+Write 3–5 alt texts, each 1–2 sentences, max ~160 characters.
+Each alt text should:
+- Be descriptive and accessible (good for screen readers).
+- Match the topic, brand description, target audience, and geography.
+- Reflect the imagePreference from the brief (e.g. photorealistic, vector, isometric).
+Do NOT include any HTML tags. Do NOT start with "Image of" or "Picture of"; just describe the scene.
+
+12 → Image prompts as one multiline string.
+Each line must start with "1. ", "2. ", "3. ", etc.
+Write 3–5 rich prompts for an AI image generator.
+Each prompt must:
+- Explicitly mention the imagePreference from the brief (e.g. "photorealistic", "flat vector illustration", "3D isometric").
+- Reflect the brand description, target audience, topic, and geography (if present).
+- Be safe and on-brand for sensitive topics (no graphic imagery, no pills/needles/self-harm; focus on people, environment, emotions, and recovery).
+- Be around 25–45 words.
+
 13 → JSON-LD schema  
 14 → Readability & risk notes  
 15 → Checklist verification
+
 
 Return strictly valid JSON now.
   `;
