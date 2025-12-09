@@ -48,8 +48,11 @@ CRITICAL REQUIREMENTS:
 - Output 8 is the highest-priority task. If there is any trade-off, spend 
   more depth and length here.
 - Use <h3> sub-sections wherever helpful.
-- Embed internal links ONLY as:
-  <a href="URL">anchor text</a>
+- Embed internal links using standard HTML:
+  <a href="FULL_URL">anchor text</a>
+- When linking to Anatta internal pages, use the actual URLs provided in the brief (e.g. internalLink1, internalLink2, internalLink3).
+- Never write placeholders like "URL" or "<URL1 from brief>" inside href. Always use a real URL string.
+
 - Do NOT be concise. Go deep, give examples, explanations, and insights.
 
 Brand Tone:
@@ -129,9 +132,10 @@ Generate the rest of the outputs exactly as described:
 
 9 → Internal links table as a single multiline string in plain text.
 Use ONE row for EACH internal link provided in the brief (for example, 3 links = 3 rows).
-Always use the ACTUAL URLs from the brief. Do NOT invent "yourwebsite.com".
+For the URL column, copy the exact URL text from the brief (e.g. "https://www.example.com/page").
+Never write things like "URL", "<URL1 from brief>" or any placeholder. Always use the real URL from the brief.
 Format exactly like:
-"Anchor | URL | Purpose\nAnchor text 1 | <URL1 from brief> | Short purpose\nAnchor text 2 | <URL2 from brief> | Short purpose\nAnchor text 3 | <URL3 from brief> | Short purpose"
+"Anchor | URL | Purpose\nAnchor text 1 | https://example.com/page1 | Short purpose\nAnchor text 2 | https://example.com/page2 | Short purpose\n..."
 10 → FAQs  
 11 → Image alt text suggestions  
 12 → Image prompts  
