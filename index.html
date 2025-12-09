@@ -365,6 +365,10 @@
           the AI engine in the next phase.
         </div>
       </div>
+      <div
+  id="errorBox"
+  style="margin-top: 8px; color: #b00020; font-size: 14px; display: none;"
+></div>
 
       <!-- STEP 2: OUTPUT PLACEHOLDERS -->
       <div class="card">
@@ -426,11 +430,16 @@
       document.addEventListener("DOMContentLoaded", function () {
         var btn = document.getElementById("generateBtn");
         if (!btn) return;
-
+var errorBox = document.getElementById("errorBox");
         btn.addEventListener("click", async function () {
           btn.disabled = true;
           var originalText = btn.textContent;
           btn.textContent = "Generating...";
+                // Clear any previous error message
+      if (errorBox) {
+        errorBox.style.display = "none";
+        errorBox.textContent = "";
+      }
 
           // Collect a simple brief from a few key fields
           var topic =
