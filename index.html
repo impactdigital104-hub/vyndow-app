@@ -481,31 +481,60 @@ var targetAudience =
               return s.trim();
             })
             .filter(Boolean);
+try {
+  var resp = await fetch("/api/generate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      // SECTION A
+      brandDescription: brandDescription,     // A1
+      targetAudience: targetAudience,         // A2
 
-          try {
-            var resp = await fetch("/api/generate", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-           body: JSON.stringify({
-  // SECTION A
-  brandDescription: brandDescription,     // A1
-  targetAudience: targetAudience,         // A2
+      // SECTION B / C that already existed
+      topic: topic,                           // C1
+      primaryKeyword: primaryKeyword,         // B1
+      secondaryKeywords: secondaryKeywords,   // B2
+      wordCount: Number(wordCount) || 1200,   // C2
+      seoIntent: seoIntent,                   // B6
+      notes: notes                            // (we'll later map this to a proper field if needed)
+    })
+  });
 
-  // SECTION B / C that already existed
-  topic: topic,                           // C1
-  primaryKeyword: primaryKeyword,         // B1
-  secondaryKeywords: secondaryKeywords,   // B2
-  wordCount: Number(wordCount) || 1200,   // C2
-  seoIntent: seoIntent,                   // B6
-  notes: notes                            // (we’ll later map this to a proper field if needed)
-})
-            });
+  // 🔴 NEW: if backend returns 400 (missing mandatory fields), show message and stop
+  if (!resp.ok) {
+    var errData = await resp.json();
+    var msg =
+      (errData && errData.error) ||
+      "There was a problem with your inputs.";
 
-            var data = await resp.json();
-            var out = data.outputs || {};
+    if (
+      errData &&
+      Array.isArray(errData.details) &&
+      errData.details.length > 0
+    ) {
+      msg += " " + errData.details.join(" ");
+    }
 
+    if (errorBox) {
+      errorBox.textContent = msg;
+      errorBox.style.display = "block";
+    }
+
+    // Re-enable button text before stopping (optional but nice)
+    btn.disabled = false;
+    btn.textContent = originalText;
+
+    // Stop here: do NOT try to read outputs
+    return;
+  }
+
+  // If we reach here, response was OK (200)
+  var data = await resp.json();
+  var out = data.outputs || {};
+
+       
             // First block combines outputs 1–7 with real labels
 var out1_7 = document.getElementById("out1_7");
 if (out1_7) {
