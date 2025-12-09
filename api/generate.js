@@ -32,9 +32,19 @@ Write a comprehensive, deeply detailed, 1500-word article in clean HTML (<h2>, <
 Absolutely NO JSON for this step.
 
 CRITICAL REQUIREMENTS:
-- Length: At least ${requestedWords * 0.9} words (minimum), target ${requestedWords}–1500 words.
-- Include AT LEAST six <h2> sections.
-- Each <h2> section must have 2–4 rich paragraphs.
+
+- ABSOLUTE MINIMUM LENGTH: 1300 words.
+- TARGET LENGTH: 1400–1600 words regardless of requestedWords. 
+- Do NOT stop at the minimum. Expand deeply.
+
+- Include AT LEAST EIGHT <h2> sections.
+- Each <h2> section MUST contain 3–4 detailed, well-developed paragraphs.
+
+- Add examples, explanations, scenarios, analogies, optional case-style storytelling, 
+  and elaborated insights to naturally increase length.
+
+- Output 8 is the highest-priority task. If there is any trade-off, spend 
+  more depth and length here.
 - Use <h3> sub-sections wherever helpful.
 - Embed internal links ONLY as:
   <a href="URL">anchor text</a>
