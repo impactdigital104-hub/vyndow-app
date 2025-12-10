@@ -383,19 +383,11 @@ export default function SeoHomePage() {
               value={imagePreference}
               onChange={(e) => setImagePreference(e.target.value)}
             >
-              <option value="generic_web">
-                Generic web/stock illustrations
-              </option>
-              <option value="corporate_finance">
-                Clean corporate / finance
-              </option>
-              <option value="healthcare_clinic">
-                Healthcare / clinic visuals
-              </option>
-              <option value="lifestyle_people">
-                Lifestyle imagery with people
-              </option>
-              <option value="data_charts">Data charts, dashboards, UI-style</option>
+              <option value="photorealistic" selected>Photorealistic (default)</option>
+          <option value="minimal_illustration">Minimal illustration</option>
+          <option value="isometric">Isometric</option>
+          <option value="vector_style">Vector style</option>
+          <option value="abstract">Abstract</option
             </select>
             <div className="small">
               Used for Output 11 &amp; 12 (image ideas and alt-text).
