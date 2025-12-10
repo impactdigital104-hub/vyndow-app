@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Vyndow SEO — Input Blueprint UI (V1)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f7f7f7;
+      }
+      .page {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 24px 16px 48px;
+      }
+      h1 {
+        margin-bottom: 4px;
+      }
+      .sub {
+        color: #555;
+        margin-top: 0;
+        margin-bottom: 16px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #eef;
+        color: #334;
+        font-size: 12px;
+        margin-bottom: 24px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 16px 16px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      }
+      .card h2 {
+        margin-top: 0;
+        font-size: 18px;
+      }
+      .section-title {
+        margin-top: 12px;
+        margin-bottom: 6px;
+        font-size: 15px;
+        font-weight: 700;
+        color: #333;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-top: 10px;
+        margin-bottom: 4px;
+      }
+      input[type="text"],
+      textarea,
+      select {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      textarea {
+        min-height: 80px;
+        resize: vertical;
+      }
+      .small {
+        font-size: 12px;
+        color: #666;
+        margin-top: 2px;
+      }
+      .inline-options {
+        margin-top: 4px;
+        font-size: 14px;
+      }
+      .inline-options label {
+        display: inline-block;
+        font-weight: 400;
+        margin-right: 12px;
+      }
+      .btn {
+        display: inline-block;
+        margin-top: 16px;
+        padding: 10px 18px;
+        background: #2c6bed;
+        color: #fff;
+        border-radius: 4px;
+        border: none;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .btn:disabled {
+        background: #999;
+        cursor: default;
+      }
+      details summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      details {
+        margin-bottom: 10px;
+      }
+      pre {
+        background: #f0f0f0;
+        padding: 8px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-size: 13px;
+      }
+            .article-block {
+        background: #f0f0f0;
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 13px;
+        line-height: 1.5;
+        white-space: normal;
+      }
+
+      @media (max-width: 768px) {
+        .page {
+          padding: 16px 12px 32px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Vyndow SEO — Blog Generator (V1)</h1>
+      <p class="sub">
+        Fill the full Vyndow SEO Input Blueprint. Vyndow will use this to generate 15 SEO outputs.
+      </p>
+      <div class="pill">Input Blueprint: Sections A–E</div>
+
+      <!-- STEP 1: FULL INPUT BLUEPRINT -->
+      <div class="card">
+        <h2>Step 1: Enter Inputs</h2>
+
+        <!-- SECTION A — BRAND & VOICE -->
+        <div class="section-title">A. Brand &amp; Voice Information</div>
+
+        <label for="brandDescription">A1. Brand Description</label>
+        <textarea
+          id="brandDescription"
+          placeholder="Describe what the brand does, who it serves, and what makes it unique."
+        ></textarea>
+
+        <label for="audiencePersona">A2. Target Audience Persona</label>
+        <textarea
+          id="audiencePersona"
+          placeholder="Describe key audience segments, pain points, demographics, etc."
+        ></textarea>
+
+        <label>A3. Tone of Voice (select one or more)</label>
+        <div class="inline-options">
+          <label><input type="checkbox" /> Warm &amp; Empathetic</label>
+          <label><input type="checkbox" /> Expert &amp; Authoritative</label>
+          <label><input type="checkbox" /> Educational &amp; Insightful</label>
+          <label><input type="checkbox" /> Conversational &amp; Easy-to-read</label>
+          <label><input type="checkbox" /> Formal Clinical</label>
+          <label><input type="checkbox" /> Motivational</label>
+          <label><input type="checkbox" /> Brand Custom</label>
+        </div>
+
+        <label for="toneCustom">A3b. Custom Tone Description (if applicable)</label>
+        <input
+          id="toneCustom"
+          type="text"
+          placeholder="Describe any custom tone of voice."
+        />
+
+        <label for="brandValues">A4. Brand Values</label>
+        <input
+          id="brandValues"
+          type="text"
+          placeholder="privacy, dignity, discretion, compassion..."
+        />
+
+        <label for="prohibitedWords">A5. Prohibited Words or Claims</label>
+        <textarea
+          id="prohibitedWords"
+          placeholder="No medical guarantees, no 100% success claims, etc."
+        ></textarea>
+
+        <label for="readingLevel">A6. Reading Level Preference</label>
+        <select id="readingLevel">
+          <option value="grade_6_7">Grade 6–7 (easy reading)</option>
+          <option value="grade_8_9" selected>Grade 8–9 (standard blog)</option>
+          <option value="grade_10_plus">Grade 10+ (more complex)</option>
+        </select>
+
+        <!-- SECTION B — SEO INPUTS -->
+        <div class="section-title">B. SEO Inputs</div>
+
+        <label for="primaryKeyword">B1. Primary Keyword</label>
+        <input
+          id="primaryKeyword"
+          type="text"
+          placeholder="Core keyword for this blog"
+        />
+
+        <label for="secondaryKeywords">B2. Secondary Keywords (up to 10)</label>
+        <textarea
+          id="secondaryKeywords"
+          placeholder="Enter one per line or separated by commas."
+        ></textarea>
+
+        <label for="longTail">B3. Related Long-Tail Phrases (optional)</label>
+        <textarea
+          id="longTail"
+          placeholder="e.g., how to find the best rehab for alcohol addiction"
+        ></textarea>
+
+        <label for="existingBlogs">B4. URLs of Existing Blogs (for internal linking)</label>
+        <textarea
+          id="existingBlogs"
+          placeholder="https://example.com/blog-1 | suggested anchor text&#10;https://example.com/blog-2"
+        ></textarea>
+        <div class="small">One URL per line, optional “| anchor text”.</div>
+
+        <label for="competitorBlogs">B5. Competitor Blog URLs (optional)</label>
+        <textarea
+          id="competitorBlogs"
+          placeholder="https://competitor.com/blog-1&#10;https://competitor.com/blog-2"
+        ></textarea>
+
+        <label for="seoIntent">B6. SEO Intent</label>
+        <select id="seoIntent">
+          <option value="informational" selected>Informational</option>
+          <option value="commercial">Commercial</option>
+          <option value="transactional">Transactional</option>
+          <option value="mixed">Mixed</option>
+        </select>
+
+        <label for="geoTarget">B7. Geographic Target (optional)</label>
+        <input
+          id="geoTarget"
+          type="text"
+          placeholder="e.g., India – primarily Mumbai, Pune"
+        />
+
+        <!-- SECTION C — ARTICLE SPECIFICATION -->
+        <div class="section-title">C. Article Specification Inputs</div>
+
+        <label for="topic">C1. Blog Topic or Working Title</label>
+        <input
+          id="topic"
+          type="text"
+          placeholder="How to Identify the Early Signs of Alcohol Addiction"
+        />
+
+        <label for="wordCount">C2. Desired Word Count</label>
+        <select id="wordCount">
+          <option value="1000">1000 words</option>
+          <option value="1200" selected>1200 words</option>
+          <option value="1500">1500 words</option>
+          <option value="custom">Custom</option>
+        </select>
+
+        <label>C3. Writing Style Preferences</label>
+        <div class="inline-options">
+          <label><input type="checkbox" /> Storytelling</label>
+          <label><input type="checkbox" /> Data-backed</label>
+          <label><input type="checkbox" /> Step-by-step</label>
+          <label><input type="checkbox" /> Listicle</label>
+          <label><input type="checkbox" /> Case-study style</label>
+          <label><input type="checkbox" /> Editorial</label>
+          <label><input type="checkbox" /> Journalistic</label>
+          <label><input type="checkbox" /> Brand Custom</label>
+        </div>
+
+        <label for="internalLinksPref">C4. Internal Linking Preference</label>
+        <select id="internalLinksPref">
+          <option value="auto_recommended" selected>
+            Add automatically (recommended)
+          </option>
+          <option value="minimal">Add minimally</option>
+          <option value="only_relevant">Add only when highly relevant</option>
+          <option value="none">Do not add internal links</option>
+        </select>
+
+        <label for="imagePref">C5. Image Preference (for prompts)</label>
+        <select id="imagePref">
+          <option value="photorealistic" selected>Photorealistic (default)</option>
+          <option value="minimal_illustration">Minimal illustration</option>
+          <option value="isometric">Isometric</option>
+          <option value="vector_style">Vector style</option>
+          <option value="abstract">Abstract</option>
+        </select>
+
+        <label>C6. Article Layout Preference (optional)</label>
+        <div class="inline-options">
+          <label><input type="checkbox" /> Short paragraphs</label>
+          <label><input type="checkbox" /> Heavy bulleting</label>
+          <label><input type="checkbox" /> More narrative</label>
+          <label><input type="checkbox" /> More visual cues</label>
+          <label><input type="checkbox" /> Include real examples</label>
+          <label><input type="checkbox" /> Include metaphors</label>
+          <label><input type="checkbox" /> Include statistics</label>
+        </div>
+        <label for="industry">C7. Industry / Domain</label>
+        <select id="industry">
+          <option value="health_recovery" selected>
+            Rehab, Mental Health &amp; Recovery
+          </option>
+          <option value="healthcare_clinic">
+            Healthcare / Medical Clinic
+          </option>
+          <option value="finance">
+            Finance / Investing / Banking
+          </option>
+          <option value="legal">
+            Legal / Law Firms
+          </option>
+          <option value="education">
+            Education / EdTech / Coaching
+          </option>
+          <option value="ecommerce_fmcg">
+            Ecommerce, FMCG &amp; Retail
+          </option>
+          <option value="travel_hospitality">
+            Travel, Tourism &amp; Hospitality
+          </option>
+          <option value="saas_tech">
+            Technology / B2B SaaS / Software
+          </option>
+          <option value="entertainment_media">
+            Entertainment, Media &amp; Creators
+          </option>
+          <option value="real_estate_home">
+            Real Estate &amp; Home Services
+          </option>
+          <option value="spirituality_wellness">
+            Spirituality, Wellness &amp; Coaching
+          </option>
+          <option value="generic">
+            Generic / Other Business
+          </option>
+        </select>
+
+        <!-- SECTION D — COMPLIANCE & SENSITIVITY -->
+
+        <!-- SECTION D — COMPLIANCE & SENSITIVITY -->
+        <div class="section-title">D. Compliance &amp; Sensitivity Inputs</div>
+
+        <label>D1. Industry Restrictions</label>
+        <div class="inline-options">
+          <label><input type="checkbox" /> No medical claims</label>
+          <label><input type="checkbox" /> No clinical diagnosis</label>
+          <label><input type="checkbox" /> No financial advice</label>
+          <label><input type="checkbox" /> No legal advice</label>
+          <label><input type="checkbox" /> Custom restriction</label>
+        </div>
+
+        <label for="customRestrictions">D1b. Custom Restrictions Description</label>
+        <textarea
+          id="customRestrictions"
+          placeholder="Describe any additional restrictions or forbidden areas."
+        ></textarea>
+
+        <label for="sensitivityNotes">D2. Sensitivity Notes</label>
+        <textarea
+          id="sensitivityNotes"
+          placeholder="Do not suggest self-detox. Avoid triggering descriptions, etc."
+        ></textarea>
+
+        <label for="approvedLanguage">D3. Brand-Approved Language</label>
+        <textarea
+          id="approvedLanguage"
+          placeholder="Use 'clients' instead of 'patients', etc."
+        ></textarea>
+
+        <!-- SECTION E — OPTIONAL PREMIUM INPUTS -->
+        <div class="section-title">E. Optional Premium Inputs</div>
+
+        <label for="contentPillar">E1. Content Pillar or Category</label>
+        <input
+          id="contentPillar"
+          type="text"
+          placeholder="e.g., Alcohol addiction, Family support, Relapse management"
+        />
+
+        <label for="competitorGapNotes">E2. Competitor Gap Notes</label>
+        <textarea
+          id="competitorGapNotes"
+          placeholder="Where are competitors weak? e.g., relapse management content."
+        ></textarea>
+
+        <label>E3. Desired Future Topic Suggestions?</label>
+        <div class="inline-options">
+          <label><input type="radio" name="futureTopics" value="yes" checked /> Yes</label>
+          <label><input type="radio" name="futureTopics" value="no" /> No</label>
+        </div>
+
+<button class="btn" id="generateBtn">
+  Generate Vyndow SEO Outputs
+        </button>
+        <div class="small">
+          This page currently captures all inputs. The Generate button will be wired to
+          the AI engine in the next phase.
+        </div>
+      </div>
+      <div
+<div
+  id="errorBox"
+  style="margin-top: 8px; color: #b00020; font-size: 14px; display: none; white-space: pre-wrap;"
+></div>
+
+      <!-- STEP 2: OUTPUT PLACEHOLDERS -->
+      <div class="card">
+        <h2>Step 2: SEO Outputs</h2>
+        <p class="small">
+          Once connected, the AI will fill these sections with Outputs 1–15.
+        </p>
+
+        <details open>
+          <summary>Outputs 1–7: Titles &amp; Keywords</summary>
+          <pre id="out1_7">(Will show blog title, H1, SEO title, meta description, slug, primary &amp; secondary keywords.)</pre>
+        </details>
+
+              <details>
+          <summary>Output 8: Full Article</summary>
+          <div id="out8" class="article-block">
+            (Will show the full article with internal links.)
+          </div>
+        </details>
+
+
+        <details>
+          <summary>Output 9: Internal Links Table</summary>
+          <pre id="out9">(Will show a table of anchor text, URL, and purpose.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 10: FAQs</summary>
+          <pre id="out10">(Will show 5 FAQs and answers.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 11: Image Alt Texts</summary>
+          <pre id="out11">(Will show 3–5 alt text suggestions.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 12: Image Prompts</summary>
+          <pre id="out12">(Will show 2 detailed image prompts.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 13: JSON-LD Schema</summary>
+          <pre id="out13">(Will show the Article + FAQ JSON-LD schema.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 14: Readability &amp; Risk Metrics</summary>
+          <pre id="out14">(Will show reading level, passive voice estimate, plagiarism risk.)</pre>
+        </details>
+
+        <details>
+          <summary>Output 15: Checklist Verification</summary>
+          <pre id="out15">(Will show a checklist confirming SEO and compliance.)</pre>
+        </details>
+      </div>
+    </div>
+        <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var btn = document.getElementById("generateBtn");
+        if (!btn) return;
+var errorBox = document.getElementById("errorBox");
+        btn.addEventListener("click", async function () {
+          btn.disabled = true;
+          var originalText = btn.textContent;
+          btn.textContent = "Generating...";
+                // Clear any previous error message
+      if (errorBox) {
+        errorBox.style.display = "none";
+        errorBox.textContent = "";
+      }
+
+          // Collect a simple brief from a few key fields
+          var topic =
+            (document.getElementById("topic") &&
+              document.getElementById("topic").value) ||
+            "";
+          var primaryKeyword =
+            (document.getElementById("primaryKeyword") &&
+              document.getElementById("primaryKeyword").value) ||
+            "";
+          var secondaryRaw =
+            (document.getElementById("secondaryKeywords") &&
+              document.getElementById("secondaryKeywords").value) ||
+            "";
+          var wordCountSelect = document.getElementById("wordCount");
+          var wordCount =
+            (wordCountSelect && wordCountSelect.value) || "1200";
+          var seoIntentSelect = document.getElementById("seoIntent");
+          var seoIntent =
+            (seoIntentSelect && seoIntentSelect.value) ||
+            "informational";
+          var notes =
+            (document.getElementById("notes") &&
+              document.getElementById("notes").value) ||
+            "";
+var brandDescription =
+  (document.getElementById("brandDescription") &&
+    document.getElementById("brandDescription").value) ||
+  "";
+
+var targetAudience =
+  (document.getElementById("audiencePersona") &&
+    document.getElementById("audiencePersona").value) ||
+  "";
+       var imagePrefSelect = document.getElementById("imagePref");
+var imagePreference =
+  (imagePrefSelect && imagePrefSelect.value) || "photorealistic";
+
+          var industrySelect = document.getElementById("industry");
+var industry =
+  (industrySelect && industrySelect.value) || "health_recovery";
+   
+var existingBlogs =
+  (document.getElementById("existingBlogs") &&
+    document.getElementById("existingBlogs").value) ||
+  "";
+
+          var secondaryKeywords = secondaryRaw
+            .split(/[\n,]/)
+            .map(function (s) {
+              return s.trim();
+            })
+            .filter(Boolean);
+try {
+  var resp = await fetch("/api/generate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+ body: JSON.stringify({
+  // SECTION A
+  brandDescription: brandDescription,     // A1
+  targetAudience: targetAudience,         // A2
+
+  // SECTION B / C
+  topic: topic,                           // C1
+  primaryKeyword: primaryKeyword,         // B1
+  secondaryKeywords: secondaryKeywords,   // B2
+  wordCount: Number(wordCount) || 1200,   // C2
+  seoIntent: seoIntent,                   // B6
+  notes: notes,                           // misc notes
+
+  // B4 – Existing internal blog URLs (one per line)
+  existingBlogs: existingBlogs,
+
+  // C5 – Image style preference
+  imagePreference: imagePreference,
+
+   // C7 – Industry / Domain
+      industry: industry
+})
+
+  });
+
+  // 🔴 NEW: if backend returns 400 (missing mandatory fields), show message and stop
+   if (!resp.ok) {
+    var errData = await resp.json();
+
+    // Start with a friendly heading
+    var msg = "Please fill the following fields before generating:\n";
+
+    if (
+      errData &&
+      Array.isArray(errData.details) &&
+      errData.details.length > 0
+    ) {
+      // Turn each "A1 (Brand Description) is required." into "• Brand Description"
+      var pretty = errData.details.map(function (d) {
+        // Try to extract the text inside brackets, e.g. (Brand Description)
+        var match = d.match(/\(([^)]+)\)/);
+        if (match && match[1]) {
+          return "• " + match[1];
+        }
+        // If pattern doesn't match, show the whole thing
+        return "• " + d;
+      });
+
+      msg += pretty.join("\n");
+    } else if (errData && errData.error) {
+      // Fallback if no details[] array is present
+      msg = errData.error;
+    }
+
+    if (errorBox) {
+      errorBox.textContent = msg;
+      errorBox.style.display = "block";
+    }
+
+    // Re-enable button text before stopping
+    btn.disabled = false;
+    btn.textContent = originalText;
+
+    // Stop here: do NOT try to read outputs
+    return;
+  }
+
+
+  // If we reach here, response was OK (200)
+  var data = await resp.json();
+  var out = data.outputs || {};
+
+       
+            // First block combines outputs 1–7 with real labels
+var out1_7 = document.getElementById("out1_7");
+if (out1_7) {
+  out1_7.textContent =
+    "Blog Title Recommendation: " +
+    (out.output1 || "") +
+    "\n\n" +
+    "H1: " +
+    (out.output2 || "") +
+    "\n\n" +
+    "SEO Title: " +
+    (out.output3 || "") +
+    "\n\n" +
+    "Meta Description: " +
+    (out.output4 || "") +
+    "\n\n" +
+    "URL Slug: " +
+    (out.output5 || "") +
+    "\n\n" +
+    "Primary Keyword: " +
+    (out.output6 || "") +
+    "\n\n" +
+    "Secondary Keywords: " +
+    (out.output7 || "");
+}
+
+            // Handle Output 8 (full article) separately so we can render HTML
+            var articleEl = document.getElementById("out8");
+            if (articleEl) {
+              articleEl.innerHTML =
+                out.output8 || "(No data returned for output8)";
+            }
+
+            // Map the remaining outputs to their <pre> blocks
+            var map = {
+              out9: "output9",
+              out10: "output10",
+              out11: "output11",
+              out12: "output12",
+              out13: "output13",
+              out14: "output14",
+              out15: "output15"
+            };
+
+            Object.keys(map).forEach(function (id) {
+              var el = document.getElementById(id);
+              if (el) {
+                el.textContent =
+                  out[map[id]] || "(No data returned for " + map[id] + ")";
+              }
+            });
+
+          } catch (e) {
+            console.error(e);
+            alert(
+              "Something went wrong calling /api/generate. Please try again."
+            );
+          } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
