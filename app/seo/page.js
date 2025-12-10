@@ -12,12 +12,11 @@ export default function SeoHomePage() {
 
   // Optional / later fields (stubbed for now)
   const [secondaryKeywordsRaw, setSecondaryKeywordsRaw] = useState("");
-  const [seoIntent, setSeoIntent] = useState("blog");
+  const [seoIntent, setSeoIntent] = useState("informational");
   const [notes, setNotes] = useState("");
   const [existingBlogs, setExistingBlogs] = useState("");
   const [imagePreference, setImagePreference] = useState("");
-  const [industry, setIndustry] = useState("saas_tech");
-
+  const [industry, setIndustry] = useState("health_recovery");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [outputs, setOutputs] = useState(null);
@@ -175,16 +174,17 @@ export default function SeoHomePage() {
             />
           </div>
 
-          <div className="field-group">
+                   <div className="field-group">
             <label htmlFor="seoIntent">B6. SEO Intent</label>
             <select
               id="seoIntent"
               value={seoIntent}
               onChange={(e) => setSeoIntent(e.target.value)}
             >
-              <option value="blog">In-depth blog article</option>
-              <option value="landing">Landing / sales page</option>
-              <option value="support">Support / help article</option>
+              <option value="informational">Informational</option>
+              <option value="commercial">Commercial</option>
+              <option value="transactional">Transactional</option>
+              <option value="mixed">Mixed</option>
             </select>
           </div>
 
@@ -200,7 +200,45 @@ export default function SeoHomePage() {
               onChange={(e) => setTopic(e.target.value)}
             />
           </div>
+          <div className="field-group">
+            <label htmlFor="industry">C7. Industry / Domain</label>
+            <select
+              id="industry"
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+            >
+              <option value="health_recovery">
+                Rehab, Mental Health &amp; Recovery
+              </option>
+              <option value="healthcare_clinic">
+                Healthcare / Medical Clinic
+              </option>
+              <option value="finance">Finance / Investing / Banking</option>
+              <option value="legal">Legal / Law Firms</option>
+              <option value="education">Education / EdTech / Coaching</option>
+              <option value="ecommerce_fmcg">
+                Ecommerce, FMCG &amp; Retail
+              </option>
+              <option value="travel_hospitality">
+                Travel, Tourism &amp; Hospitality
+              </option>
+              <option value="saas_tech">
+                Technology / B2B SaaS / Software
+              </option>
+              <option value="entertainment_media">
+                Entertainment, Media &amp; Creators
+              </option>
+              <option value="real_estate_home">
+                Real Estate &amp; Home Services
+              </option>
+              <option value="spirituality_wellness">
+                Spirituality, Wellness &amp; Coaching
+              </option>
+              <option value="generic">Generic / Other Business</option>
+            </select>
+          </div>
 
+                
           <div className="field-group">
             <label htmlFor="wordCount">C2. Desired Word Count</label>
             <input
