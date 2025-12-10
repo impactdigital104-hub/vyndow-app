@@ -1,0 +1,224 @@
+/* ---- Base reset & typography --------------------------------- */
+
+:root {
+  --page-bg: #f3f4f6;
+  --card-bg: #ffffff;
+  --border-subtle: #e5e7eb;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --accent: #111827;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: var(--page-bg);
+  color: var(--text-main);
+}
+
+/* ---- Generic page shell (used by / and /seo) ------------------ */
+
+main.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* Headings & badges */
+
+h1 {
+  font-size: 2.25rem;
+  line-height: 1.2;
+  margin: 0 0 8px;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin: 0 0 12px;
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+
+.sub {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  max-width: 720px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: #eef2ff;
+  color: #4f46e5;
+  margin-bottom: 10px;
+}
+
+/* ---- SEO page layout ----------------------------------------- */
+
+.main-layout {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.1fr);
+  gap: 32px;
+  align-items: flex-start;
+}
+
+/* Stack on smaller screens */
+@media (max-width: 900px) {
+  .main-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.left,
+.right {
+  min-width: 0;
+}
+
+/* Section labels */
+
+.section-label {
+  margin-top: 18px;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ---- Form controls ------------------------------------------- */
+
+.field-group {
+  margin-bottom: 14px;
+}
+
+.field-group label,
+label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.field-group input[type="text"],
+.field-group input[type="number"],
+.field-group textarea,
+.field-group select,
+input[type="text"],
+input[type="number"],
+textarea,
+select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  background: #f9fafb;
+}
+
+.field-group textarea {
+  min-height: 90px;
+}
+
+.small {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.inline-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 0.85rem;
+}
+
+.inline-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 400;
+}
+
+/* ---- Outputs pane -------------------------------------------- */
+
+.right h2 {
+  margin-bottom: 10px;
+}
+
+.output-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.output-body {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.outputs-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.05fr);
+  gap: 16px;
+}
+
+/* Stack output columns on smaller screens */
+@media (max-width: 1100px) {
+  .outputs-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.outputs-column {
+  min-width: 0;
+}
+
+.article-block {
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.article-block p {
+  margin: 0 0 0.8em;
+}
+
+/* ---- Error box ------------------------------------------------ */
+
+.error-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
