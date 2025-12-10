@@ -8,7 +8,7 @@ export default function SeoHomePage() {
   const [targetAudience, setTargetAudience] = useState("");
 
   // A3 — Tone of Voice (multi-select)
-  const [toneOfVoice, setToneOfVoice] = useState<string[]>([]);
+  const [toneOfVoice, setToneOfVoice] = useState([]);
 
   // A6 — Reading Level (Flesch/Kincaid-style)
   const [readingLevel, setReadingLevel] = useState("standard_8_9");
@@ -31,8 +31,9 @@ export default function SeoHomePage() {
   const [wordCount, setWordCount] = useState("1200");
 
   // C4 — Internal Linking Preference
-  const [internalLinkingPreference, setInternalLinkingPreference] =
-    useState("auto_recommended");
+  const [internalLinkingPreference, setInternalLinkingPreference] = useState(
+    "auto_recommended"
+  );
 
   // C5 — Image Style Preference
   const [imagePreference, setImagePreference] = useState("generic_web");
@@ -46,23 +47,21 @@ export default function SeoHomePage() {
   // UI State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [outputs, setOutputs] = useState<any>(null);
+  const [outputs, setOutputs] = useState(null);
 
-  function toggleTone(value: string) {
+  function toggleTone(value) {
     setToneOfVoice((prev) =>
-      prev.includes(value)
-        ? prev.filter((v) => v !== value)
-        : [...prev, value]
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
     );
   }
 
-  async function handleGenerate(e: React.MouseEvent<HTMLButtonElement>) {
+  async function handleGenerate(e) {
     e.preventDefault();
     setErrorMsg("");
     setOutputs(null);
 
     // Front-end required field checks
-    const missing: string[] = [];
+    const missing = [];
     if (!brandDescription.trim()) missing.push("A1. Brand Description");
     if (!targetAudience.trim()) missing.push("A2. Target Audience Persona");
     if (toneOfVoice.length === 0) missing.push("A3. Tone of Voice");
@@ -72,7 +71,8 @@ export default function SeoHomePage() {
     if (!wordCount.trim()) missing.push("C2. Desired Word Count");
     if (!existingBlogs.trim()) missing.push("B4. Internal URLs for linking");
     if (!geoTarget.trim()) missing.push("B7. Geo Target");
-    if (!internalLinkingPreference) missing.push("C4. Internal Linking Preference");
+    if (!internalLinkingPreference)
+      missing.push("C4. Internal Linking Preference");
     if (!imagePreference) missing.push("C5. Image Style Preference");
     if (!industry) missing.push("C7. Industry / Domain");
 
@@ -131,7 +131,7 @@ export default function SeoHomePage() {
             Array.isArray(errData.details) &&
             errData.details.length > 0
           ) {
-            const pretty = errData.details.map((d: string) => {
+            const pretty = errData.details.map((d) => {
               const match = d.match(/\(([^)]+)\)/);
               if (match && match[1]) {
                 return "• " + match[1];
@@ -144,7 +144,7 @@ export default function SeoHomePage() {
           } else if (errData && errData.error) {
             msg = errData.error;
           }
-        } catch {
+        } catch (err) {
           // ignore JSON parse failures
         }
         setErrorMsg(msg);
@@ -260,9 +260,7 @@ export default function SeoHomePage() {
               <option value="advanced_10_12">
                 Grade 10–12 (More advanced readers)
               </option>
-              <option value="expert">
-                Expert / Professional audience
-              </option>
+              <option value="expert">Expert / Professional audience</option>
             </select>
           </div>
 
@@ -379,9 +377,7 @@ export default function SeoHomePage() {
           </div>
 
           <div className="field-group">
-            <label htmlFor="imagePreference">
-              C5. Image Style Preference
-            </label>
+            <label htmlFor="imagePreference">C5. Image Style Preference</label>
             <select
               id="imagePreference"
               value={imagePreference}
@@ -399,9 +395,7 @@ export default function SeoHomePage() {
               <option value="lifestyle_people">
                 Lifestyle imagery with people
               </option>
-              <option value="data_charts">
-                Data charts, dashboards, UI-style
-              </option>
+              <option value="data_charts">Data charts, dashboards, UI-style</option>
             </select>
             <div className="small">
               Used for Output 11 &amp; 12 (image ideas and alt-text).
@@ -423,9 +417,7 @@ export default function SeoHomePage() {
               </option>
               <option value="finance">Finance / Investing / Banking</option>
               <option value="legal">Legal / Law Firms</option>
-              <option value="education">
-                Education / EdTech / Coaching
-              </option>
+              <option value="education">Education / EdTech / Coaching</option>
               <option value="ecommerce_fmcg">
                 Ecommerce, FMCG &amp; Retail
               </option>
