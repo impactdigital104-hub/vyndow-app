@@ -59,12 +59,45 @@ export default async function handler(req, res) {
       errors.push("C2 (Desired Word Count) is required.");
     }
 
-    // ---------------------------
+     // ---------------------------
     // OPTIONAL FIELDS WITH DEFAULTS
     // ---------------------------
 
+    // Industry mode: choose how strict / what kind of guardrails to apply
+    const industry = !isBlank(b.industry)
+      ? b.industry
+      : "health_recovery";
+
+    const defaultIndustryRestrictions = !isBlank(b.industryRestrictions)
+      ? b.industryRestrictions
+      : industry === "health_recovery"
+      ? "Provide trauma-informed, recovery-focused, non-judgmental educational content. Avoid medical diagnoses or prescriptions, avoid promising outcomes, avoid instructions for self-detox, and avoid triggering or sensational language."
+      : industry === "healthcare_clinic"
+      ? "Provide general educational medical information. Do not diagnose individual patients, prescribe specific treatments, or claim guaranteed outcomes."
+      : industry === "finance"
+      ? "Provide general educational financial information. Do not give personalised investment advice, guarantee returns, or encourage high-risk speculation."
+      : industry === "legal"
+      ? "Provide general educational legal information. Do not give personalised legal advice or encourage illegal activity."
+      : industry === "education"
+      ? "Provide supportive, educational information suitable for learners. Avoid harmful, abusive, or discriminatory content and avoid unrealistic promises of outcomes."
+      : industry === "ecommerce_fmcg"
+      ? "Provide honest, clear product information. Avoid misleading claims, illegal content, or unsafe usage instructions."
+      : industry === "travel_hospitality"
+      ? "Provide inspiring but accurate information about travel and stays. Avoid unsafe travel advice or misleading promises."
+      : industry === "saas_tech"
+      ? "Provide accurate, benefit-focused information about software and technology. Avoid misleading performance or ROI guarantees."
+      : industry === "entertainment_media"
+      ? "Provide engaging descriptions of content and creators. Avoid hate, harassment, explicit adult content, or incitement to violence."
+      : industry === "real_estate_home"
+      ? "Provide clear, accurate information about properties and home services. Avoid misleading investment promises or false claims."
+      : industry === "spirituality_wellness"
+      ? "Provide supportive, non-coercive spiritual or wellness information. Avoid medical claims, miracle cures, or shaming language."
+      : "Follow standard ethical guidelines: avoid harmful, illegal, or unsafe advice. Do not encourage self-harm, hate, or violence.";
+
     const normalized = {
       ...b,
+      industry,
+
 
       // A3: Tone of Voice
       toneOfVoice: !isBlank(b.toneOfVoice)
@@ -76,10 +109,11 @@ export default async function handler(req, res) {
         ? b.brandValues
         : "Empathetic, ethical, helpful, non-judgmental.",
 
-      // A5: Prohibited Words / Claims
+            // A5: Prohibited Words / Claims
       prohibitedClaims: !isBlank(b.prohibitedClaims)
         ? b.prohibitedClaims
-        : "Avoid medical diagnoses, promises of cure, self-detox advice, and triggering or sensational language.",
+        : "Avoid exaggerated claims, absolute guarantees, unsafe advice, or content that sounds like personalised medical, legal, or financial guidance.",
+
 
       // B2: Secondary Keywords (ensure array)
       secondaryKeywords: Array.isArray(b.secondaryKeywords)
@@ -127,10 +161,9 @@ export default async function handler(req, res) {
         ? b.layoutPreference
         : "Short paragraphs, meaningful sub-headings, and some bullet points for readability.",
 
-      // D1: Industry restrictions
-      industryRestrictions: !isBlank(b.industryRestrictions)
-        ? b.industryRestrictions
-        : "Follow standard ethical guidelines: no medical, legal, or financial advice; no guarantees of outcomes; no unsafe or self-harm recommendations.",
+            // D1: Industry restrictions
+      industryRestrictions: defaultIndustryRestrictions,
+
 
       // D2: Sensitivity notes
       sensitivityNotes: !isBlank(b.sensitivityNotes)
