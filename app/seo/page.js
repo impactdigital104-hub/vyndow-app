@@ -25,3 +25,4 @@ export default function SeoHomePage() {
     </main>
   );
 }
+// Minor edit to trigger new Vercel deployment
