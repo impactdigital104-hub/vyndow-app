@@ -304,6 +304,47 @@
           <label><input type="checkbox" /> Include metaphors</label>
           <label><input type="checkbox" /> Include statistics</label>
         </div>
+        <label for="industry">C7. Industry / Domain</label>
+        <select id="industry">
+          <option value="health_recovery" selected>
+            Rehab, Mental Health &amp; Recovery
+          </option>
+          <option value="healthcare_clinic">
+            Healthcare / Medical Clinic
+          </option>
+          <option value="finance">
+            Finance / Investing / Banking
+          </option>
+          <option value="legal">
+            Legal / Law Firms
+          </option>
+          <option value="education">
+            Education / EdTech / Coaching
+          </option>
+          <option value="ecommerce_fmcg">
+            Ecommerce, FMCG &amp; Retail
+          </option>
+          <option value="travel_hospitality">
+            Travel, Tourism &amp; Hospitality
+          </option>
+          <option value="saas_tech">
+            Technology / B2B SaaS / Software
+          </option>
+          <option value="entertainment_media">
+            Entertainment, Media &amp; Creators
+          </option>
+          <option value="real_estate_home">
+            Real Estate &amp; Home Services
+          </option>
+          <option value="spirituality_wellness">
+            Spirituality, Wellness &amp; Coaching
+          </option>
+          <option value="generic">
+            Generic / Other Business
+          </option>
+        </select>
+
+        <!-- SECTION D — COMPLIANCE & SENSITIVITY -->
 
         <!-- SECTION D — COMPLIANCE & SENSITIVITY -->
         <div class="section-title">D. Compliance &amp; Sensitivity Inputs</div>
@@ -478,6 +519,10 @@ var targetAudience =
        var imagePrefSelect = document.getElementById("imagePref");
 var imagePreference =
   (imagePrefSelect && imagePrefSelect.value) || "photorealistic";
+
+          var industrySelect = document.getElementById("industry");
+var industry =
+  (industrySelect && industrySelect.value) || "health_recovery";
    
 var existingBlogs =
   (document.getElementById("existingBlogs") &&
@@ -513,7 +558,10 @@ try {
   existingBlogs: existingBlogs,
 
   // C5 – Image style preference
-  imagePreference: imagePreference
+  imagePreference: imagePreference,
+
+   // C7 – Industry / Domain
+      industry: industry
 })
 
   });
