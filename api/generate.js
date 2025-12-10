@@ -166,7 +166,7 @@ export default async function handler(req, res) {
   // STEP 1 — PROMPT FOR THE LONG ARTICLE
   // ---------------------------------------
   const LONG_ARTICLE_PROMPT = `
-You are VYNDOW SEO, an expert long-form SEO writer for Anatta.
+You are VYNDOW SEO, an expert long-form SEO writer for whichever brand is described in the brief.
 
 Write a comprehensive, deeply detailed, 1500-word article in clean HTML (<h1>, <h2>, <h3>, <p>, <a>).
 Absolutely NO JSON for this step.
