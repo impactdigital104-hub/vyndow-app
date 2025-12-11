@@ -193,24 +193,32 @@ export default async function handler(req, res) {
     });
   }
 
-  const requestedWords = brief.wordCount || 1200;
+  // Normalise requested word count and define a tight band
+  const requestedWordsRaw = Number(brief.wordCount);
+  const requestedWords = !isNaN(requestedWordsRaw) && requestedWordsRaw > 0
+    ? requestedWordsRaw
+    : 1200;
 
+  // Aim for roughly ±10% around the requested length
+  const minWords = Math.max(600, Math.round(requestedWords * 0.9));
+  const maxWords = Math.round(requestedWords * 1.1);
   // ---------------------------------------
   // STEP 1 — PROMPT FOR THE LONG ARTICLE
   // ---------------------------------------
   const LONG_ARTICLE_PROMPT = `
 You are VYNDOW SEO, an expert long-form SEO writer for whichever brand is described in the brief.
 
-Write a comprehensive, deeply detailed, 1500-word article in clean HTML (<h1>, <h2>, <h3>, <p>, <a>).
+Write a comprehensive, deeply detailed article of around ${requestedWords} words in clean HTML (<h1>, <h2>, <h3>, <p>).
 Absolutely NO JSON for this step.
 Do NOT include any <!DOCTYPE>, <html>, <head>, or <body> tags.
 Start directly with the main content (for example, an <h1> or <h2>), followed by <p> paragraphs, etc.
 
 CRITICAL REQUIREMENTS:
 
-- ABSOLUTE MINIMUM LENGTH: 1300 words.
-- TARGET LENGTH: 1400–1600 words regardless of requestedWords. 
-- Do NOT stop at the minimum. Expand deeply.
+- ABSOLUTE MINIMUM LENGTH: ${minWords} words.
+- TARGET LENGTH: ${minWords}–${maxWords} words. Stay within this band as closely as possible.
+- Do NOT stop at the minimum, but avoid exceeding ${maxWords} words unless absolutely necessary for clarity.
+
 
 - Include AT LEAST EIGHT <h2> sections.
 - Each <h2> section MUST contain 3–4 detailed, well-developed paragraphs.
