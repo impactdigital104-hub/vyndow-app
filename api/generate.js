@@ -421,13 +421,61 @@ Return strictly valid JSON now.
       detail: String(err),
     });
   }
+  // ---------------------------------------
+  // OPTIONAL: apply internal links (Output 9) into the article HTML
+  // ---------------------------------------
+  function applyInternalLinksToArticle(rawHtml, internalLinksTable) {
+    if (!rawHtml || typeof rawHtml !== "string") return rawHtml;
+    if (!internalLinksTable || typeof internalLinksTable !== "string") return rawHtml;
+
+    // Expect internalLinksTable as plain text:
+    // Anchor | URL | Purpose
+    // Anchor text 1 | https://... | Short purpose
+    const lines = internalLinksTable
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    if (lines.length < 2) {
+      // nothing beyond header
+      return rawHtml;
+    }
+
+    let htmlWithLinks = rawHtml;
+
+    // Assume first line is header row: "Anchor | URL | Purpose"
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split("|").map((p) => p.trim());
+      if (parts.length < 2) continue;
+
+      const anchor = parts[0];
+      const url = parts[1];
+
+      if (!anchor || !url) continue;
+
+      // Only proceed if the article actually contains this anchor phrase
+      if (htmlWithLinks.includes(anchor)) {
+        const linkedAnchor = `<a href="${url}" target="_blank" rel="noopener noreferrer">${anchor}</a>`;
+        // replace ONLY the first occurrence to avoid over-linking
+        htmlWithLinks = htmlWithLinks.replace(anchor, linkedAnchor);
+      }
+    }
+
+    return htmlWithLinks;
+  }
+
+  // Build article with internal links applied (if Output 9 is present)
+  const articleWithLinks = applyInternalLinksToArticle(
+    articleText,
+    outputsPartial && outputsPartial.output9
+  );
 
   // ---------------------------------------
   // STITCH FINAL OUTPUT
   // ---------------------------------------
   const finalOutputs = {
     ...outputsPartial,
-    output8: articleText // insert long article
+    output8: articleWithLinks // insert long article with internal links applied
   };
 
   return res.status(200).json({
