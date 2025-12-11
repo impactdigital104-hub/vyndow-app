@@ -501,13 +501,14 @@ export default function SeoHomePage() {
         )}
 
         {outputs && (
-          <div className="outputs-summary-grid">
-            <div className="output-card">
-              <h3>Core SEO Elements (Outputs 1–7)</h3>
-              <pre
-                className="output-body"
-                style={{ whiteSpace: "pre-wrap" }}
-              >{`Blog Title Recommendation: ${outputs.output1 || ""}
+ <div className="outputs-summary-grid">
+  {/* LEFT CARD: 1–7 + 9–11 */}
+  <div className="output-card">
+    <h3>Core SEO &amp; Content Essentials (1–7, 9–11)</h3>
+    <pre
+      className="output-body"
+      style={{ whiteSpace: "pre-wrap" }}
+    >{`Blog Title Recommendation: ${outputs.output1 || ""}
 
 H1: ${outputs.output2 || ""}
 
@@ -519,32 +520,41 @@ URL Slug: ${outputs.output5 || ""}
 
 Primary Keyword: ${outputs.output6 || ""}
 
-Secondary Keywords: ${outputs.output7 || ""}`}</pre>
-            </div>
+Secondary Keywords: ${outputs.output7 || ""}
 
-            <div className="output-card">
-              <h3>Supporting SEO Outputs (9–15)</h3>
-              {[
-                { key: "output9", label: "Output 9" },
-                { key: "output10", label: "Output 10" },
-                { key: "output11", label: "Output 11" },
-                { key: "output12", label: "Output 12" },
-                { key: "output13", label: "Output 13" },
-                { key: "output14", label: "Output 14" },
-                { key: "output15", label: "Output 15" },
-              ].map(({ key, label }) => (
-                <div key={key} style={{ marginBottom: "12px" }}>
-                  <strong>{label}</strong>
-                  <pre
-                    className="output-body"
-                    style={{ whiteSpace: "pre-wrap" }}
-                  >
-                    {outputs[key] || "(No data returned)"}
-                  </pre>
-                </div>
-              ))}
-            </div>
-          </div>
+--- Output 9: Internal Link Plan ---
+${outputs.output9 || "(No data returned)"}
+
+--- Output 10: FAQ / Q&A Draft ---
+${outputs.output10 || "(No data returned)"}
+
+--- Output 11: Image Ideas & Alt Text ---
+${outputs.output11 || "(No data returned)"}`
+    }</pre>
+  </div>
+
+  {/* RIGHT CARD: 12–15 */}
+  <div className="output-card">
+    <h3>Advanced SEO Outputs (12–15)</h3>
+    {[
+      { key: "output12", label: "Output 12" },
+      { key: "output13", label: "Output 13" },
+      { key: "output14", label: "Output 14" },
+      { key: "output15", label: "Output 15" },
+    ].map(({ key, label }) => (
+      <div key={key} style={{ marginBottom: "12px" }}>
+        <strong>{label}</strong>
+        <pre
+          className="output-body"
+          style={{ whiteSpace: "pre-wrap" }}
+        >
+          {outputs[key] || "(No data returned)"}
+        </pre>
+      </div>
+    ))}
+  </div>
+</div>
+
         )}
       </section>
 
