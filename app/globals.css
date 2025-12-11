@@ -11,6 +11,10 @@
 
   --accent: #7c3aed;        /* primary violet accent */
 }
+/* Force all text to use the new brand main text color */
+body {
+  color: var(--text-main) !important;
+}
 
 
 *,
