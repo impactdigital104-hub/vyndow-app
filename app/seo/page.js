@@ -467,7 +467,8 @@ export default function SeoHomePage() {
 
         <div style={{ marginTop: "18px" }}>
       <button
-  type="submit"
+  type="button"
+  onClick={handleGenerate}
   disabled={isSubmitting}
   style={{
     padding: "10px 24px",
@@ -482,6 +483,7 @@ export default function SeoHomePage() {
 >
   {isSubmitting ? "Generating…" : "Generate SEO Outputs"}
 </button>
+
 
         </div>
       </section>
