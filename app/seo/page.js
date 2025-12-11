@@ -176,326 +176,345 @@ export default function SeoHomePage() {
         </p>
       </header>
 
-      <section className="main-layout">
-        {/* LEFT: Step 1 – Inputs */}
-        <div className="left">
-          <h2>Step 1: Enter Inputs</h2>
+      {/* STEP 1 – INPUTS (2-column grid of cards) */}
+      <section className="inputs-section">
+        <h2>Step 1: Enter Inputs</h2>
 
-          {/* SECTION A */}
-          <p className="section-label">A. Brand &amp; Voice</p>
+        <div className="inputs-grid">
+          {/* LEFT CARD – Brand & Article Brief */}
+          <div className="inputs-card">
+            <p className="section-label">A. Brand &amp; Voice</p>
 
-          <div className="field-group">
-            <label htmlFor="brandDescription">A1. Brand Description</label>
-            <textarea
-              id="brandDescription"
-              placeholder="Describe what the brand does, who it serves, and what makes it unique."
-              value={brandDescription}
-              onChange={(e) => setBrandDescription(e.target.value)}
-            />
-          </div>
+            <div className="field-group">
+              <label htmlFor="brandDescription">A1. Brand Description</label>
+              <textarea
+                id="brandDescription"
+                placeholder="Describe what the brand does, who it serves, and what makes it unique."
+                value={brandDescription}
+                onChange={(e) => setBrandDescription(e.target.value)}
+              />
+            </div>
 
-          <div className="field-group">
-            <label htmlFor="targetAudience">
-              A2. Target Audience Persona
-            </label>
-            <textarea
-              id="targetAudience"
-              placeholder="Describe key audience segments, pain points, demographics, etc."
-              value={targetAudience}
-              onChange={(e) => setTargetAudience(e.target.value)}
-            />
-          </div>
+            <div className="field-group">
+              <label htmlFor="targetAudience">
+                A2. Target Audience Persona
+              </label>
+              <textarea
+                id="targetAudience"
+                placeholder="Describe key audience segments, pain points, demographics, etc."
+                value={targetAudience}
+                onChange={(e) => setTargetAudience(e.target.value)}
+              />
+            </div>
 
-          <div className="field-group">
-            <label>A3. Tone of Voice (select one or more)</label>
-            <div className="inline-options">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={toneOfVoice.includes("warm_empathetic")}
-                  onChange={() => toggleTone("warm_empathetic")}
-                />
-                Warm &amp; Empathetic
+            <div className="field-group">
+              <label>A3. Tone of Voice (select one or more)</label>
+              <div className="inline-options">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={toneOfVoice.includes("warm_empathetic")}
+                    onChange={() => toggleTone("warm_empathetic")}
+                  />
+                  Warm &amp; Empathetic
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={toneOfVoice.includes("expert_authoritative")}
+                    onChange={() => toggleTone("expert_authoritative")}
+                  />
+                  Expert &amp; Authoritative
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={toneOfVoice.includes("educational_insightful")}
+                    onChange={() => toggleTone("educational_insightful")}
+                  />
+                  Educational &amp; Insightful
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={toneOfVoice.includes("conversational_simple")}
+                    onChange={() => toggleTone("conversational_simple")}
+                  />
+                  Conversational &amp; Easy-to-read
+                </label>
+              </div>
+            </div>
+
+            <div className="field-group">
+              <label htmlFor="readingLevel">A6. Reading Level</label>
+              <select
+                id="readingLevel"
+                value={readingLevel}
+                onChange={(e) => setReadingLevel(e.target.value)}
+              >
+                <option value="easy_6_7">
+                  Grade 6–7 (Very easy, simple language)
+                </option>
+                <option value="standard_8_9">
+                  Grade 8–9 (Standard blog readability)
+                </option>
+                <option value="advanced_10_12">
+                  Grade 10–12 (More advanced readers)
+                </option>
+                <option value="expert">Expert / Professional audience</option>
+              </select>
+            </div>
+
+            <p className="section-label">C. Article Brief</p>
+
+            <div className="field-group">
+              <label htmlFor="topic">C1. Blog Topic / Working Title</label>
+              <input
+                type="text"
+                id="topic"
+                placeholder="e.g. Top Accounts Payable KPIs to Track"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+              />
+            </div>
+
+            <div className="field-group">
+              <label htmlFor="wordCount">C2. Desired Word Count</label>
+              <input
+                type="number"
+                id="wordCount"
+                placeholder="1200"
+                value={wordCount}
+                onChange={(e) => setWordCount(e.target.value)}
+              />
+            </div>
+
+            <div className="field-group">
+              <label htmlFor="notes">
+                C8. Additional Notes for the Writer (Optional)
               </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={toneOfVoice.includes("expert_authoritative")}
-                  onChange={() => toggleTone("expert_authoritative")}
-                />
-                Expert &amp; Authoritative
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={toneOfVoice.includes("educational_insightful")}
-                  onChange={() => toggleTone("educational_insightful")}
-                />
-                Educational &amp; Insightful
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={toneOfVoice.includes("conversational_simple")}
-                  onChange={() => toggleTone("conversational_simple")}
-                />
-                Conversational &amp; Easy-to-read
-              </label>
+              <textarea
+                id="notes"
+                placeholder="Anything else you want Vyndow to keep in mind."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
             </div>
           </div>
 
-          <div className="field-group">
-            <label htmlFor="readingLevel">A6. Reading Level</label>
-            <select
-              id="readingLevel"
-              value={readingLevel}
-              onChange={(e) => setReadingLevel(e.target.value)}
-            >
-              <option value="easy_6_7">
-                Grade 6–7 (Very easy, simple language)
-              </option>
-              <option value="standard_8_9">
-                Grade 8–9 (Standard blog readability)
-              </option>
-              <option value="advanced_10_12">
-                Grade 10–12 (More advanced readers)
-              </option>
-              <option value="expert">Expert / Professional audience</option>
-            </select>
-          </div>
+          {/* RIGHT CARD – SEO Levers */}
+          <div className="inputs-card">
+            <p className="section-label">B. SEO Intent &amp; Keywords</p>
 
-          {/* SECTION B */}
-          <p className="section-label">B. SEO Intent &amp; Keywords</p>
-
-          <div className="field-group">
-            <label htmlFor="primaryKeyword">B1. Primary Keyword</label>
-            <input
-              type="text"
-              id="primaryKeyword"
-              placeholder="e.g. accounts payable automation"
-              value={primaryKeyword}
-              onChange={(e) => setPrimaryKeyword(e.target.value)}
-            />
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="secondaryKeywords">B2. Secondary Keywords</label>
-            <textarea
-              id="secondaryKeywords"
-              placeholder="Optional – comma or line separated"
-              value={secondaryKeywordsRaw}
-              onChange={(e) => setSecondaryKeywordsRaw(e.target.value)}
-            />
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="existingBlogs">
-              B4. Internal URLs for Interlinking
-            </label>
-            <textarea
-              id="existingBlogs"
-              placeholder="One internal URL per line (your own site/blog pages)."
-              value={existingBlogs}
-              onChange={(e) => setExistingBlogs(e.target.value)}
-            />
-            <div className="small">
-              Used for Output 9. This should be URLs from your own website or
-              blog that you want Vyndow to reference and interlink.
+            <div className="field-group">
+              <label htmlFor="primaryKeyword">B1. Primary Keyword</label>
+              <input
+                type="text"
+                id="primaryKeyword"
+                placeholder="e.g. accounts payable automation"
+                value={primaryKeyword}
+                onChange={(e) => setPrimaryKeyword(e.target.value)}
+              />
             </div>
-          </div>
 
-          <div className="field-group">
-            <label htmlFor="seoIntent">B6. SEO Intent</label>
-            <select
-              id="seoIntent"
-              value={seoIntent}
-              onChange={(e) => setSeoIntent(e.target.value)}
-            >
-              <option value="informational">Informational</option>
-              <option value="commercial">Commercial</option>
-              <option value="transactional">Transactional</option>
-              <option value="mixed">Mixed</option>
-            </select>
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="geoTarget">B7. Geo Target</label>
-            <input
-              type="text"
-              id="geoTarget"
-              placeholder="e.g. India, UK, Pune, North America"
-              value={geoTarget}
-              onChange={(e) => setGeoTarget(e.target.value)}
-            />
-          </div>
-
-          {/* SECTION C */}
-          <p className="section-label">C. Article Brief</p>
-
-          <div className="field-group">
-            <label htmlFor="topic">C1. Blog Topic / Working Title</label>
-            <input
-              type="text"
-              id="topic"
-              placeholder="e.g. Top Accounts Payable KPIs to Track"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-            />
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="wordCount">C2. Desired Word Count</label>
-            <input
-              type="number"
-              id="wordCount"
-              placeholder="1200"
-              value={wordCount}
-              onChange={(e) => setWordCount(e.target.value)}
-            />
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="internalLinkingPreference">
-              C4. Internal Linking Preference
-            </label>
-            <select
-              id="internalLinkingPreference"
-              value={internalLinkingPreference}
-              onChange={(e) => setInternalLinkingPreference(e.target.value)}
-            >
-              <option value="auto_recommended">
-                Add internal links contextually (recommended)
-              </option>
-              <option value="minimal">
-                Minimal internal links, only when strongly relevant
-              </option>
-              <option value="only_relevant">
-                Only add internal links where absolutely relevant
-              </option>
-              <option value="none">Avoid adding internal links</option>
-            </select>
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="imagePreference">C5. Image Style Preference</label>
-            <select
-              id="imagePreference"
-              value={imagePreference}
-              onChange={(e) => setImagePreference(e.target.value)}
-            >
-              <option value="photorealistic" selected>Photorealistic (default)</option>
-          <option value="minimal_illustration">Minimal illustration</option>
-          <option value="isometric">Isometric</option>
-          <option value="vector_style">Vector style</option>
-          <option value="abstract">Abstract</option
-            </select>
-            <div className="small">
-              Used for Output 11 &amp; 12 (image ideas and alt-text).
+            <div className="field-group">
+              <label htmlFor="secondaryKeywords">B2. Secondary Keywords</label>
+              <textarea
+                id="secondaryKeywords"
+                placeholder="Optional – comma or line separated"
+                value={secondaryKeywordsRaw}
+                onChange={(e) => setSecondaryKeywordsRaw(e.target.value)}
+              />
             </div>
-          </div>
 
-          <div className="field-group">
-            <label htmlFor="industry">C7. Industry / Domain</label>
-            <select
-              id="industry"
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-            >
-              <option value="health_recovery">
-                Rehab, Mental Health &amp; Recovery
-              </option>
-              <option value="healthcare_clinic">
-                Healthcare / Medical Clinic
-              </option>
-              <option value="finance">Finance / Investing / Banking</option>
-              <option value="legal">Legal / Law Firms</option>
-              <option value="education">Education / EdTech / Coaching</option>
-              <option value="ecommerce_fmcg">
-                Ecommerce, FMCG &amp; Retail
-              </option>
-              <option value="travel_hospitality">
-                Travel, Tourism &amp; Hospitality
-              </option>
-              <option value="saas_tech">
-                Technology / B2B SaaS / Software
-              </option>
-              <option value="entertainment_media">
-                Entertainment, Media &amp; Creators
-              </option>
-              <option value="real_estate_home">
-                Real Estate &amp; Home Services
-              </option>
-              <option value="spirituality_wellness">
-                Spirituality, Wellness &amp; Coaching
-              </option>
-              <option value="generic">Generic / Other Business</option>
-            </select>
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="notes">
-              C8. Additional Notes for the Writer (Optional)
-            </label>
-            <textarea
-              id="notes"
-              placeholder="Anything else you want Vyndow to keep in mind."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-
-          {errorMsg && (
-            <div className="error-box" style={{ whiteSpace: "pre-wrap" }}>
-              <strong>Fix these before generating:</strong>
-              {errorMsg}
+            <div className="field-group">
+              <label htmlFor="existingBlogs">
+                B4. Internal URLs for Interlinking
+              </label>
+              <textarea
+                id="existingBlogs"
+                placeholder="One internal URL per line (your own site/blog pages)."
+                value={existingBlogs}
+                onChange={(e) => setExistingBlogs(e.target.value)}
+              />
+              <div className="small">
+                Used for Output 9. This should be URLs from your own website or
+                blog that you want Vyndow to reference and interlink.
+              </div>
             </div>
-          )}
 
-          <div style={{ marginTop: "18px" }}>
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={isSubmitting}
-              style={{
-                padding: "10px 20px",
-                borderRadius: "999px",
-                border: "none",
-                background: "#111827",
-                color: "#f9fafb",
-                fontWeight: 600,
-                cursor: isSubmitting ? "default" : "pointer",
-              }}
-            >
-              {isSubmitting ? "Generating…" : "Generate SEO Outputs"}
-            </button>
+            <div className="field-group">
+              <label htmlFor="seoIntent">B6. SEO Intent</label>
+              <select
+                id="seoIntent"
+                value={seoIntent}
+                onChange={(e) => setSeoIntent(e.target.value)}
+              >
+                <option value="informational">Informational</option>
+                <option value="commercial">Commercial</option>
+                <option value="transactional">Transactional</option>
+                <option value="mixed">Mixed</option>
+              </select>
+            </div>
+
+            <div className="field-group">
+              <label htmlFor="geoTarget">B7. Geo Target</label>
+              <input
+                type="text"
+                id="geoTarget"
+                placeholder="e.g. India, UK, Pune, North America"
+                value={geoTarget}
+                onChange={(e) => setGeoTarget(e.target.value)}
+              />
+            </div>
+
+            <p className="section-label">C. Linking &amp; Images</p>
+
+            <div className="field-group">
+              <label htmlFor="internalLinkingPreference">
+                C4. Internal Linking Preference
+              </label>
+              <select
+                id="internalLinkingPreference"
+                value={internalLinkingPreference}
+                onChange={(e) => setInternalLinkingPreference(e.target.value)}
+              >
+                <option value="auto_recommended">
+                  Add internal links contextually (recommended)
+                </option>
+                <option value="minimal">
+                  Minimal internal links, only when strongly relevant
+                </option>
+                <option value="only_relevant">
+                  Only add internal links where absolutely relevant
+                </option>
+                <option value="none">Avoid adding internal links</option>
+              </select>
+            </div>
+
+            <div className="field-group">
+              <label htmlFor="imagePreference">
+                C5. Image Style Preference
+              </label>
+              <select
+                id="imagePreference"
+                value={imagePreference}
+                onChange={(e) => setImagePreference(e.target.value)}
+              >
+                {/* KEEP whatever options you copied from your original HTML here */}
+                <option value="generic_web">Generic / stock imagery</option>
+                <option value="corporate_finance">
+                  Corporate / finance style
+                </option>
+                <option value="healthcare_clinic">
+                  Healthcare / clinic imagery
+                </option>
+                <option value="lifestyle_people">
+                  Lifestyle imagery with people
+                </option>
+                <option value="data_charts">
+                  Data / dashboards / UI visuals
+                </option>
+              </select>
+              <div className="small">
+                Used for Output 11 &amp; 12 (image ideas and alt-text).
+              </div>
+            </div>
+
+            <div className="field-group">
+              <label htmlFor="industry">C7. Industry / Domain</label>
+              <select
+                id="industry"
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+              >
+                <option value="health_recovery">
+                  Rehab, Mental Health &amp; Recovery
+                </option>
+                <option value="healthcare_clinic">
+                  Healthcare / Medical Clinic
+                </option>
+                <option value="finance">Finance / Investing / Banking</option>
+                <option value="legal">Legal / Law Firms</option>
+                <option value="education">Education / EdTech / Coaching</option>
+                <option value="ecommerce_fmcg">
+                  Ecommerce, FMCG &amp; Retail
+                </option>
+                <option value="travel_hospitality">
+                  Travel, Tourism &amp; Hospitality
+                </option>
+                <option value="saas_tech">
+                  Technology / B2B SaaS / Software
+                </option>
+                <option value="entertainment_media">
+                  Entertainment, Media &amp; Creators
+                </option>
+                <option value="real_estate_home">
+                  Real Estate &amp; Home Services
+                </option>
+                <option value="spirituality_wellness">
+                  Spirituality, Wellness &amp; Coaching
+                </option>
+                <option value="generic">Generic / Other Business</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* RIGHT: Step 2 – Outputs */}
-        <div className="right">
-          <h2>Step 2: Review Outputs</h2>
+        {/* Error + Generate button (full-width under both cards) */}
+        {errorMsg && (
+          <div
+            className="error-box"
+            style={{ whiteSpace: "pre-wrap", marginTop: "16px" }}
+          >
+            <strong>Fix these before generating:</strong>
+            {errorMsg}
+          </div>
+        )}
 
-          {!outputs && !errorMsg && (
+        <div style={{ marginTop: "18px" }}>
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={isSubmitting}
+            style={{
+              padding: "10px 24px",
+              borderRadius: "999px",
+              border: "none",
+              background: "#111827",
+              color: "#f9fafb",
+              fontWeight: 600,
+              cursor: isSubmitting ? "default" : "pointer",
+            }}
+          >
+            {isSubmitting ? "Generating…" : "Generate SEO Outputs"}
+          </button>
+        </div>
+      </section>
+
+      {/* STEP 2 – OUTPUT SUMMARY (2 cards) */}
+      <section className="outputs-summary-section">
+        <h2>Step 2: Review Outputs</h2>
+
+        {!outputs && !errorMsg && (
+          <div className="output-card">
+            <h3>Outputs will appear here</h3>
+            <p className="output-body">
+              After you click <strong>Generate SEO Outputs</strong>, Vyndow
+              will call the existing <code>/api/generate</code> engine and show
+              all 15 outputs below – including the full article.
+            </p>
+          </div>
+        )}
+
+        {outputs && (
+          <div className="outputs-summary-grid">
             <div className="output-card">
-              <h3>Outputs will appear here</h3>
-              <p className="output-body">
-                After you click <strong>Generate SEO Outputs</strong>, Vyndow
-                will call the existing <code>/api/generate</code> engine and
-                display all 15 outputs here – Title, H1, SEO Title, Meta
-                Description, full blog article, FAQ schema, and more.
-              </p>
-            </div>
-          )}
-
-          {outputs && (
-            <div className="outputs-grid">
-              <div className="outputs-column">
-                <div className="output-card">
-                  <h3>Outputs 1–7: Core SEO Elements</h3>
-                  <pre
-                    className="output-body"
-                    style={{ whiteSpace: "pre-wrap" }}
-                  >{`Blog Title Recommendation: ${outputs.output1 || ""}
+              <h3>Core SEO Elements (Outputs 1–7)</h3>
+              <pre
+                className="output-body"
+                style={{ whiteSpace: "pre-wrap" }}
+              >{`Blog Title Recommendation: ${outputs.output1 || ""}
 
 H1: ${outputs.output2 || ""}
 
@@ -508,46 +527,49 @@ URL Slug: ${outputs.output5 || ""}
 Primary Keyword: ${outputs.output6 || ""}
 
 Secondary Keywords: ${outputs.output7 || ""}`}</pre>
-                </div>
-
-                <div className="output-card">
-                  <h3>Output 8: Full Article</h3>
-                  <div
-                    className="article-block"
-                    dangerouslySetInnerHTML={{
-                      __html:
-                        outputs.output8 ||
-                        "<p>(No data returned for Output 8)</p>",
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="outputs-column">
-                {[
-                  { key: "output9", label: "Output 9" },
-                  { key: "output10", label: "Output 10" },
-                  { key: "output11", label: "Output 11" },
-                  { key: "output12", label: "Output 12" },
-                  { key: "output13", label: "Output 13" },
-                  { key: "output14", label: "Output 14" },
-                  { key: "output15", label: "Output 15" },
-                ].map(({ key, label }) => (
-                  <div key={key} className="output-card">
-                    <h3>{label}</h3>
-                    <pre
-                      className="output-body"
-                      style={{ whiteSpace: "pre-wrap" }}
-                    >
-                      {outputs[key] || "(No data returned)"}
-                    </pre>
-                  </div>
-                ))}
-              </div>
             </div>
-          )}
-        </div>
+
+            <div className="output-card">
+              <h3>Supporting SEO Outputs (9–15)</h3>
+              {[
+                { key: "output9", label: "Output 9" },
+                { key: "output10", label: "Output 10" },
+                { key: "output11", label: "Output 11" },
+                { key: "output12", label: "Output 12" },
+                { key: "output13", label: "Output 13" },
+                { key: "output14", label: "Output 14" },
+                { key: "output15", label: "Output 15" },
+              ].map(({ key, label }) => (
+                <div key={key} style={{ marginBottom: "12px" }}>
+                  <strong>{label}</strong>
+                  <pre
+                    className="output-body"
+                    style={{ whiteSpace: "pre-wrap" }}
+                  >
+                    {outputs[key] || "(No data returned)"}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
+
+      {/* FULL-WIDTH ARTICLE SECTION (Output 8) */}
+      {outputs && (
+        <section className="article-section">
+          <div className="output-card">
+            <h2>Full Article (Output 8)</h2>
+            <div
+              className="article-block"
+              dangerouslySetInnerHTML={{
+                __html:
+                  outputs.output8 || "<p>(No data returned for Output 8)</p>",
+              }}
+            />
+          </div>
+        </section>
+      )}
     </main>
   );
 }
