@@ -572,25 +572,25 @@ export default function SeoHomePage() {
     </div>
 
     <div style={{ marginBottom: "12px" }}>
-      <strong>Output 11 – Image Ideas &amp; Alt Text:</strong>
+      <strong>Output 11 – Image Alt Text Suggestions:</strong>
       <pre className="output-body" style={{ whiteSpace: "pre-wrap" }}>
         {outputs.output11 || "(No data returned)"}
       </pre>
     </div>
 
     <div style={{ marginBottom: "0" }}>
-      <strong>Output 12 – FAQ Schema / JSON-LD:</strong>
+    <strong>Output 12 – Image Prompts (for AI generator):</strong>
       <pre className="output-body" style={{ whiteSpace: "pre-wrap" }}>
         {outputs.output12 || "(No data returned)"}
       </pre>
     </div>
   </div>
 
-{/* RIGHT CARD: 13 ONLY */}
+{/* RIGHT CARD: JSON-LD Schemas (Output 13) */}
 <div className="output-card">
-  <h3>Advanced SEO Output (13)</h3>
+  <h3>Structured Data — JSON-LD Schemas (Output 13)</h3>
   {[
-    { key: "output13", label: "Output 13" },
+    { key: "output13", label: "Output 13 – JSON-LD Schemas" },
   ].map(({ key, label }) => (
     <div key={key} style={{ marginBottom: "12px" }}>
       <strong>{label}</strong>
@@ -603,6 +603,7 @@ export default function SeoHomePage() {
     </div>
   ))}
 </div>
+
 
 </div>
 
