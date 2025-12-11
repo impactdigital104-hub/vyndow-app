@@ -466,22 +466,23 @@ export default function SeoHomePage() {
         )}
 
         <div style={{ marginTop: "18px" }}>
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={isSubmitting}
-            style={{
-              padding: "10px 24px",
-              borderRadius: "999px",
-              border: "none",
-              background: "#111827",
-              color: "#f9fafb",
-              fontWeight: 600,
-              cursor: isSubmitting ? "default" : "pointer",
-            }}
-          >
-            {isSubmitting ? "Generating…" : "Generate SEO Outputs"}
-          </button>
+      <button
+  type="submit"
+  disabled={isSubmitting}
+  style={{
+    padding: "10px 24px",
+    borderRadius: "999px",
+    border: "none",
+    background: "linear-gradient(135deg, #7c3aed, #06b6d4)",
+    color: "#f9fafb",
+    fontWeight: 600,
+    cursor: isSubmitting ? "default" : "pointer",
+    boxShadow: "0 10px 25px rgba(15, 23, 42, 0.25)", // subtle glow
+  }}
+>
+  {isSubmitting ? "Generating…" : "Generate SEO Outputs"}
+</button>
+
         </div>
       </section>
 
