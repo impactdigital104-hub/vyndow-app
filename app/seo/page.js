@@ -586,25 +586,24 @@ export default function SeoHomePage() {
     </div>
   </div>
 
-  {/* RIGHT CARD: 13–15 */}
-  <div className="output-card">
-    <h3>Advanced SEO Outputs (13–15)</h3>
-    {[
-      { key: "output13", label: "Output 13" },
-      { key: "output14", label: "Output 14" },
-      { key: "output15", label: "Output 15" },
-    ].map(({ key, label }) => (
-      <div key={key} style={{ marginBottom: "12px" }}>
-        <strong>{label}</strong>
-        <pre
-          className="output-body"
-          style={{ whiteSpace: "pre-wrap" }}
-        >
-          {outputs[key] || "(No data returned)"}
-        </pre>
-      </div>
-    ))}
-  </div>
+{/* RIGHT CARD: 13 ONLY */}
+<div className="output-card">
+  <h3>Advanced SEO Output (13)</h3>
+  {[
+    { key: "output13", label: "Output 13" },
+  ].map(({ key, label }) => (
+    <div key={key} style={{ marginBottom: "12px" }}>
+      <strong>{label}</strong>
+      <pre
+        className="output-body"
+        style={{ whiteSpace: "pre-wrap" }}
+      >
+        {outputs[key] || "(No data returned)"}
+      </pre>
+    </div>
+  ))}
+</div>
+
 </div>
 
 
