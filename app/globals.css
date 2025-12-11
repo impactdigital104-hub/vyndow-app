@@ -1,13 +1,17 @@
 /* ---- Base reset & typography --------------------------------- */
 
 :root {
-  --page-bg: #f3f4f6;
-  --card-bg: #ffffff;
-  --border-subtle: #e5e7eb;
-  --text-main: #111827;
-  --text-muted: #6b7280;
-  --accent: #111827;
+  /* Vyndow brand-aligned palette */
+  --page-bg: #f8fafc;       /* light background (same as main site) */
+  --card-bg: #ffffff;       /* white cards */
+  --border-subtle: #e5e7eb; /* soft grey borders */
+
+  --text-main: #0f172a;     /* deep navy for main text */
+  --text-muted: #6b7280;    /* muted grey for helper text */
+
+  --accent: #7c3aed;        /* primary violet accent */
 }
+
 
 *,
 *::before,
