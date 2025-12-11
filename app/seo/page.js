@@ -36,7 +36,7 @@ export default function SeoHomePage() {
   );
 
   // C5 — Image Style Preference
-  const [imagePreference, setImagePreference] = useState("generic_web");
+ const [imagePreference, setImagePreference] = useState("photorealistic");
 
   // C7 — Industry / Domain
   const [industry, setIndustry] = useState("health_recovery");
@@ -393,29 +393,22 @@ export default function SeoHomePage() {
             </div>
 
             <div className="field-group">
-              <label htmlFor="imagePreference">
-                C5. Image Style Preference
-              </label>
-              <select
-                id="imagePreference"
-                value={imagePreference}
-                onChange={(e) => setImagePreference(e.target.value)}
-              >
-                {/* KEEP whatever options you copied from your original HTML here */}
-                <option value="generic_web">Generic / stock imagery</option>
-                <option value="corporate_finance">
-                  Corporate / finance style
-                </option>
-                <option value="healthcare_clinic">
-                  Healthcare / clinic imagery
-                </option>
-                <option value="lifestyle_people">
-                  Lifestyle imagery with people
-                </option>
-                <option value="data_charts">
-                  Data / dashboards / UI visuals
-                </option>
-              </select>
+<label htmlFor="imagePreference">
+  C5. Image Style Preference
+</label>
+<select
+  id="imagePreference"
+  value={imagePreference}
+  onChange={(e) => setImagePreference(e.target.value)}
+>
+  <option value="photorealistic">Photorealistic (default)</option>
+  <option value="minimal_illustration">Minimal illustration</option>
+  <option value="isometric">Isometric</option>
+  <option value="vector_style">Vector style</option>
+  <option value="abstract">Abstract</option>
+</select>
+
+
               <div className="small">
                 Used for Output 11 &amp; 12 (image ideas and alt-text).
               </div>
