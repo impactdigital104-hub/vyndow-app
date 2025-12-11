@@ -296,7 +296,10 @@ if (typeof articleText === "string") {
   // ---------------------------------------
  // STEP 2 — PROMPT FOR SHORT OUTPUTS
 // ---------------------------------------
-const SHORT_OUTPUTS_PROMPT = `
+  // ---------------------------------------
+  // STEP 2 — PROMPT FOR SHORT OUTPUTS
+  // ---------------------------------------
+  const SHORT_OUTPUTS_PROMPT = `
 You are VYNDOW SEO. Generate ONLY the remaining 14 SEO outputs for the blog.
 
 Return ONLY a JSON object using EXACT keys: output1 to output7 and output9 to output15.
@@ -320,11 +323,6 @@ ${articleText}
 // "isometric", etc.). Always honour this imagePreference when generating
 // output11 (image alt texts) and output12 (image prompts).
 
-The long article has already been generated separately.
-Generate the rest of the outputs exactly as described:
-`;
-
-The long article has already been generated separately.
 Generate the rest of the outputs exactly as described:
 
 1 → Blog Title Recommendation  
@@ -352,7 +350,10 @@ Write the table in plain text with a header row "Anchor | URL | Purpose" and the
 Anchor | URL | Purpose
 Anchor text 1 | <actual URL from the brief> | Short purpose
 Anchor text 2 | <actual URL from the brief> | Short purpose
-10 → FAQs as one multiline string. Include 4–5 Q/A pairs. Each answer must be at least 50 words. Use the format: "Q1. ...\nA1. ...\n\nQ2. ...\nA2. ..." etc.
+
+10 → FAQs as one multiline string. Include 4–5 Q/A pairs. Each answer must be at least 50 words.
+Use the format: "Q1. ...\nA1. ...\n\nQ2. ...\nA2. ..." etc.
+
 11 → Image alt text suggestions as one multiline string.
 Each line must start with "1. ", "2. ", "3. ", etc.
 Write 3–5 alt texts, each 1–2 sentences, max ~160 characters.
@@ -392,9 +393,7 @@ Format everything as a single multiline STRING like:
 Do NOT include markdown fences or commentary. The outer response must remain valid JSON where output13 is a single string value containing these two numbered JSON-LD blocks.
 
 14 → Readability & risk notes  
-15 → Checklist verification
-
-
+15 → Checklist verification  
 
 Return strictly valid JSON now.
   `;
