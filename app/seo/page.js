@@ -1,3 +1,5 @@
+import "./globals.css";
+
 "use client";
 
 import { useState } from "react";
