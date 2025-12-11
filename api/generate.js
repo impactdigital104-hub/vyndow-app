@@ -294,7 +294,9 @@ if (typeof articleText === "string") {
   // ---------------------------------------
   // STEP 2 — PROMPT FOR SHORT OUTPUTS
   // ---------------------------------------
-  const SHORT_OUTPUTS_PROMPT = `
+ // STEP 2 — PROMPT FOR SHORT OUTPUTS
+// ---------------------------------------
+const SHORT_OUTPUTS_PROMPT = `
 You are VYNDOW SEO. Generate ONLY the remaining 14 SEO outputs for the blog.
 
 Return ONLY a JSON object using EXACT keys: output1 to output7 and output9 to output15.
@@ -305,14 +307,22 @@ CRITICAL FORMAT RULE:
 - Every output value (output1, output2, ..., output7, output9, ..., output15) MUST be a SINGLE STRING.
 - Never return arrays or nested objects for any output. If you need multiple rows/items, put them inside one string separated by line breaks.
 
-
 Here is the blog brief:
 ${JSON.stringify(brief, null, 2)}
+
+Here is the full HTML article that has ALREADY been generated in STEP 1.
+It starts with an <h1> or <h2> and contains all the headings and paragraphs you must work with.
+You will use this article text when deciding titles, FAQs, internal links, image ideas, schemas, etc.:
+${articleText}
 
 // The brief includes an "imagePreference" field that describes the desired
 // visual style (for example: "photorealistic", "flat vector illustration",
 // "isometric", etc.). Always honour this imagePreference when generating
 // output11 (image alt texts) and output12 (image prompts).
+
+The long article has already been generated separately.
+Generate the rest of the outputs exactly as described:
+`;
 
 The long article has already been generated separately.
 Generate the rest of the outputs exactly as described:
@@ -326,9 +336,18 @@ Generate the rest of the outputs exactly as described:
 7 → Secondary Keywords (comma-separated)  
 
 9 → Internal links table as a single multiline string in plain text.
-Use ONE row for EACH internal link provided in the brief (for example, 3 links = 3 rows).
+
+You MUST choose anchor phrases ONLY from the actual article HTML shown above.
+Do NOT invent new anchor phrases that do not already appear in the article.
+For each internal URL you plan to use, follow this process:
+- Scan the article HTML for a natural phrase that already exists (for example a heading, the brand name, or a key term).
+- Use that exact phrase as the anchor text.
+- Make sure you do not change the wording of the phrase when you use it as an anchor.
+
+Use ONE row for EACH internal link you decide to include (for example, 3 links = 3 rows).
 For the URL column, always copy the actual URL from the brief exactly as it appears.
 Never invent domains like "example.com" or placeholders like "URL1 from brief".
+
 Write the table in plain text with a header row "Anchor | URL | Purpose" and then one row per link, for example:
 Anchor | URL | Purpose
 Anchor text 1 | <actual URL from the brief> | Short purpose
