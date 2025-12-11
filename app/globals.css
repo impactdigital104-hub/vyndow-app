@@ -222,3 +222,50 @@ select {
   color: #b91c1c;
   font-size: 0.85rem;
 }
+/* --- Vyndow SEO layout refinements --- */
+
+.inputs-section {
+  margin-top: 24px;
+  margin-bottom: 32px;
+}
+
+.inputs-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.inputs-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+}
+
+.outputs-summary-section {
+  margin-bottom: 32px;
+}
+
+.outputs-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 12px;
+}
+
+.article-section {
+  margin-bottom: 40px;
+}
+
+.article-section .output-card {
+  max-width: 100%;
+}
+
+/* Make grids stack on small screens */
+@media (max-width: 900px) {
+  .inputs-grid,
+  .outputs-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
