@@ -501,43 +501,95 @@ export default function SeoHomePage() {
         )}
 
         {outputs && (
- <div className="outputs-summary-grid">
-  {/* LEFT CARD: 1–7 + 9–11 */}
+<div className="outputs-summary-grid">
+  {/* LEFT CARD: 1–7 + 9–12 */}
   <div className="output-card">
-    <h3>Core SEO &amp; Content Essentials (1–7, 9–11)</h3>
-    <pre
-      className="output-body"
-      style={{ whiteSpace: "pre-wrap" }}
-    >{`Blog Title Recommendation: ${outputs.output1 || ""}
+    <h3>Core SEO &amp; Content Essentials (1–7, 9–12)</h3>
 
-H1: ${outputs.output2 || ""}
+    <div style={{ marginBottom: "8px" }}>
+      <strong>Output 1 – Blog Title Recommendation:</strong>
+      <div className="output-body">
+        {outputs.output1 || "(No data returned)"}
+      </div>
+    </div>
 
-SEO Title: ${outputs.output3 || ""}
+    <div style={{ marginBottom: "8px" }}>
+      <strong>Output 2 – H1:</strong>
+      <div className="output-body">
+        {outputs.output2 || "(No data returned)"}
+      </div>
+    </div>
 
-Meta Description: ${outputs.output4 || ""}
+    <div style={{ marginBottom: "8px" }}>
+      <strong>Output 3 – SEO Title:</strong>
+      <div className="output-body">
+        {outputs.output3 || "(No data returned)"}
+      </div>
+    </div>
 
-URL Slug: ${outputs.output5 || ""}
+    <div style={{ marginBottom: "8px" }}>
+      <strong>Output 4 – Meta Description:</strong>
+      <div className="output-body">
+        {outputs.output4 || "(No data returned)"}
+      </div>
+    </div>
 
-Primary Keyword: ${outputs.output6 || ""}
+    <div style={{ marginBottom: "8px" }}>
+      <strong>Output 5 – URL Slug:</strong>
+      <div className="output-body">
+        {outputs.output5 || "(No data returned)"}
+      </div>
+    </div>
 
-Secondary Keywords: ${outputs.output7 || ""}
+    <div style={{ marginBottom: "8px" }}>
+      <strong>Output 6 – Primary Keyword:</strong>
+      <div className="output-body">
+        {outputs.output6 || "(No data returned)"}
+      </div>
+    </div>
 
---- Output 9: Internal Link Plan ---
-${outputs.output9 || "(No data returned)"}
+    <div style={{ marginBottom: "12px" }}>
+      <strong>Output 7 – Secondary Keywords:</strong>
+      <div className="output-body">
+        {outputs.output7 || "(No data returned)"}
+      </div>
+    </div>
 
---- Output 10: FAQ / Q&A Draft ---
-${outputs.output10 || "(No data returned)"}
+    <hr style={{ margin: "8px 0 12px", border: "none", borderTop: "1px solid #e5e7eb" }} />
 
---- Output 11: Image Ideas & Alt Text ---
-${outputs.output11 || "(No data returned)"}`
-    }</pre>
+    <div style={{ marginBottom: "12px" }}>
+      <strong>Output 9 – Internal Link Plan:</strong>
+      <pre className="output-body" style={{ whiteSpace: "pre-wrap" }}>
+        {outputs.output9 || "(No data returned)"}
+      </pre>
+    </div>
+
+    <div style={{ marginBottom: "12px" }}>
+      <strong>Output 10 – FAQ Draft (Q&amp;A):</strong>
+      <pre className="output-body" style={{ whiteSpace: "pre-wrap" }}>
+        {outputs.output10 || "(No data returned)"}
+      </pre>
+    </div>
+
+    <div style={{ marginBottom: "12px" }}>
+      <strong>Output 11 – Image Ideas &amp; Alt Text:</strong>
+      <pre className="output-body" style={{ whiteSpace: "pre-wrap" }}>
+        {outputs.output11 || "(No data returned)"}
+      </pre>
+    </div>
+
+    <div style={{ marginBottom: "0" }}>
+      <strong>Output 12 – FAQ Schema / JSON-LD:</strong>
+      <pre className="output-body" style={{ whiteSpace: "pre-wrap" }}>
+        {outputs.output12 || "(No data returned)"}
+      </pre>
+    </div>
   </div>
 
-  {/* RIGHT CARD: 12–15 */}
+  {/* RIGHT CARD: 13–15 */}
   <div className="output-card">
-    <h3>Advanced SEO Outputs (12–15)</h3>
+    <h3>Advanced SEO Outputs (13–15)</h3>
     {[
-      { key: "output12", label: "Output 12" },
       { key: "output13", label: "Output 13" },
       { key: "output14", label: "Output 14" },
       { key: "output15", label: "Output 15" },
@@ -554,6 +606,7 @@ ${outputs.output11 || "(No data returned)"}`
     ))}
   </div>
 </div>
+
 
         )}
       </section>
