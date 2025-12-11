@@ -442,45 +442,71 @@ Return strictly valid JSON now.
   // ---------------------------------------
   // OPTIONAL: apply internal links (Output 9) into the article HTML
   // ---------------------------------------
-  function applyInternalLinksToArticle(rawHtml, internalLinksTable) {
-    if (!rawHtml || typeof rawHtml !== "string") return rawHtml;
-    if (!internalLinksTable || typeof internalLinksTable !== "string") return rawHtml;
+function applyInternalLinksToArticle(rawHtml, internalLinksTable) {
+  if (!rawHtml || typeof rawHtml !== "string") return rawHtml;
+  if (!internalLinksTable || typeof internalLinksTable !== "string") return rawHtml;
 
-    // Expect internalLinksTable as plain text:
-    // Anchor | URL | Purpose
-    // Anchor text 1 | https://... | Short purpose
-    const lines = internalLinksTable
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
+  // Expect internalLinksTable as plain text:
+  // Anchor | URL | Purpose
+  // Anchor text 1 | https://... | Short purpose
+  const lines = internalLinksTable
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
 
-    if (lines.length < 2) {
-      // nothing beyond header
-      return rawHtml;
-    }
-
-    let htmlWithLinks = rawHtml;
-
-    // Assume first line is header row: "Anchor | URL | Purpose"
-    for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split("|").map((p) => p.trim());
-      if (parts.length < 2) continue;
-
-      const anchor = parts[0];
-      const url = parts[1];
-
-      if (!anchor || !url) continue;
-
-      // Only proceed if the article actually contains this anchor phrase
-      if (htmlWithLinks.includes(anchor)) {
-        const linkedAnchor = `<a href="${url}" target="_blank" rel="noopener noreferrer">${anchor}</a>`;
-        // replace ONLY the first occurrence to avoid over-linking
-        htmlWithLinks = htmlWithLinks.replace(anchor, linkedAnchor);
-      }
-    }
-
-    return htmlWithLinks;
+  if (lines.length < 2) {
+    // nothing beyond header
+    return rawHtml;
   }
+
+  let htmlWithLinks = rawHtml;
+  const extraLinkLines = [];
+
+  // Assume first line is header row: "Anchor | URL | Purpose"
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split("|").map((p) => p.trim());
+    if (parts.length < 2) continue;
+
+    const anchor = parts[0];
+    const url = parts[1];
+    const purpose = parts[2] || "";
+
+    if (!anchor || !url) continue;
+
+    // Case-insensitive search for the anchor text in the article
+    const lowerHtml = htmlWithLinks.toLowerCase();
+    const lowerAnchor = anchor.toLowerCase();
+    const idx = lowerHtml.indexOf(lowerAnchor);
+
+    if (idx !== -1) {
+      // Preserve the exact original casing from the article
+      const originalText = htmlWithLinks.slice(idx, idx + anchor.length);
+      const linkedAnchor = `<a href="${url}" target="_blank" rel="noopener noreferrer">${originalText}</a>`;
+      htmlWithLinks =
+        htmlWithLinks.slice(0, idx) +
+        linkedAnchor +
+        htmlWithLinks.slice(idx + anchor.length);
+    } else {
+      // Fallback: collect a short "Further reading" line
+      const line = `<a href="${url}" target="_blank" rel="noopener noreferrer">${anchor}</a>${
+        purpose ? ` — ${purpose}` : ""
+      }`;
+      extraLinkLines.push(line);
+    }
+  }
+
+  // If we had anchors that didn't exist in the text, append a small
+  // "Further reading" block at the end of the article so the links
+  // are still visible to the user.
+  if (extraLinkLines.length > 0) {
+    htmlWithLinks += `\n\n<p><strong>Further reading:</strong><br>${extraLinkLines.join(
+      "<br>"
+    )}</p>`;
+  }
+
+  return htmlWithLinks;
+}
+
 
   // Build article with internal links applied (if Output 9 is present)
   const articleWithLinks = applyInternalLinksToArticle(
