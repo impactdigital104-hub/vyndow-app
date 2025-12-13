@@ -5,6 +5,12 @@ import VyndowShell from "../VyndowShell";
 
 
 export default function SeoHomePage() {
+    // GLOBAL BAR — Website / Brand + usage (UI-only for now)
+  const [selectedWebsite, setSelectedWebsite] = useState("anatta");
+  const [usageSummary] = useState("2 / 6 blogs this month · Small Business Plan");
+
+  // SECTION A — Brand & Voice
+
   // SECTION A — Brand & Voice
   const [brandDescription, setBrandDescription] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
@@ -168,6 +174,30 @@ export default function SeoHomePage() {
   return (
     <VyndowShell activeModule="seo">
       <main className="page">
+     {/* Top bar: Website / Brand selector + usage (UI-only for now) */}
+        <div className="project-bar">
+          <div className="project-bar-left">
+            <label htmlFor="websiteSelect" className="project-bar-label">
+              Website / Brand
+            </label>
+            <select
+              id="websiteSelect"
+              className="project-bar-select"
+              value={selectedWebsite}
+              onChange={(e) => setSelectedWebsite(e.target.value)}
+            >
+              <option value="anatta">Anatta Rehab (Sample)</option>
+              <option value="vyndow">Vyndow.com (Sample)</option>
+            </select>
+          </div>
+
+          <div className="project-bar-right">
+            <div className="project-bar-usage-label">SEO Usage</div>
+            <div className="project-bar-usage-pill">
+              {usageSummary}
+            </div>
+          </div>
+        </div>
         <header style={{ marginBottom: "20px" }}>
           <span className="badge">Input Blueprint: Sections A–C</span>
         <h1>Vyndow SEO — Blog Generator (Next.js UI)</h1>
