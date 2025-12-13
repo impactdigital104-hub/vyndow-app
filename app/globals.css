@@ -567,3 +567,19 @@ select {
 .main-panel {
   flex: 1;
 }
+/* Layout tidy-up for A3 Tone of Voice checkboxes */
+.inline-options {
+  display: flex;
+  flex-wrap: wrap;          /* allow wrapping into multiple rows */
+  gap: 8px 32px;            /* vertical, horizontal spacing */
+  align-items: center;
+  margin-top: 6px;
+}
+
+.inline-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;                 /* space between checkbox and text */
+  white-space: nowrap;      /* keep each label on one line */
+  font-size: 0.9rem;
+}
