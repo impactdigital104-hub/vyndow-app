@@ -1,3 +1,5 @@
+"use client";
+
 // app/websites/page.js
 
 import VyndowShell from "../VyndowShell";
