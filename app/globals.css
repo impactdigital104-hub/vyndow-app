@@ -562,6 +562,27 @@ select {
 .sidebar-footer-links a:hover {
   text-decoration: underline;
 }
+.sidebar-footer-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+  color: #6b7280;
+}
+
+.sidebar-footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.sidebar-footer-meta {
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
 
 /* Right side main content should stretch */
 .main-panel {
