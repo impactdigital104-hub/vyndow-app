@@ -6,9 +6,10 @@ import { sampleWebsites, getSeoPlanForWebsiteKey } from "../websitesData";
 
 
 export default function SeoHomePage() {
-    // GLOBAL BAR — Website / Brand + usage (UI-only for now)
+  // GLOBAL BAR — Website / Brand + usage (now driven by websitesData)
   const [selectedWebsite, setSelectedWebsite] = useState("anatta");
-  const [usageSummary] = useState("2 / 6 blogs this month · Small Business Plan");
+  const [usageSummary, setUsageSummary] = useState("");
+
 
   // SECTION A — Brand & Voice
 
@@ -57,6 +58,30 @@ export default function SeoHomePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [outputs, setOutputs] = useState(null);
+  // Build the usage summary string based on the selected website's SEO plan
+  function buildUsageSummary(websiteKey) {
+    const plan = getSeoPlanForWebsiteKey(websiteKey);
+
+    if (!plan) {
+      return "No SEO plan configured for this website yet.";
+    }
+
+    const used = plan.usedThisMonth ?? 0;
+    const total = plan.blogsPerMonth ?? "?";
+
+    let planLabel = "Plan not set";
+    if (plan.planType === "free") planLabel = "Free Plan";
+    else if (plan.planType === "small_business")
+      planLabel = "Small Business Plan";
+    else if (plan.planType === "enterprise") planLabel = "Enterprise Plan";
+
+    return `${used} / ${total} blogs this month · ${planLabel}`;
+  }
+
+  // Whenever the selected website changes, update the pill text
+  useEffect(() => {
+    setUsageSummary(buildUsageSummary(selectedWebsite));
+  }, [selectedWebsite]);
 
   function toggleTone(value) {
     setToneOfVoice((prev) =>
