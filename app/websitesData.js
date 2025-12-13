@@ -42,7 +42,7 @@ export const sampleWebsites = [
         planType: "small_business",
         blogsPerMonth: 6,
         usersAllowed: 1,
-        usedThisMonth: 2,
+        usedThisMonth: 6,
       },
     },
   },
