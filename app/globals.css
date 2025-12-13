@@ -312,3 +312,79 @@ select {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* ---- Phase 4: spacing & typography polish ---- */
+
+/* Center the main page content and control width */
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* More breathing room under the main header */
+.page header {
+  margin-bottom: 32px;
+}
+
+/* Step headings (Step 1, Step 2, etc.) */
+.inputs-section h2,
+.outputs-summary-section h2 {
+  font-size: 1.4rem;
+  margin: 32px 0 16px;
+}
+
+/* Input cards grid spacing */
+.inputs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  align-items: flex-start;
+}
+
+/* Cards for inputs + outputs */
+.inputs-card,
+.output-card {
+  padding: 24px;
+  border-radius: 20px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Field spacing */
+.field-group {
+  margin-bottom: 16px;
+}
+
+.field-group label {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* Inputs, selects, textareas styling */
+.field-group input,
+.field-group textarea,
+.field-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  font-size: 0.95rem;
+}
+
+/* Section labels (A. Brand & Voice etc.) */
+.section-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+/* Vertical spacing for outputs & article sections */
+.outputs-summary-section {
+  margin-top: 40px;
+}
+
+.article-section {
+  margin-top: 32px;
+  margin-bottom: 40px;
+}
