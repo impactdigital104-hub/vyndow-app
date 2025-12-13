@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import VyndowShell from "./VyndowShell";
+import VyndowShell from "../VyndowShell";
 import { sampleWebsites, getSeoPlanForWebsiteKey } from "../websitesData";
 
 
