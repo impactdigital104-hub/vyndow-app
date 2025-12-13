@@ -1,11 +1,23 @@
 // app/VyndowShell.jsx
+"use client";
+
+import { useState } from "react";
+
 export default function VyndowShell({ activeModule, children }) {
   const year = new Date().getFullYear();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  function closeMobileSidebar() {
+    setIsMobileOpen(false);
+  }
 
   return (
     <div className="app-shell">
       {/* LEFT: Global sidebar */}
-      <aside className="sidebar">
+      <aside
+        className={`sidebar ${isMobileOpen ? "sidebar--open" : ""}`}
+        aria-label="Main navigation"
+      >
         {/* Brand block */}
         <div className="sidebar-brand">
           <div className="sidebar-logo-circle">V</div>
@@ -58,6 +70,7 @@ export default function VyndowShell({ activeModule, children }) {
             className={`sidebar-link${
               activeModule === "seo" ? " is-active" : ""
             }`}
+            onClick={closeMobileSidebar}
           >
             <span className="sidebar-link-main">Vyndow SEO</span>
             <span className="sidebar-pill sidebar-pill-live">Live</span>
@@ -144,8 +157,27 @@ export default function VyndowShell({ activeModule, children }) {
         </div>
       </aside>
 
-      {/* RIGHT: whatever page content is passed in */}
-      <div className="main-panel">{children}</div>
+      {/* BACKDROP on mobile when sidebar is open */}
+      {isMobileOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={closeMobileSidebar}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* RIGHT: main content + mobile hamburger button */}
+      <div className="main-panel">
+        <button
+          type="button"
+          className="sidebar-mobile-toggle"
+          onClick={() => setIsMobileOpen(true)}
+        >
+          ☰ Menu
+        </button>
+
+        {children}
+      </div>
     </div>
   );
 }
