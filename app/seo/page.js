@@ -554,6 +554,25 @@ export default function SeoHomePage() {
             {errorMsg}
           </div>
         )}
+        {isQuotaReached && (
+          <div
+            className="error-box"
+            style={{
+              whiteSpace: "pre-wrap",
+              marginTop: errorMsg ? "10px" : "16px",
+            }}
+          >
+            <strong>Plan limit reached for this website.</strong>
+            <br />
+            {quotaMessage}
+            <br />
+            <span style={{ fontSize: "0.85rem" }}>
+              Tip: Add another website in{" "}
+              <strong>Websites &amp; Clients</strong> or upgrade this
+              website&apos;s SEO plan when billing is live.
+            </span>
+          </div>
+        )}
 
         <div style={{ marginTop: "18px" }}>
       <button
