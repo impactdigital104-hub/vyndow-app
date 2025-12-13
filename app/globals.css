@@ -388,3 +388,182 @@ select {
   margin-top: 32px;
   margin-bottom: 40px;
 }
+/* ---- Vyndow App Shell & Sidebar ---- */
+
+.app-shell {
+  display: flex;
+  gap: 24px;
+}
+
+/* Left sidebar */
+.sidebar {
+  width: 260px;
+  min-height: 100vh;
+  padding: 20px 16px;
+  border-radius: 20px;
+  background: radial-gradient(circle at top left, #0f172a, #020617);
+  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Brand row */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.sidebar-logo-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #f9fafb;
+}
+
+.sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.sidebar-subtitle {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* Sidebar sections */
+.sidebar-section {
+  margin-top: 18px;
+}
+
+.sidebar-section-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  margin-bottom: 6px;
+}
+
+/* Sidebar links */
+.sidebar-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+  cursor: default;
+}
+
+.sidebar-link-main {
+  flex: 1;
+}
+
+.sidebar-link-muted {
+  background: rgba(15, 23, 42, 0.3);
+  color: #e5e7eb;
+}
+
+.sidebar-link.is-active {
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  color: #f9fafb;
+}
+
+.sidebar-link.is-soon {
+  background: rgba(15, 23, 42, 0.6);
+  color: #e5e7eb;
+}
+
+/* Pills (Live / Soon / Global etc.) */
+.sidebar-pill {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+}
+
+.sidebar-pill-live {
+  border-color: rgba(248, 250, 252, 0.9);
+}
+
+.sidebar-pill-soon {
+  border-color: rgba(148, 163, 184, 0.8);
+}
+
+.sidebar-pill-soft {
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+/* Tooltip 'i' and tip bubble */
+.sidebar-info {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: #e5e7eb;
+  flex-shrink: 0;
+}
+
+.sidebar-tip {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translate(8px, -50%);
+  background: #020617;
+  color: #e5e7eb;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  max-width: 220px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  border: 1px solid #1f2937;
+  z-index: 10;
+}
+
+.sidebar-link:hover .sidebar-tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Sidebar footer */
+.sidebar-footer {
+  margin-top: auto;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  padding-top: 16px;
+  border-top: 1px solid rgba(55, 65, 81, 0.7);
+}
+
+.sidebar-footer-links a {
+  color: #9ca3af;
+  text-decoration: none;
+}
+
+.sidebar-footer-links a:hover {
+  text-decoration: underline;
+}
+
+/* Right side main content should stretch */
+.main-panel {
+  flex: 1;
+}
