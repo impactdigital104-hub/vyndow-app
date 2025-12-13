@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import VyndowShell from "../VyndowShell";
+
 
 export default function SeoHomePage() {
   // SECTION A — Brand & Voice
@@ -163,11 +165,11 @@ export default function SeoHomePage() {
       setIsSubmitting(false);
     }
   }
-
   return (
-    <main className="page">
-      <header style={{ marginBottom: "20px" }}>
-        <span className="badge">Input Blueprint: Sections A–C</span>
+    <VyndowShell activeModule="seo">
+      <main className="page">
+        <header style={{ marginBottom: "20px" }}>
+          <span className="badge">Input Blueprint: Sections A–C</span>
         <h1>Vyndow SEO — Blog Generator (Next.js UI)</h1>
         <p className="sub">
           This is the new React-based version of your Vyndow SEO tool. It keeps
@@ -630,5 +632,6 @@ export default function SeoHomePage() {
         </section>
       )}
     </main>
+   </VyndowShell>
   );
 }
