@@ -16,6 +16,7 @@ const headerCellStyle = {
   background: "#f9fafb",
   whiteSpace: "nowrap",
 };
+
 // TODO [Phase 7]:
 // - Protect this page behind authentication.
 // - Load websites from backend instead of using sampleWebsites.
@@ -23,7 +24,6 @@ const headerCellStyle = {
 // - Connect the "+ Add Website" button to a drawer / modal form that
 //   posts to /api/websites and refreshes the list.
 export default function WebsitesPage() {
-
   return (
     <VyndowShell activeModule="websites">
       <main className="page">
@@ -36,7 +36,7 @@ export default function WebsitesPage() {
           </p>
         </header>
 
-               <section>
+        <section>
           <h2>Current Websites (Mock Data)</h2>
           <p
             style={{
@@ -45,8 +45,8 @@ export default function WebsitesPage() {
               color: "#4b5563",
             }}
           >
-            For now, these entries are hard-coded in <code>websitesData.js</code>.
-            We&apos;ll replace them with real data and forms in a later step.
+            For now, these entries are hard-coded in <code>websitesData.js</code>
+            . We&apos;ll replace them with real data and forms in a later step.
           </p>
 
           {/* TODO [Phase 7]:
@@ -82,7 +82,6 @@ export default function WebsitesPage() {
           </div>
 
           <div style={{ overflowX: "auto" }}>
-
             <table
               style={{
                 width: "100%",
@@ -94,84 +93,56 @@ export default function WebsitesPage() {
                 <tr>
                   <th style={headerCellStyle}>Website / Brand</th>
                   <th style={headerCellStyle}>Domain</th>
-                  <th style={headerCellStyle}>Plan</th>
-                  <th style={headerCellStyle}>Modules</th>
-                  <th style={headerCellStyle}>Monthly Usage</th>
-                  <th style={headerCellStyle}>Owner</th>
-                  <th style={headerCellStyle}>Status</th>
+                  <th style={headerCellStyle}>SEO Plan</th>
+                  <th style={headerCellStyle}>Modules Active</th>
+                  <th style={headerCellStyle}>Monthly SEO Usage</th>
                 </tr>
               </thead>
               <tbody>
-                {sampleWebsites.map((site) => (
-                  <tr key={site.id}>
-                    <td style={cellStyle}>
-                      <div style={{ fontWeight: 600 }}>{site.name}</div>
-                      {site.notes && (
-                        <div
-                          style={{
-                            fontSize: "0.8rem",
-                            color: "#6b7280",
-                            marginTop: "2px",
-                          }}
-                        >
-                          {site.notes}
-                        </div>
-                      )}
-                    </td>
-                    <td style={cellStyle}>
-                      <code>{site.domain}</code>
-                    </td>
-                    <td style={cellStyle}>{site.plan}</td>
-                    <td style={cellStyle}>
-                      {site.modules && site.modules.length > 0 ? (
-                        <ul
-                          style={{
-                            listStyle: "disc",
-                            margin: 0,
-                            paddingLeft: "16px",
-                          }}
-                        >
-                          {site.modules.map((m) => (
-                            <li key={m}>{m}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span style={{ color: "#9ca3af" }}>None yet</span>
-                      )}
-                    </td>
-                    <td style={cellStyle}>
-                      {site.usageLabel || (
-                        <span style={{ color: "#9ca3af" }}>Not tracked</span>
-                      )}
-                    </td>
-                    <td style={cellStyle}>{site.owner}</td>
-                    <td style={cellStyle}>
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          padding: "2px 8px",
-                          borderRadius: "999px",
-                          fontSize: "0.75rem",
-                          background:
-                            site.status === "Active"
-                              ? "#d1fae5"
-                              : site.status === "Trial"
-                              ? "#fef3c7"
-                              : "#e5e7eb",
-                          color:
-                            site.status === "Active"
-                              ? "#065f46"
-                              : site.status === "Trial"
-                              ? "#92400e"
-                              : "#374151",
-                        }}
-                      >
-                        {site.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {sampleWebsites.map((site) => {
+                  const seoPlan = site.modules && site.modules.seo;
+                  const usageLabel =
+                    seoPlan && seoPlan.blogsPerMonth != null
+                      ? `${seoPlan.usedThisMonth ?? 0} / ${
+                          seoPlan.blogsPerMonth
+                        } blogs`
+                      : "Not tracked";
+
+                  const planLabel = seoPlan
+                    ? seoPlan.planType === "enterprise"
+                      ? "Enterprise"
+                      : seoPlan.planType === "small_business"
+                      ? "Small Business"
+                      : "Free"
+                    : "No SEO plan";
+
+                  const modulesLabel = seoPlan ? "SEO" : "—";
+
+                  return (
+                    <tr key={site.id}>
+                      <td style={cellStyle}>
+                        <div style={{ fontWeight: 600 }}>{site.name}</div>
+                        {site.notes && (
+                          <div
+                            style={{
+                              fontSize: "0.8rem",
+                              color: "#6b7280",
+                              marginTop: "2px",
+                            }}
+                          >
+                            {site.notes}
+                          </div>
+                        )}
+                      </td>
+                      <td style={cellStyle}>
+                        <code>{site.domain}</code>
+                      </td>
+                      <td style={cellStyle}>{planLabel}</td>
+                      <td style={cellStyle}>{modulesLabel}</td>
+                      <td style={cellStyle}>{usageLabel}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
