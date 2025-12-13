@@ -1,5 +1,15 @@
 // app/websitesData.js
 // Phase 5A — Website + Plan model (UI-only, no backend)
+// TODO [Phase 7]:
+// - Replace this hard-coded sample data with real websites loaded
+//   from the database for the currently authenticated account.
+// - Create backend endpoints such as:
+//     GET /api/websites          → list all websites for this account
+//     POST /api/websites         → create a new website
+//     PATCH /api/websites/:id    → update website & plan
+// - Move plan usage (usedThisMonth) into a separate usage table
+//   that is updated every time a blog is generated.
+
 
 /**
  * Website shape (for reference only, not enforced by JS):
