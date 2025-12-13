@@ -58,6 +58,9 @@ export default function SeoHomePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [outputs, setOutputs] = useState(null);
+  // Gating state (UI-only for now)
+  const [isQuotaReached, setIsQuotaReached] = useState(false);
+  const [quotaMessage, setQuotaMessage] = useState("");
   // Build the usage summary string based on the selected website's SEO plan
   function buildUsageSummary(websiteKey) {
     const plan = getSeoPlanForWebsiteKey(websiteKey);
