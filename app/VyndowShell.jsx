@@ -31,15 +31,22 @@ export default function VyndowShell({ activeModule, children }) {
         <div className="sidebar-section">
           <div className="sidebar-section-label">Quick Actions</div>
 
-          <div className="sidebar-link sidebar-link-muted">
-            <span className="sidebar-link-main">Websites &amp; Clients</span>
-            <span className="sidebar-pill sidebar-pill-soft">Global</span>
-            <span className="sidebar-info">i</span>
-            <span className="sidebar-tip">
-              Create and manage all your websites, brands and clients in one
-              place.
-            </span>
-          </div>
+<a
+  href="/websites"
+  className={`sidebar-link sidebar-link-muted${
+    activeModule === "websites" ? " is-active" : ""
+  }`}
+  onClick={closeMobileSidebar}
+>
+  <span className="sidebar-link-main">Websites &amp; Clients</span>
+  <span className="sidebar-pill sidebar-pill-soft">Global</span>
+  <span className="sidebar-info">i</span>
+  <span className="sidebar-tip">
+    Create and manage all your websites, brands and clients in one
+    place.
+  </span>
+</a>
+
 
           <div className="sidebar-link sidebar-link-muted">
             <span className="sidebar-link-main">Invite Team</span>
