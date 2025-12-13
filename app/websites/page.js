@@ -16,8 +16,14 @@ const headerCellStyle = {
   background: "#f9fafb",
   whiteSpace: "nowrap",
 };
-
+// TODO [Phase 7]:
+// - Protect this page behind authentication.
+// - Load websites from backend instead of using sampleWebsites.
+// - Allow creating, editing, and deleting websites from this screen.
+// - Connect the "+ Add Website" button to a drawer / modal form that
+//   posts to /api/websites and refreshes the list.
 export default function WebsitesPage() {
+
   return (
     <VyndowShell activeModule="websites">
       <main className="page">
@@ -30,7 +36,7 @@ export default function WebsitesPage() {
           </p>
         </header>
 
-        <section>
+               <section>
           <h2>Current Websites (Mock Data)</h2>
           <p
             style={{
@@ -43,7 +49,40 @@ export default function WebsitesPage() {
             We&apos;ll replace them with real data and forms in a later step.
           </p>
 
+          {/* TODO [Phase 7]:
+              Wire this button to a real "Create Website" flow that opens a form,
+              posts to /api/websites, and refreshes the list from backend. */}
+          <div
+            style={{
+              margin: "0 0 16px 0",
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <button
+              type="button"
+              style={{
+                padding: "8px 14px",
+                borderRadius: "999px",
+                border: "1px solid #e5e7eb",
+                background: "#f9fafb",
+                fontSize: "0.85rem",
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                // Placeholder only – no real logic yet
+                alert(
+                  "In Phase 7, this will open a form to add a new website / brand."
+                );
+              }}
+            >
+              + Add Website
+            </button>
+          </div>
+
           <div style={{ overflowX: "auto" }}>
+
             <table
               style={{
                 width: "100%",
