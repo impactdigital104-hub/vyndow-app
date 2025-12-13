@@ -81,10 +81,35 @@ export default function SeoHomePage() {
     return `${used} / ${total} blogs this month · ${planLabel}`;
   }
 
-  // Whenever the selected website changes, update the pill text
+  // Whenever the selected website changes, update the pill + gating state
   useEffect(() => {
+    // Update usage pill text
     setUsageSummary(buildUsageSummary(selectedWebsite));
+
+    // Read the underlying plan for gating
+    const plan = getSeoPlanForWebsiteKey(selectedWebsite);
+
+    if (!plan || plan.blogsPerMonth == null) {
+      // No plan configured → do not gate
+      setIsQuotaReached(false);
+      setQuotaMessage("");
+      return;
+    }
+
+    const used = plan.usedThisMonth ?? 0;
+    const total = plan.blogsPerMonth ?? 0;
+
+    if (total > 0 && used >= total) {
+      setIsQuotaReached(true);
+      setQuotaMessage(
+        "You have used all blog credits for this website this month. To continue, upgrade the plan or add another website."
+      );
+    } else {
+      setIsQuotaReached(false);
+      setQuotaMessage("");
+    }
   }, [selectedWebsite]);
+
 
   function toggleTone(value) {
     setToneOfVoice((prev) =>
