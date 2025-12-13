@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import VyndowShell from "../VyndowShell";
+import { useState, useEffect } from "react";
+import VyndowShell from "./VyndowShell";
+import { sampleWebsites, getSeoPlanForWebsiteKey } from "../websitesData";
 
 
 export default function SeoHomePage() {
