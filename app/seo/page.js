@@ -206,15 +206,19 @@ export default function SeoHomePage() {
             <label htmlFor="websiteSelect" className="project-bar-label">
               Website / Brand
             </label>
-            <select
-              id="websiteSelect"
-              className="project-bar-select"
-              value={selectedWebsite}
-              onChange={(e) => setSelectedWebsite(e.target.value)}
-            >
-              <option value="anatta">Anatta Rehab (Sample)</option>
-              <option value="vyndow">Vyndow.com (Sample)</option>
-            </select>
+<select
+  id="websiteSelect"
+  className="project-bar-select"
+  value={selectedWebsite}
+  onChange={(e) => setSelectedWebsite(e.target.value)}
+>
+  {sampleWebsites.map((site) => (
+    <option key={site.id} value={site.key}>
+      {site.name} (Sample)
+    </option>
+  ))}
+</select>
+
           </div>
 
           <div className="project-bar-right">
