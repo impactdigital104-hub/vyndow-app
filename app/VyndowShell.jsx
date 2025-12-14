@@ -167,6 +167,28 @@ export default function VyndowShell({ activeModule, children }) {
             </span>
           </div>
         </div>
+        {/* Account */}
+        <div className="sidebar-section">
+          <div className="sidebar-section-label">Account</div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="sidebar-link"
+            style={{
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              color: "inherit",
+            }}
+          >
+            <span className="sidebar-link-main">Logout</span>
+            <span className="sidebar-pill sidebar-pill-soft">Secure</span>
+            <span className="sidebar-info">i</span>
+            <span className="sidebar-tip">Sign out of Vyndow on this device.</span>
+          </button>
+        </div>
 
                {/* Sidebar footer */}
                 {/* Account */}
