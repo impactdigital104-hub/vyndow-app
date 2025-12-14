@@ -2,7 +2,7 @@
 "use client";
 import { useState } from "react";
 import { signOut } from "firebase/auth";
-import { auth } from "../firebaseClient";
+import { auth } from "./firebaseClient";
 
 
 export default function VyndowShell({ activeModule, children }) {
