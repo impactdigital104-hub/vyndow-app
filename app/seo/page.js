@@ -13,15 +13,20 @@ import { auth } from "../firebaseClient";
 export default function SeoHomePage() {
     const router = useRouter();
   const [authReady, setAuthReady] = useState(false);
+useEffect(() => {
+  const unsub = onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    setAuthReady(true);
+  });
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-      setAuthReady(true);
-    });
+  return () => {
+    if (typeof unsub === "function") unsub();
+  };
+}, [router]);
+
  if (!authReady) {
     return (
       <div style={{ padding: 24, fontFamily: "system-ui" }}>
