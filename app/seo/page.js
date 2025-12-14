@@ -33,6 +33,7 @@ useEffect(() => {
     if (typeof unsub === "function") unsub();
   };
 }, [router]);
+    const [selectedWebsite, setSelectedWebsite] = useState("");
 useEffect(() => {
   async function loadWebsites() {
     if (!uid) return;
@@ -52,9 +53,10 @@ useEffect(() => {
       setWebsites(rows);
 
 // pick first website automatically (first Firestore website)
-if (rows.length) {
+if (rows.length && !selectedWebsite) {
   setSelectedWebsite(rows[0].id);
 }
+
 
     } catch (e) {
       console.error("Failed to load websites:", e);
@@ -71,7 +73,7 @@ if (rows.length) {
 
 
   // GLOBAL BAR — Website / Brand + usage (now driven by websitesData)
- const [selectedWebsite, setSelectedWebsite] = useState("");
+ 
   const [usageSummary, setUsageSummary] = useState("");
 
 
@@ -344,6 +346,7 @@ if (rows.length) {
     ))
   )}
 </select>
+
 
 
           </div>
