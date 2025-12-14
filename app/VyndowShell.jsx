@@ -1,8 +1,9 @@
 // app/VyndowShell.jsx
 "use client";
-
 import { useState } from "react";
 import { signOut } from "firebase/auth";
+import { auth } from "../firebaseClient";
+
 
 export default function VyndowShell({ activeModule, children }) {
   const year = new Date().getFullYear();
