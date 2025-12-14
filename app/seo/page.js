@@ -3,14 +3,20 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
+
 
 import VyndowShell from "../VyndowShell";
 import { sampleWebsites, getSeoPlanForWebsiteKey } from "../websitesData";
-import { auth } from "../firebaseClient";
+import { auth, db } from "../firebaseClient";
+
 
 
 
 export default function SeoHomePage() {
+    const [uid, setUid] = useState(null);
+const [websites, setWebsites] = useState([]);
+const [websitesLoading, setWebsitesLoading] = useState(true);
     const router = useRouter();
   const [authReady, setAuthReady] = useState(false);
 useEffect(() => {
@@ -19,6 +25,7 @@ useEffect(() => {
       router.replace("/login");
       return;
     }
+      setUid(user.uid);
     setAuthReady(true);
   });
 
@@ -26,18 +33,45 @@ useEffect(() => {
     if (typeof unsub === "function") unsub();
   };
 }, [router]);
+useEffect(() => {
+  async function loadWebsites() {
+    if (!uid) return;
 
+    try {
+      setWebsitesLoading(true);
 
- if (!authReady) {
-    return (
-      <div style={{ padding: 24, fontFamily: "system-ui" }}>
-        Checking login…
-      </div>
-    );
+      const colRef = collection(db, "users", uid, "websites");
+      const q = query(colRef, orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+
+      const rows = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      setWebsites(rows);
+
+// pick first website automatically (first Firestore website)
+if (rows.length) {
+  setSelectedWebsite(rows[0].id);
 }
 
+    } catch (e) {
+      console.error("Failed to load websites:", e);
+      setWebsites([]);
+    } finally {
+      setWebsitesLoading(false);
+    }
+  }
+
+  loadWebsites();
+}, [uid]);
+
+
+
+
   // GLOBAL BAR — Website / Brand + usage (now driven by websitesData)
-  const [selectedWebsite, setSelectedWebsite] = useState("anatta");
+ const [selectedWebsite, setSelectedWebsite] = useState("");
   const [usageSummary, setUsageSummary] = useState("");
 
 
@@ -276,6 +310,13 @@ useEffect(() => {
       setIsSubmitting(false);
     }
   }
+    if (!authReady) {
+  return (
+    <div style={{ padding: 24, fontFamily: "system-ui" }}>
+      Checking login…
+    </div>
+  );
+}
   return (
     <VyndowShell activeModule="seo">
       <main className="page">
@@ -291,12 +332,19 @@ useEffect(() => {
   value={selectedWebsite}
   onChange={(e) => setSelectedWebsite(e.target.value)}
 >
-  {sampleWebsites.map((site) => (
-    <option key={site.id} value={site.key}>
-      {site.name} (Sample)
-    </option>
-  ))}
+  {websitesLoading ? (
+    <option value="">Loading websites...</option>
+  ) : websites.length === 0 ? (
+    <option value="">No websites yet</option>
+  ) : (
+    websites.map((w) => (
+      <option key={w.id} value={w.id}>
+        {w.name} ({w.domain})
+      </option>
+    ))
+  )}
 </select>
+
 
           </div>
 
