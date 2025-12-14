@@ -17,6 +17,7 @@ export default function SeoHomePage() {
     const [uid, setUid] = useState(null);
 const [websites, setWebsites] = useState([]);
 const [websitesLoading, setWebsitesLoading] = useState(true);
+    const [websitesError, setWebsitesError] = useState("");
     const router = useRouter();
   const [authReady, setAuthReady] = useState(false);
 useEffect(() => {
@@ -40,6 +41,8 @@ useEffect(() => {
 
     try {
       setWebsitesLoading(true);
+        setWebsitesError("");
+
 
       const colRef = collection(db, "users", uid, "websites");
       const q = query(colRef, orderBy("createdAt", "desc"));
@@ -58,12 +61,13 @@ if (rows.length && !selectedWebsite) {
 }
 
 
-    } catch (e) {
-      console.error("Failed to load websites:", e);
-      setWebsites([]);
-    } finally {
-      setWebsitesLoading(false);
-    }
+  } catch (e) {
+  console.error("Failed to load websites:", e);
+  setWebsites([]);
+  setWebsitesError(e?.message || "Unknown Firestore error while loading websites.");
+} finally {
+  setWebsitesLoading(false);
+}
   }
 
   loadWebsites();
@@ -334,17 +338,20 @@ if (rows.length && !selectedWebsite) {
   value={selectedWebsite}
   onChange={(e) => setSelectedWebsite(e.target.value)}
 >
-  {websitesLoading ? (
-    <option value="">Loading websites...</option>
-  ) : websites.length === 0 ? (
-    <option value="">No websites yet</option>
-  ) : (
-    websites.map((w) => (
-      <option key={w.id} value={w.id}>
-        {w.name} ({w.domain})
-      </option>
-    ))
-  )}
+{websitesLoading ? (
+  <option value="">Loading websites...</option>
+) : websitesError ? (
+  <option value="">Error loading websites: {websitesError}</option>
+) : websites.length === 0 ? (
+  <option value="">No websites yet</option>
+) : (
+  websites.map((w) => (
+    <option key={w.id} value={w.id}>
+      {w.name} ({w.domain})
+    </option>
+  ))
+)}
+
 </select>
 
 
