@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { signOut } from "firebase/auth";
 
 export default function VyndowShell({ activeModule, children }) {
   const year = new Date().getFullYear();
@@ -10,6 +11,17 @@ export default function VyndowShell({ activeModule, children }) {
   function closeMobileSidebar() {
     setIsMobileOpen(false);
   }
+
+  async function handleLogout() {
+    try {
+      await signOut(auth);
+      window.location.href = "/login";
+    } catch (e) {
+      console.error("Logout failed:", e);
+      alert("Logout failed. Please try again.");
+    }
+  }
+
 
   return (
     <div className="app-shell">
