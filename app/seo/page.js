@@ -35,8 +35,6 @@ useEffect(() => {
       </div>
     );
 }
-    return () => unsub();
-  }, [router]);
 
   // GLOBAL BAR — Website / Brand + usage (now driven by websitesData)
   const [selectedWebsite, setSelectedWebsite] = useState("anatta");
