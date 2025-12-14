@@ -9,8 +9,11 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
 } from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
-import { auth } from "../firebaseClient";
+
+import { auth, db } from "../firebaseClient";
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,6 +22,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+    async function ensureUserDoc(user) {
+    if (!user?.uid) return;
+
+    const userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
+
+    if (!snap.exists()) {
+      await setDoc(userRef, {
+        email: user.email || "",
+        name: user.displayName || "",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
+
 
   useEffect(() => {
     // If already logged in, go to /seo
@@ -33,8 +52,10 @@ export default function LoginPage() {
     setBusy(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+            const cred = await signInWithPopup(auth, provider);
+      await ensureUserDoc(cred.user);
       router.replace("/seo");
+
     } catch (e) {
       setMsg(e?.message || "Google sign-in failed.");
     } finally {
@@ -54,9 +75,13 @@ export default function LoginPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
-        await createUserWithEmailAndPassword(auth, email.trim(), password);
+                const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        await ensureUserDoc(cred.user);
+
       } else {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+               const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+        await ensureUserDoc(cred.user);
+
       }
       router.replace("/seo");
     } catch (e) {
