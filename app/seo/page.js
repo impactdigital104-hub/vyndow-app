@@ -1,11 +1,37 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
+
 import VyndowShell from "../VyndowShell";
 import { sampleWebsites, getSeoPlanForWebsiteKey } from "../websitesData";
+import { auth } from "../firebaseClient";
+
 
 
 export default function SeoHomePage() {
+    const router = useRouter();
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+      setAuthReady(true);
+    });
+ if (!authReady) {
+    return (
+      <div style={{ padding: 24, fontFamily: "system-ui" }}>
+        Checking login…
+      </div>
+    );
+}
+    return () => unsub();
+  }, [router]);
+
   // GLOBAL BAR — Website / Brand + usage (now driven by websitesData)
   const [selectedWebsite, setSelectedWebsite] = useState("anatta");
   const [usageSummary, setUsageSummary] = useState("");
