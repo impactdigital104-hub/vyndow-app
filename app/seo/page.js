@@ -27,6 +27,7 @@ useEffect(() => {
   };
 }, [router]);
 
+
  if (!authReady) {
     return (
       <div style={{ padding: 24, fontFamily: "system-ui" }}>
