@@ -80,6 +80,12 @@ export default function SeoHomePage() {
 
     return `${used} / ${total} blogs this month · ${planLabel}`;
   }
+  // TODO [Phase 7]:
+  // - Replace this front-end-only gating with a server-backed check:
+  //     GET /api/usage?websiteKey=...&module=seo
+  //   that returns the latest usage and limit for the current user/account.
+  // - Move the "usedThisMonth" value out of static plan data into a
+  //   dedicated usage collection/table (per website, per module, per month).
 
   // Whenever the selected website changes, update the pill + gating state
   useEffect(() => {
@@ -121,6 +127,16 @@ export default function SeoHomePage() {
     e.preventDefault();
     setErrorMsg("");
     setOutputs(null);
+
+    // TODO [Phase 7]:
+    // - Before generating, call a secured endpoint such as:
+    //     POST /api/usage/check-and-increment
+    //   with { websiteKey: selectedWebsite, module: "seo" } so that the backend:
+    //     * Verifies the user is authenticated and allowed.
+    //     * Checks if quota is available.
+    //     * Increments usage if allowed.
+    //   If the backend says "no quota", show a proper error instead of
+    //   calling /api/generate.
 
     // Front-end required field checks
     const missing = [];
@@ -216,6 +232,11 @@ export default function SeoHomePage() {
       const data = await resp.json();
       const out = data.outputs || {};
       setOutputs(out);
+        // TODO [Phase 7]:
+      // - After a successful generation, refresh the usage pill by asking
+      //   the backend for the latest usage, instead of relying on static
+      //   plan.usedThisMonth in websitesData.js.
+      // - This will keep the UI in sync with the real monthly counters.
     } catch (err) {
       console.error(err);
       setErrorMsg(
