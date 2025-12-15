@@ -149,6 +149,10 @@ export default async function handler(req, res) {
     if (isBlank(b.wordCount)) {
       errors.push("C2 (Desired Word Count) is required.");
     }
+// Website (for plan + usage enforcement)
+if (isBlank(b.websiteId)) {
+  errors.push("WebsiteId (selected website) is required.");
+}
 
      // ---------------------------
     // OPTIONAL FIELDS WITH DEFAULTS
