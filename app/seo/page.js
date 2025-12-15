@@ -335,32 +335,7 @@ useEffect(() => {
       });
 
 
-        },
-        body: JSON.stringify({
-          // SECTION A
-          brandDescription,
-          targetAudience,
-          toneOfVoice, // array of tone tags
-          readingLevel, // new — safe for future prompt use
-
-          // SECTION B
-          topic,
-          primaryKeyword,
-          secondaryKeywords,
-          wordCount: Number(wordCount) || 1200,
-          seoIntent,
-          existingBlogs, // B4 — internal URLs (one per line)
-          geoTarget, // B7 — geography target
-          internalLinkingPreference, // C4
-
-          // SECTION C
-          imagePreference, // C5
-          industry, // C7
-          notes, // C8 — additional notes, optional
-            websiteId: selectedWebsite,
-
-        }),
-      });
+   
 
       if (!resp.ok) {
         let msg =
