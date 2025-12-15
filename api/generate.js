@@ -278,6 +278,40 @@ if (isBlank(b.websiteId)) {
   
    // Receive and normalize the brief from frontend
   const { brief, errors } = normalizeBrief(req.body);
+    // --- AUTH + QUOTA (Phase 9A) ------------------------------------
+  let uid = null;
+  try {
+    uid = await getUidFromRequest(req);
+  } catch (e) {
+    return res.status(401).json({
+      ok: false,
+      error: "UNAUTHENTICATED",
+      detail: e?.message || "Missing/invalid login token.",
+    });
+  }
+
+  const websiteId = brief.websiteId;
+
+  // Reserve 1 blog credit BEFORE generating (atomic)
+  try {
+    await reserveOneBlogCredit({ uid, websiteId });
+  } catch (e) {
+    if (e?.code === "QUOTA_EXCEEDED") {
+      return res.status(403).json({
+        ok: false,
+        error: "QUOTA_EXCEEDED",
+        used: e.used,
+        limit: e.limit,
+      });
+    }
+    return res.status(500).json({
+      ok: false,
+      error: "QUOTA_CHECK_FAILED",
+      detail: e?.message || String(e),
+    });
+  }
+  // ----------------------------------------------------------------
+
 
   // If mandatory fields are missing, stop and send a clear error
   if (errors.length > 0) {
@@ -377,14 +411,17 @@ if (typeof articleText === "string") {
   // Remove closing </a> tags
   articleText = articleText.replace(/<\/a>/gi, "");
 }
+} catch (err) {
+  // Roll back reserved credit because generation failed
+  await rollbackOneBlogCredit({ uid, websiteId });
 
-  } catch (err) {
-    return res.status(500).json({
-      ok: false,
-      error: "Error generating long article.",
-      detail: String(err),
-    });
-  }
+  return res.status(500).json({
+    ok: false,
+    error: "Error generating long article.",
+    detail: String(err),
+  });
+}
+
 
   // ---------------------------------------
   // STEP 2 — PROMPT FOR SHORT OUTPUTS
@@ -527,13 +564,17 @@ Return strictly valid JSON now.
     }
 
     outputsPartial = JSON.parse(text.trim());
-  } catch (err) {
-    return res.status(500).json({
-      ok: false,
-      error: "Error generating secondary outputs.",
-      detail: String(err),
-    });
-  }
+} catch (err) {
+  // Roll back reserved credit because generation failed
+  await rollbackOneBlogCredit({ uid, websiteId });
+
+  return res.status(500).json({
+    ok: false,
+    error: "Error generating secondary outputs.",
+    detail: String(err),
+  });
+}
+
   // ---------------------------------------
   // OPTIONAL: apply internal links (Output 9) into the article HTML
   // ---------------------------------------
