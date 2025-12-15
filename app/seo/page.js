@@ -8,7 +8,8 @@ import { collection, getDocs, orderBy, query, doc, getDoc } from "firebase/fires
 
 
 import VyndowShell from "../VyndowShell";
-import { auth, db } from "../firebaseClient";
+import { db, auth } from "../firebaseClient";
+
 
 
 
@@ -300,8 +301,21 @@ useEffect(() => {
     try {
       const resp = await fetch("/api/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    const token = await auth.currentUser.getIdToken();
+
+const resp = await fetch("/api/generate", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  },
+  body: JSON.stringify({
+    // KEEP your existing fields…
+    // add this one line somewhere inside the object:
+    websiteId: selectedWebsite,
+  }),
+});
+
         },
         body: JSON.stringify({
           // SECTION A
