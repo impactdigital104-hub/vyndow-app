@@ -123,6 +123,19 @@ if (rows.length && !selectedWebsite) {
 
   // C8 — Additional Notes (optional)
   const [notes, setNotes] = useState("");
+function applyWebsiteProfile(w) {
+  const p = w?.profile || {};
+
+  // Website profile -> auto-fill these
+  setBrandDescription(p.brandDescription || "");
+  setTargetAudience(p.targetAudience || "");
+  setToneOfVoice(Array.isArray(p.toneOfVoice) ? p.toneOfVoice : []);
+  setReadingLevel(p.readingLevel || "Accessible (Grade 7–9)");
+
+  // LOCKED fields (set from website profile only)
+  setGeoTarget(p.geoTarget || "India");
+  setIndustry(p.industry || "General");
+}
 
   // UI State
   const [isSubmitting, setIsSubmitting] = useState(false);
