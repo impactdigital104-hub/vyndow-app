@@ -1,4 +1,95 @@
 // /api/generate.js
+import admin from "./firebaseAdmin";
+function getMonthKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`; // e.g. 2025-12
+}
+
+async function getUidFromRequest(req) {
+  const authHeader = req.headers.authorization || "";
+  const match = authHeader.match(/^Bearer (.+)$/);
+  if (!match) throw new Error("Missing Authorization Bearer token.");
+
+  const idToken = match[1];
+  const decoded = await admin.auth().verifyIdToken(idToken);
+  return decoded.uid;
+}
+
+// Reserve 1 credit BEFORE generating (atomic), rollback if generation fails
+async function reserveOneBlogCredit({ uid, websiteId }) {
+  const db = admin.firestore();
+  const monthKey = getMonthKey();
+
+  const moduleRef = db.doc(`users/${uid}/modules/seo`);
+  const websiteRef = db.doc(`users/${uid}/websites/${websiteId}`);
+  const usageRef = db.doc(`users/${uid}/websites/${websiteId}/usage/${monthKey}`);
+
+  const result = await db.runTransaction(async (tx) => {
+    const [moduleSnap, websiteSnap, usageSnap] = await Promise.all([
+      tx.get(moduleRef),
+      tx.get(websiteRef),
+      tx.get(usageRef),
+    ]);
+
+    if (!moduleSnap.exists) throw new Error("SEO module not configured for this user.");
+    if (!websiteSnap.exists) throw new Error("Website not found for this user.");
+
+    const module = moduleSnap.data() || {};
+    const limit = module.blogsPerWebsitePerMonth ?? 0;
+    const used = usageSnap.exists ? (usageSnap.data()?.usedThisMonth ?? 0) : 0;
+
+    if (!limit || limit <= 0) throw new Error("SEO plan limit missing or invalid.");
+    if (used >= limit) {
+      const err = new Error("QUOTA_EXCEEDED");
+      err.code = "QUOTA_EXCEEDED";
+      err.used = used;
+      err.limit = limit;
+      throw err;
+    }
+
+    // Reserve 1 credit now
+    tx.set(
+      usageRef,
+      {
+        month: monthKey,
+        usedThisMonth: used + 1,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return { usedAfter: used + 1, limit };
+  });
+
+  return result;
+}
+
+async function rollbackOneBlogCredit({ uid, websiteId }) {
+  const db = admin.firestore();
+  const monthKey = getMonthKey();
+  const usageRef = db.doc(`users/${uid}/websites/${websiteId}/usage/${monthKey}`);
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(usageRef);
+      if (!snap.exists) return;
+
+      const used = snap.data()?.usedThisMonth ?? 0;
+      if (used <= 0) return;
+
+      tx.update(usageRef, {
+        usedThisMonth: used - 1,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+  } catch (e) {
+    // best-effort rollback
+    console.error("Rollback failed:", e);
+  }
+}
+
 // Two-step generation architecture for 1500-word article reliability
 
 export default async function handler(req, res) {
