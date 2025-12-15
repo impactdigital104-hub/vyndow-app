@@ -182,6 +182,9 @@ function applyWebsiteProfile(w) {
   // Whenever the selected website changes, update the pill + gating state
   useEffect(() => {
     // Update usage pill text
+        // Auto-fill inputs from selected website profile
+  const w = websites.find((x) => x.id === selectedWebsite);
+  if (w) applyWebsiteProfile(w);
     setUsageSummary(buildUsageSummary(selectedWebsite));
 
     // Read the underlying plan for gating
@@ -206,7 +209,8 @@ function applyWebsiteProfile(w) {
       setIsQuotaReached(false);
       setQuotaMessage("");
     }
-  }, [selectedWebsite]);
+}, [selectedWebsite, websites]);
+
 
 
   function toggleTone(value) {
