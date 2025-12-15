@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, doc, getDoc } from "firebase/firestore";
+
 
 
 import VyndowShell from "../VyndowShell";
-import { sampleWebsites, getSeoPlanForWebsiteKey } from "../websitesData";
 import { auth, db } from "../firebaseClient";
 
 
@@ -72,6 +72,34 @@ if (rows.length && !selectedWebsite) {
 
   loadWebsites();
 }, [uid]);
+    useEffect(() => {
+  async function loadSeoModule() {
+    if (!uid) return;
+
+    try {
+      setSeoModuleLoading(true);
+      setSeoModuleError("");
+
+      // users/{uid}/modules/seo
+      const ref = doc(db, "users", uid, "modules", "seo");
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        setSeoModule({ id: snap.id, ...snap.data() });
+      } else {
+        setSeoModule(null);
+      }
+    } catch (e) {
+      console.error("Failed to load SEO module:", e);
+      setSeoModule(null);
+      setSeoModuleError(e?.message || "Unknown error while loading SEO module.");
+    } finally {
+      setSeoModuleLoading(false);
+    }
+  }
+
+  loadSeoModule();
+}, [uid]);
 useEffect(() => {
   if (!selectedWebsite) return;
   if (!websites || !websites.length) return;
@@ -88,6 +116,10 @@ useEffect(() => {
   // GLOBAL BAR — Website / Brand + usage (now driven by websitesData)
  
   const [usageSummary, setUsageSummary] = useState("");
+    const [seoModule, setSeoModule] = useState(null);
+const [seoModuleLoading, setSeoModuleLoading] = useState(true);
+const [seoModuleError, setSeoModuleError] = useState("");
+
 
 
   // SECTION A — Brand & Voice
@@ -154,24 +186,25 @@ function applyWebsiteProfile(w) {
   const [isQuotaReached, setIsQuotaReached] = useState(false);
   const [quotaMessage, setQuotaMessage] = useState("");
   // Build the usage summary string based on the selected website's SEO plan
-  function buildUsageSummary(websiteKey) {
-    const plan = getSeoPlanForWebsiteKey(websiteKey);
+function buildUsageSummary() {
+  if (seoModuleLoading) return "Loading SEO plan…";
+  if (seoModuleError) return "SEO plan load error";
+  if (!seoModule) return "No SEO plan found for this account.";
 
-    if (!plan) {
-      return "No SEO plan configured for this website yet.";
-    }
+  // For now usage is not tracked per month in Firestore yet → show 0 used
+  const used = 0;
 
-    const used = plan.usedThisMonth ?? 0;
-    const total = plan.blogsPerMonth ?? "?";
+  const total = seoModule.blogsPerWebsitePerMonth ?? "?";
+  const planType = (seoModule.plan || "").toLowerCase();
 
-    let planLabel = "Plan not set";
-    if (plan.planType === "free") planLabel = "Free Plan";
-    else if (plan.planType === "small_business")
-      planLabel = "Small Business Plan";
-    else if (plan.planType === "enterprise") planLabel = "Enterprise Plan";
+  let planLabel = "Plan";
+  if (planType === "free") planLabel = "Free Plan";
+  else if (planType === "small_business") planLabel = "Small Business Plan";
+  else if (planType === "enterprise") planLabel = "Enterprise Plan";
 
-    return `${used} / ${total} blogs this month · ${planLabel}`;
-  }
+  return `${used} / ${total} blogs this month · ${planLabel}`;
+}
+
   // TODO [Phase 7]:
   // - Replace this front-end-only gating with a server-backed check:
   //     GET /api/usage?websiteKey=...&module=seo
@@ -180,36 +213,35 @@ function applyWebsiteProfile(w) {
   //   dedicated usage collection/table (per website, per module, per month).
 
   // Whenever the selected website changes, update the pill + gating state
-  useEffect(() => {
-    // Update usage pill text
-        // Auto-fill inputs from selected website profile
+useEffect(() => {
+  // Auto-fill inputs from selected website profile
   const w = websites.find((x) => x.id === selectedWebsite);
   if (w) applyWebsiteProfile(w);
-    setUsageSummary(buildUsageSummary(selectedWebsite));
 
-    // Read the underlying plan for gating
-    const plan = getSeoPlanForWebsiteKey(selectedWebsite);
+  // Update usage pill text (from Firestore modules/seo)
+  setUsageSummary(buildUsageSummary());
 
-    if (!plan || plan.blogsPerMonth == null) {
-      // No plan configured → do not gate
-      setIsQuotaReached(false);
-      setQuotaMessage("");
-      return;
-    }
+  // UI-only gating for now (real usage tracking comes later)
+  if (!seoModule || seoModule.blogsPerWebsitePerMonth == null) {
+    setIsQuotaReached(false);
+    setQuotaMessage("");
+    return;
+  }
 
-    const used = plan.usedThisMonth ?? 0;
-    const total = plan.blogsPerMonth ?? 0;
+  const used = 0; // not tracked yet
+  const total = seoModule.blogsPerWebsitePerMonth ?? 0;
 
-    if (total > 0 && used >= total) {
-      setIsQuotaReached(true);
-      setQuotaMessage(
-        "You have used all blog credits for this website this month. To continue, upgrade the plan or add another website."
-      );
-    } else {
-      setIsQuotaReached(false);
-      setQuotaMessage("");
-    }
-}, [selectedWebsite, websites]);
+  if (total > 0 && used >= total) {
+    setIsQuotaReached(true);
+    setQuotaMessage(
+      "You have used all blog credits for this website this month. To continue, upgrade the plan or add another website."
+    );
+  } else {
+    setIsQuotaReached(false);
+    setQuotaMessage("");
+  }
+}, [selectedWebsite, websites, seoModule, seoModuleLoading, seoModuleError]);
+
 
 
 
