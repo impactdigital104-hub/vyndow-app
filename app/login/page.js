@@ -37,6 +37,23 @@ export default function LoginPage() {
       });
     }
   }
+async function ensureSeoModuleDoc(user) {
+  if (!user?.uid) return;
+
+  const seoRef = doc(db, "users", user.uid, "modules", "seo");
+  const snap = await getDoc(seoRef);
+
+  if (!snap.exists()) {
+    await setDoc(seoRef, {
+      plan: "free",
+      websitesIncluded: 1,
+      blogsPerWebsitePerMonth: 2,
+      extraWebsitesPurchased: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
 
 
   useEffect(() => {
@@ -53,8 +70,10 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider();
             const cred = await signInWithPopup(auth, provider);
-      await ensureUserDoc(cred.user);
-      router.replace("/seo");
+   await ensureUserDoc(cred.user);
+await ensureSeoModuleDoc(cred.user);
+router.replace("/seo");
+
 
     } catch (e) {
       setMsg(e?.message || "Google sign-in failed.");
@@ -74,16 +93,19 @@ export default function LoginPage() {
 
     setBusy(true);
     try {
-      if (mode === "signup") {
-                const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-        await ensureUserDoc(cred.user);
+  if (mode === "signup") {
+  const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+  await ensureUserDoc(cred.user);
+  await ensureSeoModuleDoc(cred.user);
 
-      } else {
-               const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-        await ensureUserDoc(cred.user);
+} else {
+  const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+  await ensureUserDoc(cred.user);
+  await ensureSeoModuleDoc(cred.user);
 
-      }
-      router.replace("/seo");
+}
+router.replace("/seo");
+
     } catch (e) {
       setMsg(e?.message || "Email login failed.");
     } finally {
