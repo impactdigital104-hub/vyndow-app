@@ -2,8 +2,21 @@
 
 // app/websites/page.js
 
+import { useEffect, useState } from "react";
 import VyndowShell from "../VyndowShell";
-import { sampleWebsites } from "../websitesData";
+import AuthGate from "../components/AuthGate";
+import { auth, db } from "../firebaseClient";
+import {
+  collection,
+  addDoc,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+} from "firebase/firestore";
+
 
 const cellStyle = {
   padding: "8px 10px",
@@ -26,130 +39,300 @@ const headerCellStyle = {
 // - Connect the "+ Add Website" button to a drawer / modal form that
 //   posts to /api/websites and refreshes the list.
 export default function WebsitesPage() {
+  const [uid, setUid] = useState(null);
+
+  const [websites, setWebsites] = useState([]);
+  const [loadingWebsites, setLoadingWebsites] = useState(true);
+  const [websitesError, setWebsitesError] = useState("");
+
+  const [seoModule, setSeoModule] = useState(null);
+  const [loadingSeoModule, setLoadingSeoModule] = useState(true);
+
+  const [name, setName] = useState("");
+  const [domain, setDomain] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  // 1) Track auth state (uid)
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((u) => {
+      setUid(u?.uid || null);
+    });
+    return () => unsub();
+  }, []);
+
+  // 2) Load SEO module plan/limits for this user
+  useEffect(() => {
+    if (!uid) return;
+
+    async function loadSeoModule() {
+      setLoadingSeoModule(true);
+      try {
+        const ref = doc(db, "users", uid, "modules", "seo");
+        const snap = await getDoc(ref);
+        setSeoModule(snap.exists() ? snap.data() : null);
+      } catch (e) {
+        console.error("Failed to load SEO module:", e);
+        setSeoModule(null);
+      } finally {
+        setLoadingSeoModule(false);
+      }
+    }
+
+    loadSeoModule();
+  }, [uid]);
+
+  // 3) Load websites list for this user
+  useEffect(() => {
+    if (!uid) return;
+
+    async function loadWebsites() {
+      setLoadingWebsites(true);
+      setWebsitesError("");
+      try {
+        const colRef = collection(db, "users", uid, "websites");
+        const q = query(colRef, orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+
+        const rows = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+
+        setWebsites(rows);
+      } catch (e) {
+        console.error("Failed to load websites:", e);
+        setWebsites([]);
+        setWebsitesError(e?.message || "Failed to load websites.");
+      } finally {
+        setLoadingWebsites(false);
+      }
+    }
+
+    loadWebsites();
+  }, [uid]);
+
+  // 4) Compute allowed websites for SEO (Free plan default)
+  const websitesIncluded = seoModule?.websitesIncluded ?? 1;
+  const extraWebsitesPurchased = seoModule?.extraWebsitesPurchased ?? 0;
+  const allowedWebsites = websitesIncluded + extraWebsitesPurchased;
+  const currentWebsiteCount = websites.length;
+  const canAddWebsite =
+    !loadingSeoModule && currentWebsiteCount < allowedWebsites;
+
+  async function handleAddWebsite(e) {
+    e.preventDefault();
+    setMsg("");
+
+    if (!uid) return;
+
+    const cleanName = name.trim();
+    const cleanDomain = domain.trim().toLowerCase();
+
+    if (!cleanName || !cleanDomain) {
+      setMsg("Please enter both Website Name and Domain.");
+      return;
+    }
+
+    if (!canAddWebsite) {
+      setMsg(
+        `Website limit reached for your plan. Allowed: ${allowedWebsites}.`
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const colRef = collection(db, "users", uid, "websites");
+      await addDoc(colRef, {
+        name: cleanName,
+        domain: cleanDomain,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        profile: {
+          // Website-level defaults (can be edited later in a Profile screen)
+          brandDescription: "",
+          targetAudience: "",
+          toneOfVoice: [],
+          readingLevel: "",
+          geoTarget: "",
+          industry: "",
+        },
+      });
+
+      setName("");
+      setDomain("");
+      setMsg("Website added.");
+
+      // Refresh list
+      const q = query(colRef, orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setWebsites(rows);
+    } catch (e) {
+      console.error("Add website failed:", e);
+      setMsg(e?.message || "Add website failed.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <VyndowShell activeModule="websites">
-      <main className="page">
-        <header style={{ marginBottom: "20px" }}>
-          <span className="badge">Phase 5 — Sample Data Only</span>
-          <h1>Websites &amp; Clients</h1>
-          <p className="sub">
-            This is a read-only mock view of your websites/clients. In a later
-            phase, this will connect to real brand profiles, plans and usage.
-          </p>
-        </header>
+    <AuthGate>
+      <VyndowShell activeModule="websites">
+        <main className="page">
+          <header style={{ marginBottom: "20px" }}>
+            <span className="badge">Phase 8 — Website Manager (Firestore)</span>
+            <h1>Websites &amp; Clients</h1>
+            <p className="sub">
+              Add and manage websites. Your plan controls how many websites you
+              can create.
+            </p>
+          </header>
 
-        <section>
-          <h2>Current Websites (Mock Data)</h2>
-          <p
-            style={{
-              marginBottom: "12px",
-              fontSize: "0.9rem",
-              color: "#4b5563",
-            }}
-          >
-            For now, these entries are hard-coded in <code>websitesData.js</code>
-            . We&apos;ll replace them with real data and forms in a later step.
-          </p>
+          <section style={{ marginBottom: 18 }}>
+            <h2>SEO Plan Limits (for this account)</h2>
 
-          {/* TODO [Phase 7]:
-              Wire this button to a real "Create Website" flow that opens a form,
-              posts to /api/websites, and refreshes the list from backend. */}
-          <div
-            style={{
-              margin: "0 0 16px 0",
-              display: "flex",
-              justifyContent: "flex-end",
-            }}
-          >
-            <button
-              type="button"
+            {loadingSeoModule ? (
+              <p style={{ color: "#6b7280" }}>Loading plan…</p>
+            ) : (
+              <div style={{ display: "grid", gap: 6 }}>
+                <div>
+                  <b>Plan:</b> {seoModule?.plan || "free"}
+                </div>
+                <div>
+                  <b>Websites allowed:</b> {allowedWebsites}{" "}
+                  <span style={{ color: "#6b7280" }}>
+                    ({websitesIncluded} included + {extraWebsitesPurchased} add-on)
+                  </span>
+                </div>
+                <div>
+                  <b>Current websites:</b> {currentWebsiteCount}
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section style={{ marginBottom: 18 }}>
+            <h2>Add Website</h2>
+
+            {!canAddWebsite && !loadingSeoModule ? (
+              <p style={{ color: "#b91c1c" }}>
+                Website limit reached. You can’t add more websites on this plan.
+              </p>
+            ) : null}
+
+            <form
+              onSubmit={handleAddWebsite}
               style={{
-                padding: "8px 14px",
-                borderRadius: "999px",
+                display: "grid",
+                gap: 10,
+                maxWidth: 520,
+                padding: 14,
                 border: "1px solid #e5e7eb",
-                background: "#f9fafb",
-                fontSize: "0.85rem",
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                // Placeholder only – no real logic yet
-                alert(
-                  "In Phase 7, this will open a form to add a new website / brand."
-                );
+                borderRadius: 12,
+                background: "#fff",
               }}
             >
-              + Add Website
-            </button>
-          </div>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontWeight: 600 }}>Website Name</span>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Anatta"
+                />
+              </label>
 
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.9rem",
-              }}
-            >
-              <thead>
-                <tr>
-                  <th style={headerCellStyle}>Website / Brand</th>
-                  <th style={headerCellStyle}>Domain</th>
-                  <th style={headerCellStyle}>SEO Plan</th>
-                  <th style={headerCellStyle}>Modules Active</th>
-                  <th style={headerCellStyle}>Monthly SEO Usage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sampleWebsites.map((site) => {
-                  const seoPlan = site.modules && site.modules.seo;
-                  const usageLabel =
-                    seoPlan && seoPlan.blogsPerMonth != null
-                      ? `${seoPlan.usedThisMonth ?? 0} / ${
-                          seoPlan.blogsPerMonth
-                        } blogs`
-                      : "Not tracked";
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontWeight: 600 }}>Domain</span>
+                <input
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  placeholder="e.g. anatta.in"
+                />
+              </label>
 
-                  const planLabel = seoPlan
-                    ? seoPlan.planType === "enterprise"
-                      ? "Enterprise"
-                      : seoPlan.planType === "small_business"
-                      ? "Small Business"
-                      : "Free"
-                    : "No SEO plan";
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button
+                  type="submit"
+                  disabled={saving || loadingSeoModule || !canAddWebsite}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "999px",
+                    border: "1px solid #e5e7eb",
+                    background: "#f9fafb",
+                    fontSize: "0.9rem",
+                    fontWeight: 600,
+                    cursor: saving ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {saving ? "Adding…" : "+ Add Website"}
+                </button>
 
-                  const modulesLabel = seoPlan ? "SEO" : "—";
+                {msg ? (
+                  <span style={{ color: msg === "Website added." ? "#065f46" : "#b91c1c" }}>
+                    {msg}
+                  </span>
+                ) : null}
+              </div>
+            </form>
+          </section>
 
-                  return (
-                    <tr key={site.id}>
-                      <td style={cellStyle}>
-                        <div style={{ fontWeight: 600 }}>{site.name}</div>
-                        {site.notes && (
-                          <div
-                            style={{
-                              fontSize: "0.8rem",
-                              color: "#6b7280",
-                              marginTop: "2px",
-                            }}
-                          >
-                            {site.notes}
-                          </div>
-                        )}
-                      </td>
-                      <td style={cellStyle}>
-                        <code>{site.domain}</code>
-                      </td>
-                      <td style={cellStyle}>{planLabel}</td>
-                      <td style={cellStyle}>{modulesLabel}</td>
-                      <td style={cellStyle}>{usageLabel}</td>
+          <section>
+            <h2>Current Websites</h2>
+
+            {websitesError ? (
+              <p style={{ color: "#b91c1c" }}>{websitesError}</p>
+            ) : null}
+
+            {loadingWebsites ? (
+              <p style={{ color: "#6b7280" }}>Loading websites…</p>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      <th style={headerCellStyle}>Website / Brand</th>
+                      <th style={headerCellStyle}>Domain</th>
+                      <th style={headerCellStyle}>Created</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
-    </VyndowShell>
+                  </thead>
+                  <tbody>
+                    {websites.map((site) => (
+                      <tr key={site.id}>
+                        <td style={cellStyle}>
+                          <div style={{ fontWeight: 600 }}>{site.name}</div>
+                        </td>
+                        <td style={cellStyle}>
+                          <code>{site.domain}</code>
+                        </td>
+                        <td style={cellStyle}>
+                          {site.createdAt?.toDate
+                            ? site.createdAt.toDate().toLocaleString()
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                    {!websites.length ? (
+                      <tr>
+                        <td style={cellStyle} colSpan={3}>
+                          No websites yet.
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </main>
+      </VyndowShell>
+    </AuthGate>
   );
 }
