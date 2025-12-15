@@ -72,6 +72,15 @@ if (rows.length && !selectedWebsite) {
 
   loadWebsites();
 }, [uid]);
+useEffect(() => {
+  if (!selectedWebsite) return;
+  if (!websites || !websites.length) return;
+
+  const w = websites.find((x) => x.id === selectedWebsite);
+  if (!w) return;
+
+  applyWebsiteProfile(w);
+}, [selectedWebsite, websites]);
 
 
 
@@ -571,13 +580,14 @@ function applyWebsiteProfile(w) {
 
             <div className="field-group">
               <label htmlFor="geoTarget">B7. Geo Target</label>
-              <input
-                type="text"
-                id="geoTarget"
-                placeholder="e.g. India, UK, Pune, North America"
-                value={geoTarget}
-                onChange={(e) => setGeoTarget(e.target.value)}
-              />
+            <input
+  type="text"
+  id="geoTarget"
+  placeholder="Locked at website level"
+  value={geoTarget}
+  disabled
+/>
+
             </div>
 
             <p className="section-label">C. Linking &amp; Images</p>
@@ -628,11 +638,12 @@ function applyWebsiteProfile(w) {
 
             <div className="field-group">
               <label htmlFor="industry">C7. Industry / Domain</label>
-              <select
-                id="industry"
-                value={industry}
-                onChange={(e) => setIndustry(e.target.value)}
-              >
+            <select
+  id="industry"
+  value={industry}
+  disabled
+>
+
                 <option value="health_recovery">
                   Rehab, Mental Health &amp; Recovery
                 </option>
