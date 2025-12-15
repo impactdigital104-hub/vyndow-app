@@ -299,20 +299,41 @@ useEffect(() => {
       .filter(Boolean);
 
     try {
-    const token = await auth.currentUser.getIdToken();
+      const token = await auth.currentUser.getIdToken();
 
-const resp = await fetch("/api/generate", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  },
-  body: JSON.stringify({
-    // KEEP your existing fields…
-    // add this one line somewhere inside the object:
-    websiteId: selectedWebsite,
-  }),
-});
+      const resp = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          // SECTION A
+          brandDescription,
+          targetAudience,
+          toneOfVoice,
+          readingLevel,
+
+          // SECTION B
+          topic,
+          primaryKeyword,
+          secondaryKeywords,
+          wordCount: Number(wordCount) || 1200,
+          seoIntent,
+          existingBlogs,
+          geoTarget,
+          internalLinkingPreference,
+
+          // SECTION C
+          imagePreference,
+          industry,
+          notes,
+
+          // REQUIRED for quota
+          websiteId: selectedWebsite,
+        }),
+      });
+
 
         },
         body: JSON.stringify({
