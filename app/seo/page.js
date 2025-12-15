@@ -324,6 +324,8 @@ useEffect(() => {
           imagePreference, // C5
           industry, // C7
           notes, // C8 — additional notes, optional
+            websiteId: selectedWebsite,
+
         }),
       });
 
