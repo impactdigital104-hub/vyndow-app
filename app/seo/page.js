@@ -299,8 +299,6 @@ useEffect(() => {
       .filter(Boolean);
 
     try {
-      const resp = await fetch("/api/generate", {
-        method: "POST",
     const token = await auth.currentUser.getIdToken();
 
 const resp = await fetch("/api/generate", {
