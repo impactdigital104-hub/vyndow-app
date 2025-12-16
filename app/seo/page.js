@@ -116,7 +116,7 @@ useEffect(() => {
 
   // GLOBAL BAR — Website / Brand + usage (now driven by websitesData)
  
-  const [usageSummary, setUsageSummary] = useState("");
+
     const [usedThisMonth, setUsedThisMonth] = useState(0);
 const [usageLoading, setUsageLoading] = useState(false);
 
@@ -249,7 +249,7 @@ useEffect(() => {
   if (w) applyWebsiteProfile(w);
 
   // Update usage pill text (from Firestore modules/seo)
-  setUsageSummary(buildUsageSummary());
+
 refreshUsage(selectedWebsite);
 
   // UI-only gating for now (real usage tracking comes later)
@@ -401,7 +401,7 @@ refreshUsage(selectedWebsite);
       const out = data.outputs || {};
       setOutputs(out);
         await refreshUsage(selectedWebsite);
-setUsageSummary(buildUsageSummary());
+
         // TODO [Phase 7]:
       // - After a successful generation, refresh the usage pill by asking
       //   the backend for the latest usage, instead of relying on static
@@ -461,7 +461,7 @@ setUsageSummary(buildUsageSummary());
           <div className="project-bar-right">
             <div className="project-bar-usage-label">SEO Usage</div>
             <div className="project-bar-usage-pill">
-              {usageSummary}
+             {buildUsageSummary()}
             </div>
           </div>
         </div>
