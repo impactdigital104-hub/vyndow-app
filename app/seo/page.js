@@ -117,6 +117,9 @@ useEffect(() => {
   // GLOBAL BAR — Website / Brand + usage (now driven by websitesData)
  
   const [usageSummary, setUsageSummary] = useState("");
+    const [usedThisMonth, setUsedThisMonth] = useState(0);
+const [usageLoading, setUsageLoading] = useState(false);
+
     const [seoModule, setSeoModule] = useState(null);
 const [seoModuleLoading, setSeoModuleLoading] = useState(true);
 const [seoModuleError, setSeoModuleError] = useState("");
@@ -187,13 +190,39 @@ function applyWebsiteProfile(w) {
   const [isQuotaReached, setIsQuotaReached] = useState(false);
   const [quotaMessage, setQuotaMessage] = useState("");
   // Build the usage summary string based on the selected website's SEO plan
+    function getMonthKeyClient() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`; // e.g. 2025-12
+}
+    async function refreshUsage(websiteId) {
+  if (!uid || !websiteId) return;
+
+  setUsageLoading(true);
+  try {
+    const monthKey = getMonthKeyClient();
+    const usageRef = doc(db, "users", uid, "websites", websiteId, "usage", monthKey);
+    const snap = await getDoc(usageRef);
+
+    const used = snap.exists() ? (snap.data()?.usedThisMonth ?? 0) : 0;
+    setUsedThisMonth(used);
+  } catch (e) {
+    console.error("Failed to load usage:", e);
+    setUsedThisMonth(0);
+  } finally {
+    setUsageLoading(false);
+  }
+}
+
 function buildUsageSummary() {
   if (seoModuleLoading) return "Loading SEO plan…";
   if (seoModuleError) return "SEO plan load error";
   if (!seoModule) return "No SEO plan found for this account.";
 
-  // For now usage is not tracked per month in Firestore yet → show 0 used
-  const used = 0;
+if (usageLoading) return "Loading usage…";
+const used = usedThisMonth;
+
 
   const total = seoModule.blogsPerWebsitePerMonth ?? "?";
   const planType = (seoModule.plan || "").toLowerCase();
@@ -221,6 +250,7 @@ useEffect(() => {
 
   // Update usage pill text (from Firestore modules/seo)
   setUsageSummary(buildUsageSummary());
+refreshUsage(selectedWebsite);
 
   // UI-only gating for now (real usage tracking comes later)
   if (!seoModule || seoModule.blogsPerWebsitePerMonth == null) {
@@ -370,6 +400,8 @@ useEffect(() => {
       const data = await resp.json();
       const out = data.outputs || {};
       setOutputs(out);
+        await refreshUsage(selectedWebsite);
+setUsageSummary(buildUsageSummary());
         // TODO [Phase 7]:
       // - After a successful generation, refresh the usage pill by asking
       //   the backend for the latest usage, instead of relying on static
