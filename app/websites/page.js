@@ -170,7 +170,13 @@ const [profileMsg, setProfileMsg] = useState("");
         }),
       });
 
-      const data = await resp.json();
+   let data = {};
+try {
+  data = await resp.json();
+} catch (e) {
+  data = {};
+}
+
 
       if (!resp.ok || !data?.ok) {
         const err = data?.error || "Add website failed.";
