@@ -467,16 +467,23 @@ Generate the rest of the outputs exactly as described:
 
 9 → Internal links table as a single multiline string in plain text.
 
-You MUST choose anchor phrases ONLY from the actual article HTML shown above.
-Do NOT invent new anchor phrases that do not already appear in the article.
-For each internal URL you plan to use, follow this process:
-- Scan the article HTML for a natural phrase that already exists (for example a heading, the brand name, or a key term).
-- Use that exact phrase as the anchor text.
-- Make sure you do not change the wording of the phrase when you use it as an anchor.
+EDITORIAL LINKING RULES (must follow):
+- Prefer placing internal links inside BODY PARAGRAPHS (<p>) mid-sentence. This is the default.
+- NEVER choose anchor text that appears only in the <h1>. Never place links in <h1>.
+- Only use <h2>/<h3> anchor placements occasionally, and ONLY if it is a brand/pillar phrase.
+- If a good in-text anchor is not available, use "Further reading" placement (the system will append it).
 
-Use ONE row for EACH internal link you decide to include (for example, 3 links = 3 rows).
-For the URL column, always copy the actual URL from the brief exactly as it appears.
-Never invent domains like "example.com" or placeholders like "URL1 from brief".
+ANCHOR TEXT RULES:
+- You MUST choose anchor phrases ONLY from the actual article HTML shown above.
+- Prefer anchor phrases found in <p> sections over those found in headings.
+- Do NOT invent new anchor phrases that do not already appear in the article.
+- Anchor length: 2–6 words (not a full sentence), and it must sound natural.
+
+For each internal URL you plan to use:
+- Scan the article HTML for a natural phrase that already exists in the BODY COPY.
+- Use that exact phrase as the anchor text (character-for-character).
+- For the URL column, always copy the actual URL from the brief exactly as it appears.
+- Never invent domains, placeholders, or example.com.
 
 Write the table in plain text with a header row "Anchor | URL | Purpose" and then one row per link, for example:
 Anchor | URL | Purpose
@@ -582,63 +589,91 @@ function applyInternalLinksToArticle(rawHtml, internalLinksTable) {
   if (!rawHtml || typeof rawHtml !== "string") return rawHtml;
   if (!internalLinksTable || typeof internalLinksTable !== "string") return rawHtml;
 
-  // Expect internalLinksTable as plain text:
-  // Anchor | URL | Purpose
-  // Anchor text 1 | https://... | Short purpose
   const lines = internalLinksTable
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
 
-  if (lines.length < 2) {
-    // nothing beyond header
-    return rawHtml;
+  if (lines.length < 2) return rawHtml; // only header or empty
+
+  // Parse rows: Anchor | URL | Purpose
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split("|").map((p) => p.trim());
+    if (parts.length < 2) continue;
+    const anchor = parts[0];
+    const url = parts[1];
+    const purpose = parts[2] || "";
+    if (!anchor || !url) continue;
+    rows.push({ anchor, url, purpose });
+  }
+  if (!rows.length) return rawHtml;
+
+  // Helper: attempt to link inside specific tag blocks (e.g., <p>...</p>)
+  function linkInsideTagBlocks(html, tagName, row) {
+    const { anchor, url } = row;
+    const anchorEsc = anchor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const reBlock = new RegExp(`<${tagName}\\b[^>]*>[\\s\\S]*?<\\/${tagName}>`, "gi");
+
+    let replaced = false;
+    const out = html.replace(reBlock, (block) => {
+      if (replaced) return block;
+
+      // Never add links into blocks that already contain <a> (avoid nesting / weirdness)
+      if (/<a\b/i.test(block)) return block;
+
+      // Find anchor inside this block (case-insensitive)
+      const reAnchor = new RegExp(anchorEsc, "i");
+      const m = block.match(reAnchor);
+      if (!m) return block;
+
+      // Preserve the exact casing from the block
+      const matchText = m[0];
+      const linked = `<a href="${url}" target="_blank" rel="noopener noreferrer">${matchText}</a>`;
+
+      // Replace only first occurrence within this block
+      replaced = true;
+      return block.replace(reAnchor, linked);
+    });
+
+    return { html: out, replaced };
   }
 
   let htmlWithLinks = rawHtml;
   const extraLinkLines = [];
 
-  // Assume first line is header row: "Anchor | URL | Purpose"
-  for (let i = 1; i < lines.length; i++) {
-    const parts = lines[i].split("|").map((p) => p.trim());
-    if (parts.length < 2) continue;
+  for (const row of rows) {
+    // 1) Prefer BODY COPY: <p> blocks
+    let r = linkInsideTagBlocks(htmlWithLinks, "p", row);
+    htmlWithLinks = r.html;
+    if (r.replaced) continue;
 
-    const anchor = parts[0];
-    const url = parts[1];
-    const purpose = parts[2] || "";
+    // 2) Allow occasionally in <h2>/<h3> (but NEVER in <h1>)
+    r = linkInsideTagBlocks(htmlWithLinks, "h2", row);
+    htmlWithLinks = r.html;
+    if (r.replaced) continue;
 
-    if (!anchor || !url) continue;
+    r = linkInsideTagBlocks(htmlWithLinks, "h3", row);
+    htmlWithLinks = r.html;
+    if (r.replaced) continue;
 
-    // Case-insensitive search for the anchor text in the article
-    const lowerHtml = htmlWithLinks.toLowerCase();
-    const lowerAnchor = anchor.toLowerCase();
-    const idx = lowerHtml.indexOf(lowerAnchor);
-
-    if (idx !== -1) {
-      // Preserve the exact original casing from the article
-      const originalText = htmlWithLinks.slice(idx, idx + anchor.length);
-      const linkedAnchor = `<a href="${url}" target="_blank" rel="noopener noreferrer">${originalText}</a>`;
-      htmlWithLinks =
-        htmlWithLinks.slice(0, idx) +
-        linkedAnchor +
-        htmlWithLinks.slice(idx + anchor.length);
-    } else {
-      // Fallback: collect a short "Further reading" line
-      const line = `<a href="${url}" target="_blank" rel="noopener noreferrer">${anchor}</a>${
-        purpose ? ` — ${purpose}` : ""
-      }`;
-      extraLinkLines.push(line);
-    }
+    // 3) If no placement found, add to Further reading
+    extraLinkLines.push(
+      `<a href="${row.url}" target="_blank" rel="noopener noreferrer">${row.anchor}</a>` +
+        (row.purpose ? ` — ${row.purpose}` : "")
+    );
   }
 
-  // If we had anchors that didn't exist in the text, append a small
-  // "Further reading" block at the end of the article so the links
-  // are still visible to the user.
+  // Append "Further reading" if needed
   if (extraLinkLines.length > 0) {
-    htmlWithLinks += `\n\n<p><strong>Further reading:</strong><br>${extraLinkLines.join(
-      "<br>"
-    )}</p>`;
+    htmlWithLinks += `\n\n<p><strong>Further reading:</strong><br>${extraLinkLines.join("<br>")}</p>`;
   }
+
+  // Absolute safety: ensure we did not accidentally link in <h1>
+  htmlWithLinks = htmlWithLinks.replace(
+    /(<h1\b[^>]*>[\s\S]*?)<a\b[^>]*>([\s\S]*?)<\/a>([\s\S]*?<\/h1>)/gi,
+    "$1$2$3"
+  );
 
   return htmlWithLinks;
 }
