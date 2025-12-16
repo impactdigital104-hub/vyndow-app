@@ -8,7 +8,6 @@ import AuthGate from "../components/AuthGate";
 import { auth, db } from "../firebaseClient";
 import {
   collection,
-  addDoc,
   doc,
   getDoc,
   getDocs,
@@ -157,21 +156,34 @@ const [profileMsg, setProfileMsg] = useState("");
     setSaving(true);
     try {
       const colRef = collection(db, "users", uid, "websites");
-      await addDoc(colRef, {
-        name: cleanName,
-        domain: cleanDomain,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        profile: {
-          // Website-level defaults (can be edited later in a Profile screen)
-          brandDescription: "",
-          targetAudience: "",
-          toneOfVoice: [],
-          readingLevel: "",
-          geoTarget: "",
-          industry: "",
+      const token = await auth.currentUser.getIdToken();
+
+      const resp = await fetch("/api/websites/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({
+          name: cleanName,
+          domain: cleanDomain,
+        }),
       });
+
+      const data = await resp.json();
+
+      if (!resp.ok || !data?.ok) {
+        const err = data?.error || "Add website failed.";
+        if (err === "WEBSITE_LIMIT_REACHED") {
+          setMsg(
+            `Website limit reached for your plan. Allowed: ${allowedWebsites}.`
+          );
+        } else {
+          setMsg(err);
+        }
+        return;
+      }
+
 
       setName("");
       setDomain("");
