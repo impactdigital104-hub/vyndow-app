@@ -549,17 +549,21 @@ style={{ width: "100%", minHeight: 120 }}
     border: "1px solid #e5e7eb",
   }}
 >
-  <option value="">Select an industry</option>
-  <option value="Technology / SaaS">Technology / SaaS</option>
-  <option value="Accounting & Finance">Accounting & Finance</option>
-  <option value="Legal Services">Legal Services</option>
-  <option value="Healthcare">Healthcare</option>
-  <option value="Education">Education</option>
-  <option value="E-commerce">E-commerce</option>
-  <option value="Manufacturing">Manufacturing</option>
-  <option value="Real Estate">Real Estate</option>
-  <option value="Travel & Hospitality">Travel & Hospitality</option>
-  <option value="Other">Other</option>
+ <option value="">Select an industry</option>
+<option value="general">General (not set)</option>
+<option value="health_recovery">Rehab, Mental Health & Recovery</option>
+<option value="healthcare_clinic">Healthcare / Medical Clinic</option>
+<option value="finance">Finance / Investing / Banking</option>
+<option value="legal">Legal / Law Firms</option>
+<option value="education">Education / EdTech / Coaching</option>
+<option value="ecommerce_fmcg">Ecommerce, FMCG & Retail</option>
+<option value="travel_hospitality">Travel, Tourism & Hospitality</option>
+<option value="saas_tech">Technology / B2B SaaS / Software</option>
+<option value="entertainment_media">Entertainment, Media & Creators</option>
+<option value="real_estate_home">Real Estate & Home Services</option>
+<option value="spirituality_wellness">Spirituality, Wellness & Faith</option>
+<option value="other">Other</option>
+
 </select>
 
 
