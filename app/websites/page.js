@@ -237,7 +237,7 @@ async function handleSaveProfile(e) {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        websiteId: selectedWebsite,
+        websiteId: editingSiteId,
         profile: {
           brandDescription: pBrandDescription.trim(),
           targetAudience: pTargetAudience.trim(),
@@ -252,7 +252,7 @@ async function handleSaveProfile(e) {
     const data = await resp.json();
 
     if (!resp.ok || !data?.ok) {
-      setMsg(data?.error || "Failed to save profile.");
+   setProfileMsg(data?.error || "Failed to save profile.");
       return;
     }
 
