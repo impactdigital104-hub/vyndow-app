@@ -179,7 +179,8 @@ function applyWebsiteProfile(w) {
 
   // LOCKED fields (set from website profile only)
   setGeoTarget(p.geoTarget || "India");
-  setIndustry(p.industry || "General");
+setIndustry(p.industry || "general");
+
 }
 
   // UI State
@@ -721,7 +722,7 @@ refreshUsage(selectedWebsite);
   value={industry}
   disabled
 >
-
+<option value="general">General (not set)</option>
                 <option value="health_recovery">
                   Rehab, Mental Health &amp; Recovery
                 </option>
