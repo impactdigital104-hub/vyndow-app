@@ -602,7 +602,15 @@ function applyInternalLinksToArticle(rawHtml, internalLinksTable) {
     const parts = lines[i].split("|").map((p) => p.trim());
     if (parts.length < 2) continue;
     const anchor = parts[0];
-    const url = parts[1];
+   let url = parts[1];
+
+// Normalize URL: if user/model gives "www.domain.com" (no scheme),
+// browsers treat it as relative and prefix current site.
+// Force absolute https:// links.
+if (url && !/^https?:\/\//i.test(url)) {
+  url = "https://" + url.replace(/^\/+/, "");
+}
+
     const purpose = parts[2] || "";
     if (!anchor || !url) continue;
     rows.push({ anchor, url, purpose });
