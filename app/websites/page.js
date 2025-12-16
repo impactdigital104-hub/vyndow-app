@@ -503,22 +503,25 @@ async function handleSaveProfile(e) {
 
     <form
       onSubmit={handleSaveProfile}
-      style={{
-        display: "grid",
-        gap: 10,
-        maxWidth: 760,
-        padding: 14,
-        border: "1px solid #e5e7eb",
-        borderRadius: 12,
-        background: "#fff",
-      }}
+style={{
+  display: "grid",
+  gap: 10,
+  maxWidth: 760,
+  padding: 22,
+  border: "1px solid #e5e7eb",
+  borderRadius: 18,
+  background: "#fff",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+}}
+
     >
       <label style={{ display: "grid", gap: 6 }}>
         <span style={{ fontWeight: 600 }}>Brand Description</span>
         <textarea
+style={{ width: "100%", minHeight: 120 }}
           value={pBrandDescription}
           onChange={(e) => setPBrandDescription(e.target.value)}
-          rows={4}
+          rows={6}
           placeholder="Describe the brand in 2–5 lines."
         />
       </label>
@@ -534,21 +537,60 @@ async function handleSaveProfile(e) {
 
       <label style={{ display: "grid", gap: 6 }}>
         <span style={{ fontWeight: 600 }}>Tone of Voice (comma separated)</span>
+     <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+  {[
+    "Warm & Empathetic",
+    "Expert & Authoritative",
+    "Educational & Insightful",
+    "Conversational & Easy-to-read",
+  ].map((label) => {
+    const selected = (pToneOfVoice || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const isChecked = selected.includes(label);
+
+    return (
+      <label key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <input
-          value={pToneOfVoice}
-          onChange={(e) => setPToneOfVoice(e.target.value)}
-          placeholder="e.g. professional, consultative, concise"
+          type="checkbox"
+          checked={isChecked}
+          onChange={(e) => {
+            const next = e.target.checked
+              ? [...selected, label]
+              : selected.filter((x) => x !== label);
+
+            setPToneOfVoice(next.join(", "));
+          }}
         />
+        {label}
+      </label>
+    );
+  })}
+</div>
+
       </label>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <label style={{ display: "grid", gap: 6 }}>
           <span style={{ fontWeight: 600 }}>Reading Level</span>
-          <input
-            value={pReadingLevel}
-            onChange={(e) => setPReadingLevel(e.target.value)}
-            placeholder="e.g. Grade 8–10"
-          />
+<select
+  value={pReadingLevel || "Grade 8–9 (Standard blog readability)"}
+  onChange={(e) => setPReadingLevel(e.target.value)}
+  style={{
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid #d1d5db",
+  }}
+>
+  <option value="Grade 6–7 (Very easy)">Grade 6–7 (Very easy)</option>
+  <option value="Grade 8–9 (Standard blog readability)">Grade 8–9 (Standard blog readability)</option>
+  <option value="Grade 10–12 (Advanced)">Grade 10–12 (Advanced)</option>
+  <option value="Expert / Professional audience">Expert / Professional audience</option>
+</select>
+
         </label>
 
         <label style={{ display: "grid", gap: 6 }}>
@@ -563,11 +605,28 @@ async function handleSaveProfile(e) {
 
       <label style={{ display: "grid", gap: 6 }}>
         <span style={{ fontWeight: 600 }}>Industry (locked in SEO)</span>
-        <input
-          value={pIndustry}
-          onChange={(e) => setPIndustry(e.target.value)}
-          placeholder="e.g. Healthcare"
-        />
+   <select
+  value={pIndustry || "General"}
+  onChange={(e) => setPIndustry(e.target.value)}
+  style={{
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid #d1d5db",
+  }}
+>
+  <option value="General">General</option>
+  <option value="SaaS">SaaS</option>
+  <option value="Finance">Finance</option>
+  <option value="Healthcare">Healthcare</option>
+  <option value="Rehab, Mental Health & Recovery">Rehab, Mental Health & Recovery</option>
+  <option value="Legal">Legal</option>
+  <option value="Ecommerce">Ecommerce</option>
+  <option value="Education">Education</option>
+  <option value="Real Estate">Real Estate</option>
+  <option value="Travel">Travel</option>
+</select>
+
       </label>
 
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
