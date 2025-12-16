@@ -228,16 +228,34 @@ async function handleSaveProfile(e) {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
+    const token = await auth.currentUser.getIdToken();
 
-    await updateDoc(ref, {
-      updatedAt: serverTimestamp(),
-      "profile.brandDescription": pBrandDescription.trim(),
-      "profile.targetAudience": pTargetAudience.trim(),
-      "profile.toneOfVoice": toneArray,
-      "profile.readingLevel": pReadingLevel.trim(),
-      "profile.geoTarget": pGeoTarget.trim(),
-      "profile.industry": pIndustry.trim(),
+    const resp = await fetch("/api/websites/updateProfile", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        websiteId: selectedWebsite,
+        profile: {
+          brandDescription: pBrandDescription.trim(),
+          targetAudience: pTargetAudience.trim(),
+          toneOfVoice: toneArray,
+          readingLevel: pReadingLevel.trim(),
+          geoTarget: pGeoTarget.trim(),
+          industry: pIndustry.trim(),
+        },
+      }),
     });
+
+    const data = await resp.json();
+
+    if (!resp.ok || !data?.ok) {
+      setMsg(data?.error || "Failed to save profile.");
+      return;
+    }
+
 
     setWebsites((prev) =>
       prev.map((w) =>
