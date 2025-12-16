@@ -15,7 +15,9 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
 } from "firebase/firestore";
+
 
 
 const cellStyle = {
@@ -52,6 +54,17 @@ export default function WebsitesPage() {
   const [domain, setDomain] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+const [editingSiteId, setEditingSiteId] = useState(null);
+
+const [pBrandDescription, setPBrandDescription] = useState("");
+const [pTargetAudience, setPTargetAudience] = useState("");
+const [pToneOfVoice, setPToneOfVoice] = useState(""); // comma-separated text
+const [pReadingLevel, setPReadingLevel] = useState("");
+const [pGeoTarget, setPGeoTarget] = useState("");
+const [pIndustry, setPIndustry] = useState("");
+
+const [savingProfile, setSavingProfile] = useState(false);
+const [profileMsg, setProfileMsg] = useState("");
 
   // 1) Track auth state (uid)
   useEffect(() => {
@@ -133,6 +146,72 @@ export default function WebsitesPage() {
       setMsg("Please enter both Website Name and Domain.");
       return;
     }
+function startEditProfile(site) {
+  setProfileMsg("");
+  setEditingSiteId(site.id);
+
+  const p = site.profile || {};
+  setPBrandDescription(p.brandDescription || "");
+  setPTargetAudience(p.targetAudience || "");
+  setPToneOfVoice(Array.isArray(p.toneOfVoice) ? p.toneOfVoice.join(", ") : "");
+  setPReadingLevel(p.readingLevel || "");
+  setPGeoTarget(p.geoTarget || "");
+  setPIndustry(p.industry || "");
+}
+
+async function handleSaveProfile(e) {
+  e.preventDefault();
+  setProfileMsg("");
+
+  if (!uid || !editingSiteId) return;
+
+  setSavingProfile(true);
+  try {
+    const ref = doc(db, "users", uid, "websites", editingSiteId);
+
+    const toneArray = pToneOfVoice
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    await updateDoc(ref, {
+      updatedAt: serverTimestamp(),
+      "profile.brandDescription": pBrandDescription.trim(),
+      "profile.targetAudience": pTargetAudience.trim(),
+      "profile.toneOfVoice": toneArray,
+      "profile.readingLevel": pReadingLevel.trim(),
+      "profile.geoTarget": pGeoTarget.trim(),
+      "profile.industry": pIndustry.trim(),
+    });
+
+    // Update local list so you see the change instantly
+    setWebsites((prev) =>
+      prev.map((w) =>
+        w.id === editingSiteId
+          ? {
+              ...w,
+              profile: {
+                ...(w.profile || {}),
+                brandDescription: pBrandDescription.trim(),
+                targetAudience: pTargetAudience.trim(),
+                toneOfVoice: toneArray,
+                readingLevel: pReadingLevel.trim(),
+                geoTarget: pGeoTarget.trim(),
+                industry: pIndustry.trim(),
+              },
+            }
+          : w
+      )
+    );
+
+    setProfileMsg("Profile saved.");
+  } catch (e) {
+    console.error("Save profile failed:", e);
+    setProfileMsg(e?.message || "Save profile failed.");
+  } finally {
+    setSavingProfile(false);
+  }
+}
 
     if (!canAddWebsite) {
       setMsg(
@@ -176,6 +255,71 @@ export default function WebsitesPage() {
       setSaving(false);
     }
   }
+function startEditProfile(site) {
+  setProfileMsg("");
+  setEditingSiteId(site.id);
+
+  const p = site.profile || {};
+  setPBrandDescription(p.brandDescription || "");
+  setPTargetAudience(p.targetAudience || "");
+  setPToneOfVoice(Array.isArray(p.toneOfVoice) ? p.toneOfVoice.join(", ") : "");
+  setPReadingLevel(p.readingLevel || "");
+  setPGeoTarget(p.geoTarget || "");
+  setPIndustry(p.industry || "");
+}
+
+async function handleSaveProfile(e) {
+  e.preventDefault();
+  setProfileMsg("");
+
+  if (!uid || !editingSiteId) return;
+
+  setSavingProfile(true);
+  try {
+    const ref = doc(db, "users", uid, "websites", editingSiteId);
+
+    const toneArray = pToneOfVoice
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    await updateDoc(ref, {
+      updatedAt: serverTimestamp(),
+      "profile.brandDescription": pBrandDescription.trim(),
+      "profile.targetAudience": pTargetAudience.trim(),
+      "profile.toneOfVoice": toneArray,
+      "profile.readingLevel": pReadingLevel.trim(),
+      "profile.geoTarget": pGeoTarget.trim(),
+      "profile.industry": pIndustry.trim(),
+    });
+
+    setWebsites((prev) =>
+      prev.map((w) =>
+        w.id === editingSiteId
+          ? {
+              ...w,
+              profile: {
+                ...(w.profile || {}),
+                brandDescription: pBrandDescription.trim(),
+                targetAudience: pTargetAudience.trim(),
+                toneOfVoice: toneArray,
+                readingLevel: pReadingLevel.trim(),
+                geoTarget: pGeoTarget.trim(),
+                industry: pIndustry.trim(),
+              },
+            }
+          : w
+      )
+    );
+
+    setProfileMsg("Profile saved.");
+  } catch (e) {
+    console.error("Save profile failed:", e);
+    setProfileMsg(e?.message || "Save profile failed.");
+  } finally {
+    setSavingProfile(false);
+  }
+}
 
   return (
     <AuthGate>
@@ -301,6 +445,7 @@ export default function WebsitesPage() {
                       <th style={headerCellStyle}>Website / Brand</th>
                       <th style={headerCellStyle}>Domain</th>
                       <th style={headerCellStyle}>Created</th>
+                  <th style={headerCellStyle}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -317,11 +462,28 @@ export default function WebsitesPage() {
                             ? site.createdAt.toDate().toLocaleString()
                             : "—"}
                         </td>
+                       <td style={cellStyle}>
+  <button
+    type="button"
+    onClick={() => startEditProfile(site)}
+    style={{
+      padding: "6px 10px",
+      borderRadius: 10,
+      border: "1px solid #e5e7eb",
+      background: "#fff",
+      cursor: "pointer",
+      fontWeight: 600,
+    }}
+  >
+    Edit Profile
+  </button>
+</td>
+           
                       </tr>
                     ))}
                     {!websites.length ? (
                       <tr>
-                        <td style={cellStyle} colSpan={3}>
+                        <td style={cellStyle} colSpan={4}>
                           No websites yet.
                         </td>
                       </tr>
@@ -331,6 +493,129 @@ export default function WebsitesPage() {
               </div>
             )}
           </section>
+              {editingSiteId ? (
+  <section style={{ marginTop: 18 }}>
+    <h2>Edit Website Profile</h2>
+    <p style={{ color: "#6b7280" }}>
+      These are your saved defaults for this website. You can still override
+      Brand Description / Tone / Reading Level per blog inside the SEO page.
+    </p>
+
+    <form
+      onSubmit={handleSaveProfile}
+      style={{
+        display: "grid",
+        gap: 10,
+        maxWidth: 760,
+        padding: 14,
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        background: "#fff",
+      }}
+    >
+      <label style={{ display: "grid", gap: 6 }}>
+        <span style={{ fontWeight: 600 }}>Brand Description</span>
+        <textarea
+          value={pBrandDescription}
+          onChange={(e) => setPBrandDescription(e.target.value)}
+          rows={4}
+          placeholder="Describe the brand in 2–5 lines."
+        />
+      </label>
+
+      <label style={{ display: "grid", gap: 6 }}>
+        <span style={{ fontWeight: 600 }}>Target Audience</span>
+        <input
+          value={pTargetAudience}
+          onChange={(e) => setPTargetAudience(e.target.value)}
+          placeholder="e.g. CFOs at mid-to-large enterprises"
+        />
+      </label>
+
+      <label style={{ display: "grid", gap: 6 }}>
+        <span style={{ fontWeight: 600 }}>Tone of Voice (comma separated)</span>
+        <input
+          value={pToneOfVoice}
+          onChange={(e) => setPToneOfVoice(e.target.value)}
+          placeholder="e.g. professional, consultative, concise"
+        />
+      </label>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 600 }}>Reading Level</span>
+          <input
+            value={pReadingLevel}
+            onChange={(e) => setPReadingLevel(e.target.value)}
+            placeholder="e.g. Grade 8–10"
+          />
+        </label>
+
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontWeight: 600 }}>Geo Target (locked in SEO)</span>
+          <input
+            value={pGeoTarget}
+            onChange={(e) => setPGeoTarget(e.target.value)}
+            placeholder="e.g. India"
+          />
+        </label>
+      </div>
+
+      <label style={{ display: "grid", gap: 6 }}>
+        <span style={{ fontWeight: 600 }}>Industry (locked in SEO)</span>
+        <input
+          value={pIndustry}
+          onChange={(e) => setPIndustry(e.target.value)}
+          placeholder="e.g. Healthcare"
+        />
+      </label>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <button
+          type="submit"
+          disabled={savingProfile}
+          style={{
+            padding: "10px 14px",
+            borderRadius: "999px",
+            border: "1px solid #e5e7eb",
+            background: "#f9fafb",
+            fontSize: "0.9rem",
+            fontWeight: 600,
+            cursor: savingProfile ? "not-allowed" : "pointer",
+          }}
+        >
+          {savingProfile ? "Saving…" : "Save Profile"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setEditingSiteId(null);
+            setProfileMsg("");
+          }}
+          style={{
+            padding: "10px 14px",
+            borderRadius: "999px",
+            border: "1px solid #e5e7eb",
+            background: "#fff",
+            fontSize: "0.9rem",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Close
+        </button>
+
+        {profileMsg ? (
+          <span style={{ color: profileMsg === "Profile saved." ? "#065f46" : "#b91c1c" }}>
+            {profileMsg}
+          </span>
+        ) : null}
+      </div>
+    </form>
+  </section>
+) : null}
+
         </main>
       </VyndowShell>
     </AuthGate>
