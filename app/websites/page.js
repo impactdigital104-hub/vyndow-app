@@ -606,26 +606,28 @@ style={{ width: "100%", minHeight: 120 }}
       <label style={{ display: "grid", gap: 6 }}>
         <span style={{ fontWeight: 600 }}>Industry (locked in SEO)</span>
    <select
-  value={pIndustry || "General"}
+  value={pIndustry}
   onChange={(e) => setPIndustry(e.target.value)}
   style={{
     width: "100%",
     padding: "10px 12px",
     borderRadius: 10,
-    border: "1px solid #d1d5db",
+    border: "1px solid #e5e7eb",
   }}
 >
-  <option value="General">General</option>
-  <option value="SaaS">SaaS</option>
-  <option value="Finance">Finance</option>
+  <option value="">Select an industry</option>
+  <option value="Technology / SaaS">Technology / SaaS</option>
+  <option value="Accounting & Finance">Accounting & Finance</option>
+  <option value="Legal Services">Legal Services</option>
   <option value="Healthcare">Healthcare</option>
-  <option value="Rehab, Mental Health & Recovery">Rehab, Mental Health & Recovery</option>
-  <option value="Legal">Legal</option>
-  <option value="Ecommerce">Ecommerce</option>
   <option value="Education">Education</option>
+  <option value="E-commerce">E-commerce</option>
+  <option value="Manufacturing">Manufacturing</option>
   <option value="Real Estate">Real Estate</option>
-  <option value="Travel">Travel</option>
+  <option value="Travel & Hospitality">Travel & Hospitality</option>
+  <option value="Other">Other</option>
 </select>
+
 
       </label>
 
