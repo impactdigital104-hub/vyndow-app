@@ -853,11 +853,14 @@ refreshUsage(selectedWebsite);
   <option value="vector_style">Vector style</option>
   <option value="abstract">Abstract</option>
 </select>
+<div className="small" style={{ marginTop: "8px" }}>
+  <div><strong>Photorealistic:</strong> Realistic, photo-like images.</div>
+  <div><strong>Minimal Illustration:</strong> Clean, simple illustrations with few details.</div>
+  <div><strong>Isometric:</strong> 3D-style diagrams showing systems/processes.</div>
+  <div><strong>Abstract:</strong> Conceptual visuals representing ideas.</div>
+  <div><strong>Vector Style:</strong> Flat graphic illustrations with bold shapes.</div>
+</div>
 
-
-              <div className="small">
-                Used for Output 11 &amp; 12 (image ideas and alt-text).
-              </div>
             </div>
 
             <div className="field-group">
