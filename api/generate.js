@@ -567,11 +567,18 @@ Use the format: "Q1. ...\nA1. ...\n\nQ2. ...\nA2. ..." etc.
 11 → Image alt text suggestions as one multiline string.
 Each line must start with "1. ", "2. ", "3. ", etc.
 Write 3–5 alt texts, each 1–2 sentences, max ~160 characters.
+
 Each alt text should:
+- Describe WHAT is visible in the image (subject, action, context).
 - Be descriptive and accessible (good for screen readers).
 - Match the topic, brand description, target audience, and geography.
-- Reflect the imagePreference from the brief (e.g. photorealistic, vector, isometric).
-Do NOT include any HTML tags. Do NOT start with "Image of" or "Picture of"; just describe the scene.
+- Reflect the meaning and purpose of the image in the article section,
+  NOT the image style or how it was created.
+
+Do NOT:
+- Mention image style or generation method (e.g. photorealistic, isometric, vector, AI-generated).
+- Use phrases like "image of", "picture of", "illustration of".
+- Include any HTML tags.
 
 12 → Image prompts as one multiline string.
 Each line must start with "1. ", "2. ", "3. ", etc.
