@@ -405,6 +405,14 @@ Then you MUST write in an expert, analyst-style posture:
 - Do not be neutral for the sake of neutrality.
 - Write as someone who has studied these tools deeply.
 
+When comparing tools, explicitly identify:
+- workflow friction
+- hidden effort or setup cost
+- what breaks down as usage scales
+- why a limitation actually matters in practice
+
+Do not just describe features. Explain consequences.
+
 If the Notes do NOT request comparison or critique,
 default to a neutral, informative expert tone.
 
