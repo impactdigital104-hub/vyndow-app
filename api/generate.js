@@ -387,6 +387,31 @@ ${brief.prohibitedClaims || ""}
 
 Industry restrictions:
 ${brief.industryRestrictions || ""}
+EDITORIAL POSTURE (IMPORTANT):
+
+If the Editor Notes involve:
+- comparison with competitors
+- evaluation of tools
+- highlighting strengths and weaknesses
+- positioning one solution as superior
+
+Then you MUST write in an expert, analyst-style posture:
+- State conclusions clearly and confidently.
+- Avoid hedging phrases such as:
+  "may help", "can be useful", "often", "in some cases".
+- It is acceptable to point out competitor limitations directly,
+  as long as statements are factual, professional, and non-exaggerated.
+- Do not sound promotional. Sound informed.
+- Do not be neutral for the sake of neutrality.
+- Write as someone who has studied these tools deeply.
+
+If the Notes do NOT request comparison or critique,
+default to a neutral, informative expert tone.
+
+IMPORTANT:
+This instruction only applies when explicitly triggered by the Editor Notes.
+
+
 
 SEO REQUIREMENTS:
 Primary keyword: ${brief.primaryKeyword || ""}
