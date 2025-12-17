@@ -400,6 +400,7 @@ the Editor Notes explicitly ask for:
 - positioning one option as superior
 
 IF ACTIVATED, write in an expert, analyst-style “decision support” posture:
+Assume the reader is already knowledgeable; write to help them decide, not to educate from scratch.
 - State conclusions clearly and confidently (without hype).
 - Avoid hedging phrases such as:
   “may help”, “can be useful”, “often”, “in some cases”.
