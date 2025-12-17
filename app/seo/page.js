@@ -981,11 +981,9 @@ refreshUsage(selectedWebsite);
 
         {!outputs && !errorMsg && (
           <div className="output-card">
-            <h3>Outputs will appear here</h3>
+            <h3>Your SEO content will appear here</h3>
             <p className="output-body">
-              After you click <strong>Generate SEO Outputs</strong>, Vyndow
-              will call the existing <code>/api/generate</code> engine and show
-              all 15 outputs below – including the full article.
+              Once you click<strong>Generate SEO Outputs</strong>, Vyndow will create your complete ready-to-publish SEO-ready content — including titles, meta descriptions, and the full article — based on your inputs.
             </p>
           </div>
         )}
