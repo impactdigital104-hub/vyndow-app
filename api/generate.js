@@ -412,6 +412,19 @@ When comparing tools, explicitly identify:
 - why a limitation actually matters in practice
 
 Do not just describe features. Explain consequences.
+When discussing alternative approaches, tools, or solutions,
+you MUST explain their limitations using
+cause → effect → consequence language.
+
+Use patterns such as:
+- "This leads to…"
+- "The result is…"
+- "In practice, this means…"
+- "At scale, this becomes a problem because…"
+
+Do not stop at describing a limitation.
+Always explain why that limitation matters to the user.
+
 
 If the Notes do NOT request comparison or critique,
 default to a neutral, informative expert tone.
