@@ -733,6 +733,19 @@ refreshUsage(selectedWebsite);
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
+                    <div className="small" style={{ marginTop: "8px" }}>
+  Use this to control how the article is written (structure, depth, what to avoid).
+  <div style={{ marginTop: "6px" }}>
+    <strong>Examples:</strong>
+    <ul style={{ margin: "6px 0 0 18px" }}>
+      <li>“Beginner-friendly how-to. Avoid comparisons. Use practical examples.”</li>
+      <li>“Write in an expert tone for CFOs. Include metrics and real-world implications.”</li>
+      <li>“Explain simply, no jargon. Use bullets and short paragraphs.”</li>
+      <li>“Compare approaches objectively and explain trade-offs.”</li>
+    </ul>
+  </div>
+</div>
+
             </div>
           </div>
 
