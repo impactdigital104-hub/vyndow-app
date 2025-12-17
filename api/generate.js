@@ -334,49 +334,78 @@ if (isBlank(b.websiteId)) {
   // ---------------------------------------
   // STEP 1 — PROMPT FOR THE LONG ARTICLE
   // ---------------------------------------
-  const LONG_ARTICLE_PROMPT = `
-You are VYNDOW SEO, an expert long-form SEO writer for whichever brand is described in the brief.
+  
+const LONG_ARTICLE_PROMPT = `
+You are VYNDOW SEO, an expert long-form SEO writer.
 
-Write a comprehensive, deeply detailed article of around ${requestedWords} words in clean HTML (<h1>, <h2>, <h3>, <p>).
+You will write a comprehensive, deeply detailed article of around ${requestedWords} words in clean HTML (<h1>, <h2>, <h3>, <p>).
 Absolutely NO JSON for this step.
 Do NOT include any <!DOCTYPE>, <html>, <head>, or <body> tags.
-Start directly with the main content (for example, an <h1> or <h2>), followed by <p> paragraphs, etc.
+Start directly with the main content (an <h1>), followed by <p> paragraphs, etc.
 
-CRITICAL REQUIREMENTS:
-
+CRITICAL LENGTH REQUIREMENTS:
 - ABSOLUTE MINIMUM LENGTH: ${minWords} words.
-- TARGET LENGTH: ${minWords}–${maxWords} words. Stay within this band as closely as possible.
-- Do NOT stop at the minimum, but avoid exceeding ${maxWords} words unless absolutely necessary for clarity.
+- TARGET LENGTH BAND: ${minWords}–${maxWords} words. Stay within this band.
 
-
+STRUCTURE REQUIREMENTS:
 - Include AT LEAST EIGHT <h2> sections.
 - Each <h2> section MUST contain 3–4 detailed, well-developed paragraphs.
-
-- Add examples, explanations, scenarios, analogies, optional case-style storytelling, 
-  and elaborated insights to naturally increase length.
-
-- Output 8 is the highest-priority task. If there is any trade-off, spend 
-  more depth and length here.
 - Use <h3> sub-sections wherever helpful.
+- Add examples, scenarios, analogies, and practical guidance to earn the length (no filler).
 
-- IMPORTANT: Do NOT create any HTML hyperlinks in this article.
-  - Do NOT use <a> tags at all.
-  - Do NOT include any href="" attributes.
-  - If you want to highlight phrases, use <strong> or <em>, but never <a>.
+NON-NEGOTIABLE EDITOR INSTRUCTION (MUST OVERRIDE EVERYTHING ELSE):
+The user has provided EDITOR NOTES for this specific blog. You MUST follow these notes.
+- The article must clearly reflect the angle, argument, and framing demanded by the notes.
+- If the notes ask you to argue strongly for a position, you MUST do so with clear reasoning and examples.
+- If any instruction conflicts with safety restrictions, follow safety — otherwise Notes override all other preferences.
 
-- Do NOT be concise. Go deep, give examples, explanations, and insights.
+EDITOR NOTES (MANDATORY):
+${(brief.notes || "").trim()}
 
-Brand Tone:
-- Warm, empathetic, non-judgmental, confidential, spiritual.
-- No guaranteed results, no medical claims.
+BRAND CONTEXT:
+Brand description:
+${brief.brandDescription || ""}
 
-Primary Keyword: ${brief.primaryKeyword || ""}
-Secondary Keywords: ${(brief.secondaryKeywords || []).join(", ")}
+Target audience:
+${brief.targetAudience || ""}
 
-Topic: ${brief.topic || ""}
+Geography / market focus:
+${brief.geography || brief.geoTarget || ""}
 
-Write the full article now. Only return HTML.
-  `;
+VOICE & STYLE (MUST BE FELT IN THE WRITING):
+Tone of voice:
+${Array.isArray(brief.toneOfVoice) ? brief.toneOfVoice.join(", ") : (brief.toneOfVoice || "")}
+
+Writing style preferences:
+${brief.stylePreferences || ""}
+
+Brand values:
+${brief.brandValues || ""}
+
+Prohibited claims / guardrails:
+${brief.prohibitedClaims || ""}
+
+Industry restrictions:
+${brief.industryRestrictions || ""}
+
+SEO REQUIREMENTS:
+Primary keyword: ${brief.primaryKeyword || ""}
+Secondary keywords: ${(brief.secondaryKeywords || []).join(", ")}
+Topic / working title: ${brief.topic || ""}
+
+IMPORTANT LINK RULE (STEP 1):
+- Do NOT create any HTML hyperlinks in this article.
+- Do NOT use <a> tags at all.
+- Do NOT include any href="" attributes.
+(Internal links will be applied later.)
+
+QUALITY CONTROL (MANDATORY):
+- The first 2 paragraphs must make the intended angle obvious (as per the Notes).
+- Avoid generic AI phrasing like “In today’s world…” or “This comprehensive guide…”.
+- Don’t pad for length. Every paragraph must add a new idea, example, or explanation.
+
+Write the full article now. Return ONLY HTML.
+`;
 
   // -----------------------------
   // STEP 1 — CALL OPENAI
