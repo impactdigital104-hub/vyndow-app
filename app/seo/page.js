@@ -605,6 +605,11 @@ refreshUsage(selectedWebsite);
                 value={brandDescription}
                 onChange={(e) => setBrandDescription(e.target.value)}
               />
+                    <div className="small">
+  2–4 sentences is ideal. Include what you do, who you serve, and what makes you different.
+  Avoid slogans.
+</div>
+
             </div>
 
             <div className="field-group">
