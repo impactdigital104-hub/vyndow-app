@@ -471,8 +471,7 @@ refreshUsage(selectedWebsite);
           <span className="badge">Enter details and generate the output</span>
         <h1>Vyndow SEO — Publishing Ready Blog Generator</h1>
         <p className="sub">
-    Vyndow SEO is designed to keep things simple. Provide a few meaningful inputs,and Vyndow takes care of generating structured,SEO-ready content. e.
-        </p>
+Vyndow SEO is designed to keep things simple. Provide a few meaningful inputs,and Vyndow takes care of generating structured,SEO-ready content.
       </header>
 
       {/* STEP 1 – INPUTS (2-column grid of cards) */}
