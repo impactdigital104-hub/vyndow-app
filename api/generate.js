@@ -387,50 +387,45 @@ ${brief.prohibitedClaims || ""}
 
 Industry restrictions:
 ${brief.industryRestrictions || ""}
-EDITORIAL POSTURE (IMPORTANT):
 
-If the Editor Notes involve:
-- comparison with competitors
-- evaluation of tools
-- highlighting strengths and weaknesses
-- positioning one solution as superior
+EDITORIAL POSTURE & DECISION MODE (STRICTLY CONDITIONAL)
 
-Then you MUST write in an expert, analyst-style posture:
-- State conclusions clearly and confidently.
+ACTIVATION RULE:
+Only activate the instructions in this section if (and only if)
+the Editor Notes explicitly ask for:
+- comparison or evaluation
+- competitors or alternatives
+- “X vs Y” framing
+- strengths vs weaknesses
+- positioning one option as superior
+
+IF ACTIVATED, write in an expert, analyst-style “decision support” posture:
+- State conclusions clearly and confidently (without hype).
 - Avoid hedging phrases such as:
-  "may help", "can be useful", "often", "in some cases".
-- It is acceptable to point out competitor limitations directly,
+  “may help”, “can be useful”, “often”, “in some cases”.
+- It is acceptable to point out limitations directly,
   as long as statements are factual, professional, and non-exaggerated.
 - Do not sound promotional. Sound informed.
-- Do not be neutral for the sake of neutrality.
-- Write as someone who has studied these tools deeply.
+- Do not be neutral for the sake of neutrality; provide reasoned judgment.
 
-When comparing tools, explicitly identify:
-- workflow friction
-- hidden effort or setup cost
-- what breaks down as usage scales
-- why a limitation actually matters in practice
+When comparing tools, approaches, or alternatives, you MUST:
+- Explain trade-offs, not just features.
+- Identify workflow friction, hidden effort or setup cost,
+  what breaks down as usage scales, and why this matters in practice.
+- Use cause → effect → consequence language, for example:
+  - “This leads to…”
+  - “The result is…”
+  - “In practice, this means…”
+  - “At scale, this becomes a problem because…”
+- Mention who each option is best suited for.
+- Where appropriate, include a short subsection such as:
+  “When to choose X / When to choose Y”.
 
-Do not just describe features. Explain consequences.
-When discussing alternative approaches, tools, or solutions,
-you MUST explain their limitations using
-cause → effect → consequence language.
-
-Use patterns such as:
-- "This leads to…"
-- "The result is…"
-- "In practice, this means…"
-- "At scale, this becomes a problem because…"
-
-Do not stop at describing a limitation.
-Always explain why that limitation matters to the user.
-
-
-If the Notes do NOT request comparison or critique,
-default to a neutral, informative expert tone.
-
-IMPORTANT:
-This instruction only applies when explicitly triggered by the Editor Notes.
+IF NOT ACTIVATED (i.e., Notes do NOT request comparison or evaluation):
+- Do NOT introduce competitors, alternatives, or “versus” framing.
+- Do NOT evaluate other approaches unless explicitly asked.
+- Write a focused single-topic article (how-to / guide / explainer).
+- Maintain a neutral, informative expert tone aligned with the brand voice.
 
 
 
