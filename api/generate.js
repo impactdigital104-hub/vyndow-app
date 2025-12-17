@@ -561,8 +561,26 @@ Anchor | URL | Purpose
 Anchor text 1 | <actual URL from the brief> | Short purpose
 Anchor text 2 | <actual URL from the brief> | Short purpose
 
-10 → FAQs as one multiline string. Include 4–5 Q/A pairs. Each answer must be at least 50 words.
-Use the format: "Q1. ...\nA1. ...\n\nQ2. ...\nA2. ..." etc.
+10 → FAQs as one multiline string.
+Include 4–5 Q/A pairs.
+
+Guidelines for FAQ questions:
+- Frame questions the way a curious, attentive reader might naturally ask
+  after reading the article.
+- Questions may clarify concepts, implications, usage, limitations,
+  applicability, or common follow-up doubts.
+- Avoid marketing-style phrasing or repeating section headings.
+- Each question should address a distinct concern or angle.
+
+Guidelines for answers:
+- Each answer must be at least 50 words.
+- Be clear, factual, and helpful.
+- Explain implications or context where relevant.
+- Do not exaggerate, promise outcomes, or make guarantees.
+
+Use the format:
+"Q1. ...\nA1. ...\n\nQ2. ...\nA2. ..."
+
 
 11 → Image alt text suggestions as one multiline string.
 Each line must start with "1. ", "2. ", "3. ", etc.
