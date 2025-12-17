@@ -479,6 +479,80 @@ refreshUsage(selectedWebsite);
       {/* STEP 1 – INPUTS (2-column grid of cards) */}
       <section className="inputs-section">
         <h2>Step 1: Enter Inputs</h2>
+{/* Helper: Filled example template (Phase X.1-A) */}
+<details
+  style={{
+    marginTop: "10px",
+    marginBottom: "14px",
+    padding: "10px 12px",
+    border: "1px solid #e5e7eb",
+    borderRadius: "12px",
+    background: "#fff",
+  }}
+>
+  <summary style={{ cursor: "pointer", fontWeight: 600 }}>
+    See a filled example (template)
+  </summary>
+
+  <div style={{ marginTop: "10px" }}>
+    <div className="small" style={{ marginBottom: "10px" }}>
+      Use this as a reference for what “good inputs” look like. You can copy the
+      wording and edit it to match your brand.
+    </div>
+
+    <pre
+      className="output-body"
+      style={{
+        whiteSpace: "pre-wrap",
+        lineHeight: 1.45,
+        padding: "10px",
+        borderRadius: "10px",
+        border: "1px solid #f1f5f9",
+        background: "#fafafa",
+      }}
+    >
+{`Brand Name:
+GrowthNest Consulting
+
+Brand Description:
+GrowthNest Consulting helps small and mid-sized businesses improve their online visibility through practical SEO, content marketing, and conversion-focused strategies. We focus on sustainable growth, clear communication, and ethical digital practices rather than short-term hacks.
+
+Target Audience:
+Small business owners and marketing managers with limited in-house SEO expertise, looking for clear guidance and practical advice.
+
+Tone of Voice:
+Educational & Insightful + Conversational & Easy-to-read
+
+Reading Level:
+Grade 8–9
+
+SEO Intent:
+Informational / Educational (How-to)
+
+Blog Topic / Working Title:
+Local SEO Checklist for Small Businesses (Step-by-step)
+
+Desired Word Count:
+1200
+
+Primary Keyword:
+local seo checklist
+
+Secondary Keywords:
+local search optimization, google business profile tips, local seo best practices
+
+Internal URLs for Interlinking:
+https://growthnest.com/local-seo-services
+https://growthnest.com/google-business-profile-setup
+
+Additional Notes:
+Beginner-friendly how-to. Avoid tool comparisons. Use simple examples and actionable tips.
+
+Image Style Preference:
+Minimal Illustration`}
+    </pre>
+  </div>
+</details>
 
         <div className="inputs-grid">
           {/* LEFT CARD – Brand & Article Brief */}
