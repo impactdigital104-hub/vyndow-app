@@ -691,6 +691,12 @@ refreshUsage(selectedWebsite);
                 </option>
                 <option value="expert">Expert / Professional audience</option>
               </select>
+                    <div className="small" style={{ marginTop: "8px" }}>
+    <div><strong>Grades 6–7:</strong> Very simple language, short sentences, no jargon.</div>
+    <div><strong>Grades 8–9:</strong> Clear and approachable; light terminology explained.</div>
+    <div><strong>Grades 10–12:</strong> Moderate complexity; more detail, still readable.</div>
+    <div><strong>Expert / Professional:</strong> Advanced vocabulary and domain terms for professionals.</div>
+  </div>
             </div>
 
             <p className="section-label">C. Article Brief</p>
@@ -743,6 +749,10 @@ refreshUsage(selectedWebsite);
                 value={primaryKeyword}
                 onChange={(e) => setPrimaryKeyword(e.target.value)}
               />
+                    <div className="small" style={{ marginTop: "8px" }}>
+  Use one clear search phrase (not a full sentence). Example: <em>local seo checklist</em>
+</div>
+
             </div>
 
             <div className="field-group">
