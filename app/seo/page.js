@@ -992,52 +992,52 @@ refreshUsage(selectedWebsite);
 <div className="outputs-summary-grid">
   {/* LEFT CARD: 1–7 + 9–12 */}
   <div className="output-card">
-    <h3>Core SEO &amp; Content Essentials (1–7, 9–12)</h3>
+    <h3>Core SEO &amp; Content Essentials</h3>
 
     <div style={{ marginBottom: "8px" }}>
-      <strong>Output 1 – Blog Title Recommendation:</strong>
+      <strong>Blog Title Recommendation:</strong>
       <div className="output-body">
         {outputs.output1 || "(No data returned)"}
       </div>
     </div>
 
     <div style={{ marginBottom: "8px" }}>
-      <strong>Output 2 – H1:</strong>
+      <strong>H1:</strong>
       <div className="output-body">
         {outputs.output2 || "(No data returned)"}
       </div>
     </div>
 
     <div style={{ marginBottom: "8px" }}>
-      <strong>Output 3 – SEO Title:</strong>
+      <strong>SEO Title:</strong>
       <div className="output-body">
         {outputs.output3 || "(No data returned)"}
       </div>
     </div>
 
     <div style={{ marginBottom: "8px" }}>
-      <strong>Output 4 – Meta Description:</strong>
+      <strong>Meta Description:</strong>
       <div className="output-body">
         {outputs.output4 || "(No data returned)"}
       </div>
     </div>
 
     <div style={{ marginBottom: "8px" }}>
-      <strong>Output 5 – URL Slug:</strong>
+      <strong>URL Slug:</strong>
       <div className="output-body">
         {outputs.output5 || "(No data returned)"}
       </div>
     </div>
 
     <div style={{ marginBottom: "8px" }}>
-      <strong>Output 6 – Primary Keyword:</strong>
+      <strong>Primary Keyword:</strong>
       <div className="output-body">
         {outputs.output6 || "(No data returned)"}
       </div>
     </div>
 
     <div style={{ marginBottom: "12px" }}>
-      <strong>Output 7 – Secondary Keywords:</strong>
+      <strong>Secondary Keywords:</strong>
       <div className="output-body">
         {outputs.output7 || "(No data returned)"}
       </div>
@@ -1046,28 +1046,28 @@ refreshUsage(selectedWebsite);
     <hr style={{ margin: "8px 0 12px", border: "none", borderTop: "1px solid #e5e7eb" }} />
 
     <div style={{ marginBottom: "12px" }}>
-      <strong>Output 9 – Internal Link Plan:</strong>
+      <strong>Internal Link Plan:</strong>
       <pre className="output-body" style={{ whiteSpace: "pre-wrap" }}>
         {outputs.output9 || "(No data returned)"}
       </pre>
     </div>
 
     <div style={{ marginBottom: "12px" }}>
-      <strong>Output 10 – FAQ Draft (Q&amp;A):</strong>
+      <strong>FAQ Draft (Q&amp;A):</strong>
       <pre className="output-body" style={{ whiteSpace: "pre-wrap" }}>
         {outputs.output10 || "(No data returned)"}
       </pre>
     </div>
 
     <div style={{ marginBottom: "12px" }}>
-      <strong>Output 11 – Image Alt Text Suggestions:</strong>
+      <strong>Image Alt Text Suggestions:</strong>
       <pre className="output-body" style={{ whiteSpace: "pre-wrap" }}>
         {outputs.output11 || "(No data returned)"}
       </pre>
     </div>
 
     <div style={{ marginBottom: "0" }}>
-    <strong>Output 12 – Image Prompts (for AI generator):</strong>
+    <strong>Image Prompts (for AI generator):</strong>
       <pre className="output-body" style={{ whiteSpace: "pre-wrap" }}>
         {outputs.output12 || "(No data returned)"}
       </pre>
@@ -1076,9 +1076,9 @@ refreshUsage(selectedWebsite);
 
 {/* RIGHT CARD: JSON-LD Schemas (Output 13) */}
 <div className="output-card">
-  <h3>Structured Data — JSON-LD Schemas (Output 13)</h3>
+  <h3>Structured Data — JSON-LD Schemas</h3>
   {[
-    { key: "output13", label: "Output 13 – JSON-LD Schemas" },
+  { key: "output13", label: "JSON-LD Schemas" },
   ].map(({ key, label }) => (
     <div key={key} style={{ marginBottom: "12px" }}>
       <strong>{label}</strong>
@@ -1103,7 +1103,7 @@ refreshUsage(selectedWebsite);
       {outputs && (
         <section className="article-section">
           <div className="output-card">
-            <h2>Full Article (Output 8)</h2>
+            <h2>Full Article</h2>
             <div
               className="article-block"
               dangerouslySetInnerHTML={{
