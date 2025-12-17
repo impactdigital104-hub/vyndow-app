@@ -17,6 +17,7 @@ import { db, auth } from "../firebaseClient";
 export default function SeoHomePage() {
     const [uid, setUid] = useState(null);
 const [websites, setWebsites] = useState([]);
+    const [jsonLdCopied, setJsonLdCopied] = useState(false);
 const [websitesLoading, setWebsitesLoading] = useState(true);
     const [websitesError, setWebsitesError] = useState("");
     const router = useRouter();
@@ -1076,7 +1077,36 @@ refreshUsage(selectedWebsite);
 
 {/* RIGHT CARD: JSON-LD Schemas (Output 13) */}
 <div className="output-card">
-  <h3>Structured Data — JSON-LD Schemas</h3>
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+  <h3 style={{ margin: 0 }}>Structured Data — JSON-LD Schemas</h3>
+
+  <button
+    type="button"
+    onClick={async () => {
+      try {
+        const text = outputs?.output13 || "";
+        await navigator.clipboard.writeText(text);
+        setJsonLdCopied(true);
+        setTimeout(() => setJsonLdCopied(false), 2000);
+      } catch (e) {
+        // silent fail (no disruption)
+      }
+    }}
+    style={{
+      padding: "6px 10px",
+      borderRadius: "10px",
+      border: "1px solid #e5e7eb",
+      background: "#fff",
+      cursor: "pointer",
+      fontSize: "13px",
+      fontWeight: 600,
+    }}
+    aria-label="Copy JSON-LD Schemas"
+  >
+    {jsonLdCopied ? "Copied ✓" : "Copy JSON-LD"}
+  </button>
+</div>
+
   {[
   { key: "output13", label: "JSON-LD Schemas" },
   ].map(({ key, label }) => (
