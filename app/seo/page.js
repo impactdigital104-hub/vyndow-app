@@ -502,7 +502,9 @@ refreshUsage(selectedWebsite);
 
 
   </div>
-</det<div
+</details>
+
+<div
   style={{
     padding: "10px",
     borderRadius: "10px",
