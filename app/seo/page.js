@@ -622,6 +622,10 @@ refreshUsage(selectedWebsite);
                 value={targetAudience}
                 onChange={(e) => setTargetAudience(e.target.value)}
               />
+                    <div className="small">
+  Be specific: role + situation + goal. Example: “Founders with basic SEO knowledge who want more leads.”
+</div>
+
             </div>
 
             <div className="field-group">
@@ -660,6 +664,13 @@ refreshUsage(selectedWebsite);
                   Conversational &amp; Easy-to-read
                 </label>
               </div>
+                    <div className="small">
+  <div><strong>Warm &amp; Empathetic:</strong> Supportive, human, reassuring.</div>
+  <div><strong>Expert &amp; Authoritative:</strong> Confident, professional, decision-ready.</div>
+  <div><strong>Educational &amp; Insightful:</strong> Clear teaching tone, structured explanations.</div>
+  <div><strong>Conversational &amp; Easy-to-read:</strong> Friendly, simple language, minimal jargon.</div>
+</div>
+
             </div>
 
             <div className="field-group">
@@ -754,7 +765,7 @@ refreshUsage(selectedWebsite);
                 value={existingBlogs}
                 onChange={(e) => setExistingBlogs(e.target.value)}
               />
-              <div className="small">
+             <div className="small" style={{ marginTop: "8px" }}>
                 Used for Output 9. This should be URLs from your own website or
                 blog that you want Vyndow to reference and interlink.
               </div>
