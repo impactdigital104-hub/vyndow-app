@@ -583,11 +583,16 @@ Do NOT:
 12 → Image prompts as one multiline string.
 Each line must start with "1. ", "2. ", "3. ", etc.
 Write 3–5 rich prompts for an AI image generator.
+
 Each prompt must:
 - Explicitly mention the imagePreference from the brief (e.g. "photorealistic", "flat vector illustration", "3D isometric").
 - Reflect the brand description, target audience, topic, and geography (if present).
+- Be context-aware: each prompt must be tied to a distinct key idea or section theme from the article (e.g., workflow friction, scaling, internal linking integrity, schema/technical SEO, decision-making).
+- Avoid generic stock scenes unless the topic truly demands them (e.g., random “team meeting”, “people pointing at charts”, “floating icons”).
+- Ensure variety: no two prompts should reuse the same core scene setup (dashboard/team/abstract). Each should depict a different scenario or visual metaphor.
 - Be safe and on-brand for sensitive topics (no graphic imagery, no pills/needles/self-harm; focus on people, environment, emotions, and recovery).
 - Be around 25–45 words.
+
 
 13 → JSON-LD schemas as one multiline string.
 Produce TWO numbered schemas:
