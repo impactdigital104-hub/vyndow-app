@@ -301,19 +301,19 @@ refreshUsage(selectedWebsite);
 
     // Front-end required field checks
     const missing = [];
-    if (!brandDescription.trim()) missing.push("A1. Brand Description");
-    if (!targetAudience.trim()) missing.push("A2. Target Audience Persona");
-    if (toneOfVoice.length === 0) missing.push("A3. Tone of Voice");
-    if (!readingLevel) missing.push("A6. Reading Level Preference");
-    if (!primaryKeyword.trim()) missing.push("B1. Primary Keyword");
-    if (!topic.trim()) missing.push("C1. Blog Topic / Working Title");
-    if (!wordCount.trim()) missing.push("C2. Desired Word Count");
-    if (!existingBlogs.trim()) missing.push("B4. Internal URLs for linking");
-    if (!geoTarget.trim()) missing.push("B7. Geo Target");
+    if (!brandDescription.trim()) missing.push("Brand Description");
+    if (!targetAudience.trim()) missing.push("Target Audience Persona");
+    if (toneOfVoice.length === 0) missing.push("Tone of Voice");
+    if (!readingLevel) missing.push("Reading Level Preference");
+    if (!primaryKeyword.trim()) missing.push("Primary Keyword");
+    if (!topic.trim()) missing.push("Blog Topic / Working Title");
+    if (!wordCount.trim()) missing.push("Desired Word Count");
+    if (!existingBlogs.trim()) missing.push("Internal URLs for linking");
+    if (!geoTarget.trim()) missing.push("Geo Target");
     if (!internalLinkingPreference)
-      missing.push("C4. Internal Linking Preference");
-    if (!imagePreference) missing.push("C5. Image Style Preference");
-    if (!industry) missing.push("C7. Industry / Domain");
+      missing.push("Internal Linking Preference");
+    if (!imagePreference) missing.push("Image Style Preference");
+    if (!industry) missing.push("Industry / Domain");
 
     if (missing.length > 0) {
       setErrorMsg(
@@ -468,18 +468,16 @@ refreshUsage(selectedWebsite);
           </div>
         </div>
         <header style={{ marginBottom: "20px" }}>
-          <span className="badge">Input Blueprint: Sections A–C</span>
-        <h1>Vyndow SEO — Blog Generator (Next.js UI)</h1>
+          <span className="badge">Enter details and generate the output</span>
+        <h1>Vyndow SEO — Publishing Ready Blog Generator</h1>
         <p className="sub">
-          This is the new React-based version of your Vyndow SEO tool. It keeps
-          only the inputs that truly shape the content and sends them to the
-          existing <code>/api/generate</code> engine.
+          Vyndow SEO is designed to keep things simple. Provide a few meaningful inputs, and Vyndow takes care of generating structured, SEO-ready content for you. e.
         </p>
       </header>
 
       {/* STEP 1 – INPUTS (2-column grid of cards) */}
       <section className="inputs-section">
-        <h2>Step 1: Enter Inputs</h2>
+        <h2>Step 1: Enter Details</h2>
 {/* Helper: Filled example template (Phase X.1-A) */}
 <details
   style={{
@@ -596,10 +594,10 @@ refreshUsage(selectedWebsite);
         <div className="inputs-grid">
           {/* LEFT CARD – Brand & Article Brief */}
           <div className="inputs-card">
-            <p className="section-label">A. Brand &amp; Voice</p>
+            <p className="section-label">Brand &amp; Voice</p>
 
             <div className="field-group">
-              <label htmlFor="brandDescription">A1. Brand Description</label>
+              <label htmlFor="brandDescription">Brand Description</label>
               <textarea
                 id="brandDescription"
                 placeholder="Describe what the brand does, who it serves, and what makes it unique."
@@ -615,7 +613,7 @@ refreshUsage(selectedWebsite);
 
             <div className="field-group">
               <label htmlFor="targetAudience">
-                A2. Target Audience Persona
+                Target Audience Persona
               </label>
               <textarea
                 id="targetAudience"
@@ -630,7 +628,7 @@ refreshUsage(selectedWebsite);
             </div>
 
             <div className="field-group">
-              <label>A3. Tone of Voice (select one or more)</label>
+              <label>Tone of Voice (select one or more)</label>
               <div className="inline-options">
                 <label>
                   <input
@@ -675,7 +673,7 @@ refreshUsage(selectedWebsite);
             </div>
 
             <div className="field-group">
-              <label htmlFor="readingLevel">A6. Reading Level</label>
+              <label htmlFor="readingLevel">Reading Level</label>
               <select
                 id="readingLevel"
                 value={readingLevel}
@@ -700,10 +698,10 @@ refreshUsage(selectedWebsite);
   </div>
             </div>
 
-            <p className="section-label">C. Article Brief</p>
+            <p className="section-label">Article Brief</p>
 
             <div className="field-group">
-              <label htmlFor="topic">C1. Blog Topic / Working Title</label>
+              <label htmlFor="topic">Blog Topic / Working Title</label>
               <input
                 type="text"
                 id="topic"
@@ -714,7 +712,7 @@ refreshUsage(selectedWebsite);
             </div>
 
             <div className="field-group">
-              <label htmlFor="wordCount">C2. Desired Word Count</label>
+              <label htmlFor="wordCount">Desired Word Count</label>
               <input
                 type="number"
                 id="wordCount"
@@ -726,7 +724,7 @@ refreshUsage(selectedWebsite);
 
             <div className="field-group">
               <label htmlFor="notes">
-                C8. Additional Notes for the Writer (Optional)
+                Editorial Notes  (Optional)
               </label>
               <textarea
                 id="notes"
@@ -752,10 +750,10 @@ refreshUsage(selectedWebsite);
 
           {/* RIGHT CARD – SEO Levers */}
           <div className="inputs-card">
-            <p className="section-label">B. SEO Intent &amp; Keywords</p>
+            <p className="section-label">SEO Intent &amp; Keywords</p>
 
             <div className="field-group">
-              <label htmlFor="primaryKeyword">B1. Primary Keyword</label>
+              <label htmlFor="primaryKeyword">Primary Keyword</label>
               <input
                 type="text"
                 id="primaryKeyword"
@@ -770,7 +768,7 @@ refreshUsage(selectedWebsite);
             </div>
 
             <div className="field-group">
-              <label htmlFor="secondaryKeywords">B2. Secondary Keywords</label>
+              <label htmlFor="secondaryKeywords">Secondary Keywords</label>
               <textarea
                 id="secondaryKeywords"
                 placeholder="Optional – comma or line separated"
@@ -785,7 +783,7 @@ refreshUsage(selectedWebsite);
 
             <div className="field-group">
               <label htmlFor="existingBlogs">
-                B4. Internal URLs for Interlinking
+                Internal URLs for Interlinking
               </label>
               <textarea
                 id="existingBlogs"
@@ -799,7 +797,7 @@ refreshUsage(selectedWebsite);
             </div>
 
             <div className="field-group">
-              <label htmlFor="seoIntent">B6. SEO Intent</label>
+              <label htmlFor="seoIntent">SEO Intent</label>
               <select
                 id="seoIntent"
                 value={seoIntent}
@@ -817,7 +815,7 @@ refreshUsage(selectedWebsite);
             </div>
 
             <div className="field-group">
-              <label htmlFor="geoTarget">B7. Geo Target</label>
+              <label htmlFor="geoTarget">Geo Target</label>
             <input
   type="text"
   id="geoTarget"
@@ -828,11 +826,11 @@ refreshUsage(selectedWebsite);
 
             </div>
 
-            <p className="section-label">C. Linking &amp; Images</p>
+            <p className="section-label">Linking &amp; Images</p>
 
             <div className="field-group">
               <label htmlFor="internalLinkingPreference">
-                C4. Internal Linking Preference
+                Internal Linking Preference
               </label>
               <select
                 id="internalLinkingPreference"
@@ -854,7 +852,7 @@ refreshUsage(selectedWebsite);
 
             <div className="field-group">
 <label htmlFor="imagePreference">
-  C5. Image Style Preference
+  Image Style Preference
 </label>
 <select
   id="imagePreference"
@@ -878,7 +876,7 @@ refreshUsage(selectedWebsite);
             </div>
 
             <div className="field-group">
-              <label htmlFor="industry">C7. Industry / Domain</label>
+              <label htmlFor="industry">Industry / Domain</label>
             <select
   id="industry"
   value={industry}
