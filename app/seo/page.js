@@ -499,11 +499,6 @@ refreshUsage(selectedWebsite);
       Use this as a reference for what “good inputs” look like. You can copy the
       wording and edit it to match your brand.
     </div>
-
-
-  </div>
-</details>
-
 <div
   style={{
     padding: "10px",
@@ -593,7 +588,9 @@ refreshUsage(selectedWebsite);
     <div>Minimal Illustration</div>
   </div>
 </div>
-ails>
+
+  </div>
+</details>
 
         <div className="inputs-grid">
           {/* LEFT CARD – Brand & Article Brief */}
