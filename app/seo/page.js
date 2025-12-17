@@ -467,12 +467,17 @@ refreshUsage(selectedWebsite);
             </div>
           </div>
         </div>
-        <header style={{ marginBottom: "20px" }}>
-          <span className="badge">Enter details and generate the output</span>
-        <h1>Vyndow SEO — Publishing Ready Blog Generator</h1>
-        <p className="sub">
-Vyndow SEO is designed to keep things simple. Provide a few meaningful inputs,and Vyndow takes care of generating structured,SEO-ready content.
-      </header>
+<header style={{ marginBottom: "20px" }}>
+  <span className="badge">Enter details and generate the output</span>
+
+  <h1>Vyndow SEO — Publishing Ready Blog Generator</h1>
+
+  <p className="sub">
+    Vyndow SEO is designed to keep things simple. Provide a few meaningful
+    inputs, and Vyndow takes care of generating structured, publishing-ready SEO content.
+  </p>
+</header>
+
 
       {/* STEP 1 – INPUTS (2-column grid of cards) */}
       <section className="inputs-section">
