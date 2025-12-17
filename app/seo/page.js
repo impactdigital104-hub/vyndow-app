@@ -500,59 +500,98 @@ refreshUsage(selectedWebsite);
       wording and edit it to match your brand.
     </div>
 
-    <pre
-      className="output-body"
-      style={{
-        whiteSpace: "pre-wrap",
-        lineHeight: 1.45,
-        padding: "10px",
-        borderRadius: "10px",
-        border: "1px solid #f1f5f9",
-        background: "#fafafa",
-      }}
-    >
-{`Brand Name:
-GrowthNest Consulting
 
-Brand Description:
-GrowthNest Consulting helps small and mid-sized businesses improve their online visibility through practical SEO, content marketing, and conversion-focused strategies. We focus on sustainable growth, clear communication, and ethical digital practices rather than short-term hacks.
-
-Target Audience:
-Small business owners and marketing managers with limited in-house SEO expertise, looking for clear guidance and practical advice.
-
-Tone of Voice:
-Educational & Insightful + Conversational & Easy-to-read
-
-Reading Level:
-Grade 8–9
-
-SEO Intent:
-Informational / Educational (How-to)
-
-Blog Topic / Working Title:
-Local SEO Checklist for Small Businesses (Step-by-step)
-
-Desired Word Count:
-1200
-
-Primary Keyword:
-local seo checklist
-
-Secondary Keywords:
-local search optimization, google business profile tips, local seo best practices
-
-Internal URLs for Interlinking:
-https://growthnest.com/local-seo-services
-https://growthnest.com/google-business-profile-setup
-
-Additional Notes:
-Beginner-friendly how-to. Avoid tool comparisons. Use simple examples and actionable tips.
-
-Image Style Preference:
-Minimal Illustration`}
-    </pre>
   </div>
-</details>
+</det<div
+  style={{
+    padding: "10px",
+    borderRadius: "10px",
+    border: "1px solid #f1f5f9",
+    background: "#fafafa",
+    lineHeight: 1.5,
+  }}
+>
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>Brand Name:</strong>
+    <div>GrowthNest Consulting</div>
+  </div>
+
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>Brand Description:</strong>
+    <div>
+      GrowthNest Consulting helps small and mid-sized businesses improve their
+      online visibility through practical SEO, content marketing, and
+      conversion-focused strategies. We focus on sustainable growth, clear
+      communication, and ethical digital practices rather than short-term hacks.
+    </div>
+  </div>
+
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>Target Audience:</strong>
+    <div>
+      Small business owners and marketing managers with limited in-house SEO
+      expertise, looking for clear guidance and practical advice.
+    </div>
+  </div>
+
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>Tone of Voice:</strong>
+    <div>Educational &amp; Insightful + Conversational &amp; Easy-to-read</div>
+  </div>
+
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>Reading Level:</strong>
+    <div>Grade 8–9</div>
+  </div>
+
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>SEO Intent:</strong>
+    <div>Informational / Educational (How-to)</div>
+  </div>
+
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>Blog Topic / Working Title:</strong>
+    <div>Local SEO Checklist for Small Businesses (Step-by-step)</div>
+  </div>
+
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>Desired Word Count:</strong>
+    <div>1200</div>
+  </div>
+
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>Primary Keyword:</strong>
+    <div>local seo checklist</div>
+  </div>
+
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>Secondary Keywords:</strong>
+    <div>
+      local search optimization, google business profile tips, local seo best
+      practices
+    </div>
+  </div>
+
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>Internal URLs for Interlinking:</strong>
+    <div>https://growthnest.com/local-seo-services</div>
+    <div>https://growthnest.com/google-business-profile-setup</div>
+  </div>
+
+  <div style={{ marginBottom: "10px" }}>
+    <strong style={{ color: "#111827" }}>Additional Notes:</strong>
+    <div>
+      Beginner-friendly how-to. Avoid tool comparisons. Use simple examples and
+      actionable tips.
+    </div>
+  </div>
+
+  <div>
+    <strong style={{ color: "#111827" }}>Image Style Preference:</strong>
+    <div>Minimal Illustration</div>
+  </div>
+</div>
+ails>
 
         <div className="inputs-grid">
           {/* LEFT CARD – Brand & Article Brief */}
