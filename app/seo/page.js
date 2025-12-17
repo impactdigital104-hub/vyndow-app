@@ -763,6 +763,10 @@ refreshUsage(selectedWebsite);
                 value={secondaryKeywordsRaw}
                 onChange={(e) => setSecondaryKeywordsRaw(e.target.value)}
               />
+          <div className="small" style={{ marginTop: "8px" }}>
+  Add 3–6 related phrases (comma separated). Avoid repeating the primary keyword.
+</div>
+    
             </div>
 
             <div className="field-group">
@@ -776,8 +780,7 @@ refreshUsage(selectedWebsite);
                 onChange={(e) => setExistingBlogs(e.target.value)}
               />
              <div className="small" style={{ marginTop: "8px" }}>
-                Used for Output 9. This should be URLs from your own website or
-                blog that you want Vyndow to reference and interlink.
+                 Paste 1–5 relevant URLs from your website (one per line). Vyndow will use these for internal linking.
               </div>
             </div>
 
@@ -793,6 +796,10 @@ refreshUsage(selectedWebsite);
                 <option value="transactional">Transactional</option>
                 <option value="mixed">Mixed</option>
               </select>
+                    <div className="small" style={{ marginTop: "8px" }}>
+  Choose why someone is searching this topic (learn, compare, decide, or take action). This helps shape the structure.
+</div>
+
             </div>
 
             <div className="field-group">
