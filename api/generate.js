@@ -37,28 +37,56 @@ async function reserveOneBlogCredit({ uid, websiteId }) {
     if (!websiteSnap.exists) throw new Error("Website not found for this user.");
 
     const module = moduleSnap.data() || {};
-    const limit = module.blogsPerWebsitePerMonth ?? 0;
-    const used = usageSnap.exists ? (usageSnap.data()?.usedThisMonth ?? 0) : 0;
+const baseLimit = module.blogsPerWebsitePerMonth ?? 0;
+let extraCredits = module.extraBlogCreditsThisMonth ?? 0;
 
-    if (!limit || limit <= 0) throw new Error("SEO plan limit missing or invalid.");
-    if (used >= limit) {
-      const err = new Error("QUOTA_EXCEEDED");
-      err.code = "QUOTA_EXCEEDED";
-      err.used = used;
-      err.limit = limit;
-      throw err;
-    }
+if (!baseLimit || baseLimit <= 0) {
+  throw new Error("SEO plan limit missing or invalid.");
+}
 
-    // Reserve 1 credit now
-    tx.set(
-      usageRef,
-      {
-        month: monthKey,
-        usedThisMonth: used + 1,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+// If base quota is exhausted, try to consume extra blog credits
+const needsExtraCredit = used >= baseLimit;
+
+if (needsExtraCredit) {
+  if (extraCredits <= 0) {
+    const err = new Error("QUOTA_EXCEEDED");
+    err.code = "QUOTA_EXCEEDED";
+    err.used = used;
+    err.limit = baseLimit;
+    err.extraCreditsRemaining = 0;
+    throw err;
+  }
+
+  // consume one extra blog credit
+  extraCredits = extraCredits - 1;
+
+  tx.set(
+    moduleRef,
+    {
+      extraBlogCreditsThisMonth: extraCredits,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+// Always increment usage
+tx.set(
+  usageRef,
+  {
+    month: monthKey,
+    usedThisMonth: used + 1,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  { merge: true }
+);
+
+return {
+  usedAfter: used + 1,
+  baseLimit,
+  extraCreditsRemaining: extraCredits,
+};
+
 
     return { usedAfter: used + 1, limit };
   });
