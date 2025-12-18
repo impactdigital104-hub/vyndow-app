@@ -264,19 +264,23 @@ refreshUsage(selectedWebsite);
     return;
   }
 
-  const used = usage?.usedThisMonth ?? 0;
-  const total = seoModule.blogsPerWebsitePerMonth ?? 0;
+const used = usedThisMonth;
+const baseLimit = seoModule.blogsPerWebsitePerMonth ?? 0;
+const extra = seoModule.extraBlogCreditsThisMonth ?? 0;
+const totalAllowed = baseLimit + extra;
 
-  if (total > 0 && used >= total) {
-    setIsQuotaReached(true);
-    setQuotaMessage(
-      "You have used all blog credits for this website this month. To continue, upgrade the plan or add another website."
-    );
-  } else {
-    setIsQuotaReached(false);
-    setQuotaMessage("");
-  }
-}, [selectedWebsite, websites, seoModule, seoModuleLoading, seoModuleError]);
+if (baseLimit > 0 && used >= totalAllowed) {
+  setIsQuotaReached(true);
+  setQuotaMessage(
+    "You have used all blog credits for this website this month. To continue, buy extra blog credits or upgrade your plan."
+  );
+} else {
+  setIsQuotaReached(false);
+  setQuotaMessage("");
+}
+
+    }, [selectedWebsite, websites, seoModule, seoModuleLoading, seoModuleError, usedThisMonth]);
+
 
 
 
