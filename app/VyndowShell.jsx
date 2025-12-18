@@ -70,14 +70,15 @@ export default function VyndowShell({ activeModule, children }) {
             </span>
           </div>
 
-          <div className="sidebar-link sidebar-link-muted">
-            <span className="sidebar-link-main">Billing &amp; Plans</span>
-            <span className="sidebar-pill sidebar-pill-soft">Owner only</span>
-            <span className="sidebar-info">i</span>
-            <span className="sidebar-tip">
-              Manage subscriptions, per-website modules and usage limits.
-            </span>
-          </div>
+      <a href="/pricing" className="sidebar-link sidebar-link-muted">
+  <span className="sidebar-link-main">Billing &amp; Plans</span>
+  <span className="sidebar-pill sidebar-pill-soft">Owner only</span>
+  <span className="sidebar-info">i</span>
+  <span className="sidebar-tip">
+    Manage subscriptions, per-website modules and usage limits.
+  </span>
+</a>
+
         </div>
 
         {/* Vyndow Suite */}
