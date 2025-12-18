@@ -234,7 +234,10 @@ const used = usedThisMonth;
   else if (planType === "small_business") planLabel = "Small Business Plan";
   else if (planType === "enterprise") planLabel = "Enterprise Plan";
 
-  return `${used} / ${total} blogs this month · ${planLabel}`;
+const extra = seoModule.extraBlogCreditsThisMonth ?? 0;
+const extraText = extra > 0 ? ` (+${extra})` : "";
+return `${used} / ${total}${extraText} blogs this month · ${planLabel}`;
+
 }
 
   // TODO [Phase 7]:
