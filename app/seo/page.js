@@ -264,7 +264,7 @@ refreshUsage(selectedWebsite);
     return;
   }
 
-  const used = 0; // not tracked yet
+  const used = usage?.usedThisMonth ?? 0;
   const total = seoModule.blogsPerWebsitePerMonth ?? 0;
 
   if (total > 0 && used >= total) {
