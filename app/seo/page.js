@@ -467,12 +467,60 @@ if (baseLimit > 0 && used >= totalAllowed) {
 
           </div>
 
-          <div className="project-bar-right">
-            <div className="project-bar-usage-label">SEO Usage</div>
-            <div className="project-bar-usage-pill">
-             {buildUsageSummary()}
-            </div>
-          </div>
+         <div className="project-bar-right">
+  <div className="project-bar-usage-label">SEO Usage</div>
+  <div className="project-bar-usage-pill">{buildUsageSummary()}</div>
+
+  {isQuotaReached ? (
+    <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+      <button
+        type="button"
+        onClick={() => router.push("/pricing")}
+        style={{
+          padding: "8px 12px",
+          borderRadius: 999,
+          border: "1px solid #e5e7eb",
+          background: "#fff",
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        Upgrade Plan
+      </button>
+
+      <button
+        type="button"
+        onClick={() => router.push("/pricing#credits")}
+        style={{
+          padding: "8px 12px",
+          borderRadius: 999,
+          border: "1px solid #e5e7eb",
+          background: "#fff",
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        Buy 2 Blog Credits
+      </button>
+
+      <button
+        type="button"
+        onClick={() => router.push("/websites")}
+        style={{
+          padding: "8px 12px",
+          borderRadius: 999,
+          border: "1px solid #e5e7eb",
+          background: "#f9fafb",
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        Add Website
+      </button>
+    </div>
+  ) : null}
+</div>
+
         </div>
 <header style={{ marginBottom: "20px" }}>
   <span className="badge">Enter details and generate the output</span>
@@ -937,25 +985,73 @@ if (baseLimit > 0 && used >= totalAllowed) {
             {errorMsg}
           </div>
         )}
-        {isQuotaReached && (
-          <div
-            className="error-box"
-            style={{
-              whiteSpace: "pre-wrap",
-              marginTop: errorMsg ? "10px" : "16px",
-            }}
-          >
-            <strong>Plan limit reached for this website.</strong>
-            <br />
-            {quotaMessage}
-            <br />
-            <span style={{ fontSize: "0.85rem" }}>
-              Tip: Add another website in{" "}
-              <strong>Websites &amp; Clients</strong> or upgrade this
-              website&apos;s SEO plan when billing is live.
-            </span>
-          </div>
-        )}
+{isQuotaReached && (
+  <div
+    className="error-box"
+    style={{
+      whiteSpace: "pre-wrap",
+      marginTop: errorMsg ? "10px" : "16px",
+    }}
+  >
+    <strong>Plan limit reached for this website.</strong>
+    <br />
+    {quotaMessage}
+    <br />
+    <span style={{ fontSize: "0.85rem" }}>
+      Tip: Add another website in{" "}
+      <strong>Websites &amp; Clients</strong> or upgrade this
+      website&apos;s SEO plan when billing is live.
+    </span>
+
+    <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <button
+        type="button"
+        onClick={() => router.push("/pricing")}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 999,
+          border: "1px solid #e5e7eb",
+          background: "#fff",
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        Upgrade Plan
+      </button>
+
+      <button
+        type="button"
+        onClick={() => router.push("/pricing#credits")}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 999,
+          border: "1px solid #e5e7eb",
+          background: "#fff",
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        Buy 2 Blog Credits
+      </button>
+
+      <button
+        type="button"
+        onClick={() => router.push("/websites")}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 999,
+          border: "1px solid #e5e7eb",
+          background: "#f9fafb",
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        Add Website
+      </button>
+    </div>
+  </div>
+)}
+
 
               <div style={{ marginTop: "18px" }}>
           <button
