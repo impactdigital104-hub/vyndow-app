@@ -38,39 +38,54 @@ async function reserveOneBlogCredit({ uid, websiteId }) {
 
     const module = moduleSnap.data() || {};
 const baseLimit = module.blogsPerWebsitePerMonth ?? 0;
-let extraCredits = module.extraBlogCreditsThisMonth ?? 0;
 
 if (!baseLimit || baseLimit <= 0) {
   throw new Error("SEO plan limit missing or invalid.");
 }
 
-// If base quota is exhausted, try to consume extra blog credits
-const needsExtraCredit = used >= baseLimit;
-
-if (needsExtraCredit) {
-  if (extraCredits <= 0) {
-    const err = new Error("QUOTA_EXCEEDED");
-    err.code = "QUOTA_EXCEEDED";
-    err.used = used;
-    err.limit = baseLimit;
-    err.extraCreditsRemaining = 0;
-    throw err;
-  }
-
-  // consume one extra blog credit
-  extraCredits = extraCredits - 1;
-
+// CASE 1: Still within base plan quota → behave exactly like before
+if (used < baseLimit) {
   tx.set(
-    moduleRef,
+    usageRef,
     {
-      extraBlogCreditsThisMonth: extraCredits,
+      month: monthKey,
+      usedThisMonth: used + 1,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
+
+  return {
+    usedAfter: used + 1,
+    baseLimit,
+    extraCreditsRemaining: module.extraBlogCreditsThisMonth ?? 0,
+  };
 }
 
-// Always increment usage
+// CASE 2: Base quota exhausted → now and ONLY now use extra credits
+let extraCredits = module.extraBlogCreditsThisMonth ?? 0;
+
+if (extraCredits <= 0) {
+  const err = new Error("QUOTA_EXCEEDED");
+  err.code = "QUOTA_EXCEEDED";
+  err.used = used;
+  err.limit = baseLimit;
+  err.extraCreditsRemaining = 0;
+  throw err;
+}
+
+// consume one extra blog credit
+extraCredits = extraCredits - 1;
+
+tx.set(
+  moduleRef,
+  {
+    extraBlogCreditsThisMonth: extraCredits,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  { merge: true }
+);
+
 tx.set(
   usageRef,
   {
@@ -86,6 +101,7 @@ return {
   baseLimit,
   extraCreditsRemaining: extraCredits,
 };
+
 
 
     return { usedAfter: used + 1, limit };
