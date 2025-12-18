@@ -37,6 +37,9 @@ async function reserveOneBlogCredit({ uid, websiteId }) {
     if (!websiteSnap.exists) throw new Error("Website not found for this user.");
 
     const module = moduleSnap.data() || {};
+    const usageData = usageSnap.exists ? (usageSnap.data() || {}) : {};
+const used = usageData.usedThisMonth ?? 0;
+
 const baseLimit = module.blogsPerWebsitePerMonth ?? 0;
 
 if (!baseLimit || baseLimit <= 0) {
@@ -102,9 +105,6 @@ return {
   extraCreditsRemaining: extraCredits,
 };
 
-
-
-    return { usedAfter: used + 1, limit };
   });
 
   return result;
