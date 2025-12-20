@@ -249,6 +249,25 @@ style={{
     ? "0 14px 30px rgba(109,40,217,0.10)"
     : "0 10px 24px rgba(0,0,0,0.06)",
 }}
+                                {badge && (
+  <div
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "6px 12px",
+      borderRadius: 999,
+      background: "#6D28D9",
+      color: "#fff",
+      fontWeight: 800,
+      fontSize: 12,
+      marginBottom: 10,
+    }}
+  >
+    {badge}
+  </div>
+)}
+
       <h3>{title}</h3>
       <div style={{ fontWeight: 700, marginBottom: 12 }}>{price}</div>
 
@@ -263,7 +282,7 @@ style={{
   );
 }
 
-function AddOnCard({ title, price, description, actionLabel, onAction }) {
+function AddOnCard({ title, price, description, actionLabel, onAction = () => {} }) {
   return (
     <div
       style={{
@@ -287,9 +306,22 @@ function AddOnCard({ title, price, description, actionLabel, onAction }) {
 
       <div style={{ textAlign: "right" }}>
         <div style={{ fontWeight: 700 }}>{price}</div>
-        <button className="btn-secondary" onClick={onAction}>
-          {actionLabel}
-        </button>
+<button
+  type="button"
+  onClick={onAction}
+  style={{
+    padding: "10px 14px",
+    borderRadius: 999,
+    fontWeight: 800,
+    cursor: "pointer",
+    border: "1px solid #e5e7eb",
+    background: "#fff",
+    color: "#111827",
+  }}
+>
+  {actionLabel}
+</button>
+
       </div>
     </div>
   );
