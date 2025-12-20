@@ -63,28 +63,62 @@ useEffect(() => {
   }
 
   function renderPlanButton(plan, priceLabel) {
-    if (isCurrent(plan)) {
-      return (
-        <button className="btn-disabled">
-          Current Plan
-        </button>
-      );
-    }
+  const baseBtn = {
+    padding: "10px 14px",
+    borderRadius: 999,
+    fontWeight: 800,
+    cursor: "pointer",
+    border: "1px solid #e5e7eb",
+  };
 
-    if (isIntent(plan)) {
-      return (
-        <button className="btn-primary">
-          Activate {priceLabel}
-        </button>
-      );
-    }
-
+  if (isCurrent(plan)) {
     return (
-      <button className="btn-secondary">
-        Upgrade
+      <button
+        type="button"
+        style={{
+          ...baseBtn,
+          background: "#f3f4f6",
+          color: "#6b7280",
+          cursor: "not-allowed",
+        }}
+        disabled
+      >
+        Current Plan
       </button>
     );
   }
+
+  if (isIntent(plan)) {
+    return (
+      <button
+        type="button"
+        style={{
+          ...baseBtn,
+          background: "#6D28D9",
+          borderColor: "#6D28D9",
+          color: "#fff",
+          boxShadow: "0 10px 24px rgba(109,40,217,0.22)",
+        }}
+      >
+        Activate {priceLabel}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      style={{
+        ...baseBtn,
+        background: "#fff",
+        color: "#111827",
+      }}
+    >
+      Upgrade
+    </button>
+  );
+}
+
 
   return (
     <VyndowShell activeModule="pricing">
@@ -196,21 +230,21 @@ useEffect(() => {
 function PlanCard({ title, price, features, children, highlight, muted, badge }) {
   return (
     <div
-      style={{
-       border: highlight
-  ? "2px solid #6D28D9"     // Vyndow purple
-  : muted
-  ? "2px solid #CBD5E1"
-  : "1px solid #E5E7EB",
-        borderRadius: 14,
-        padding: 20,
-      background: highlight
-  ? "#F5F3FF"              // soft purple tint
-  : muted
-  ? "#F9FAFB"
-  : "#FFFFFF",
-        opacity: muted ? 0.85 : 1,
-      }}
+style={{
+  border: highlight
+    ? "2px solid #6D28D9"
+    : muted
+    ? "2px solid #CBD5E1"
+    : "1px solid #E5E7EB",
+  borderRadius: 16,
+  padding: 22,
+  background: highlight
+    ? "#F5F3FF"
+    : muted
+    ? "#F9FAFB"
+    : "#FFFFFF",
+  boxShadow: highlight ? "0 10px 28px rgba(109,40,217,0.10)" : "0 8px 22px rgba(0,0,0,0.05)",
+}}
     >
       {badge && (
         <div className="pill pill-dark" style={{ marginBottom: 8 }}>
