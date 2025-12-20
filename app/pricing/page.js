@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { getAuth } from "firebase/auth";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
 import VyndowShell from "../VyndowShell";
 
 /**
@@ -23,14 +25,34 @@ useEffect(() => {
 }, []);
 
 
-  // TEMP: replace later with real Firestore data
-  const [currentPlan, setCurrentPlan] = useState("free"); 
-  // possible values: free | small_business | enterprise
+const [currentPlan, setCurrentPlan] = useState(null); 
+// free | small_business | enterprise
 
-  useEffect(() => {
-    // later: fetch actual plan from Firestore
-    // setCurrentPlan(...)
-  }, []);
+useEffect(() => {
+  async function loadPlan() {
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const db = getFirestore();
+      const ref = doc(db, `users/${user.uid}/modules/seo`);
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        setCurrentPlan(snap.data().plan || "free");
+      } else {
+        setCurrentPlan("free");
+      }
+    } catch (e) {
+      console.error("Failed to load plan", e);
+      setCurrentPlan("free");
+    }
+  }
+
+  loadPlan();
+}, []);
+
 
   function isCurrent(plan) {
     return currentPlan === plan;
@@ -175,10 +197,18 @@ function PlanCard({ title, price, features, children, highlight, muted, badge })
   return (
     <div
       style={{
-        border: highlight ? "2px solid #111827" : "1px solid #e5e7eb",
+       border: highlight
+  ? "2px solid #6D28D9"     // Vyndow purple
+  : muted
+  ? "2px solid #CBD5E1"
+  : "1px solid #E5E7EB",
         borderRadius: 14,
         padding: 20,
-        background: muted ? "#f9fafb" : "#fff",
+      background: highlight
+  ? "#F5F3FF"              // soft purple tint
+  : muted
+  ? "#F9FAFB"
+  : "#FFFFFF",
         opacity: muted ? 0.85 : 1,
       }}
     >
