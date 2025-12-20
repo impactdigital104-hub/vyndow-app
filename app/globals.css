@@ -755,3 +755,62 @@ select {
     align-items: flex-start;
   }
 }
+/* =========================
+   VYNDOW UI — PRICING STYLES
+   (added for /pricing)
+   ========================= */
+
+.btn-primary,
+.btn-secondary,
+.btn-disabled {
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 800;
+  border: 1px solid var(--border-subtle, #e5e7eb);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 10px 26px rgba(124, 58, 237, 0.25);
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  border-color: #cbd5e1;
+}
+
+.btn-disabled {
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+}
+
+.pill-dark {
+  background: #6d28d9;
+  border-color: #6d28d9;
+  color: #ffffff;
+}
