@@ -62,26 +62,27 @@ useEffect(() => {
     return planIntent === plan && !isCurrent(plan);
   }
 
-  function renderPlanButton(plan, priceLabel) {
-  const baseBtn = {
-    padding: "10px 14px",
+function renderPlanButton(plan, priceLabel) {
+  const base = {
+    padding: "12px 18px",
     borderRadius: 999,
-    fontWeight: 800,
+    fontWeight: 900,
+    border: "1px solid rgba(148,163,184,0.45)",
     cursor: "pointer",
-    border: "1px solid #e5e7eb",
+    transition: "all 0.15s ease",
   };
 
   if (isCurrent(plan)) {
     return (
       <button
         type="button"
+        disabled
         style={{
-          ...baseBtn,
-          background: "#f3f4f6",
-          color: "#6b7280",
+          ...base,
+          background: "#F1F5F9",
+          color: "#64748B",
           cursor: "not-allowed",
         }}
-        disabled
       >
         Current Plan
       </button>
@@ -93,11 +94,11 @@ useEffect(() => {
       <button
         type="button"
         style={{
-          ...baseBtn,
-          background: "#6D28D9",
-          borderColor: "#6D28D9",
+          ...base,
+          border: "0",
           color: "#fff",
-          boxShadow: "0 10px 24px rgba(109,40,217,0.22)",
+          background: "linear-gradient(135deg, #7C3AED, #06B6D4)",
+          boxShadow: "0 14px 30px rgba(124,58,237,0.22)",
         }}
       >
         Activate {priceLabel}
@@ -109,15 +110,16 @@ useEffect(() => {
     <button
       type="button"
       style={{
-        ...baseBtn,
+        ...base,
         background: "#fff",
-        color: "#111827",
+        color: "#0F172A",
       }}
     >
       Upgrade
     </button>
   );
 }
+
 
 
   return (
@@ -229,26 +231,16 @@ useEffect(() => {
 
 function PlanCard({ title, price, features, children, highlight, muted, badge }) {
   return (
-    <div
-      style={{
-        border: highlight
-          ? "2px solid #6D28D9"
-          : muted
-          ? "2px solid #6D28D9"
-          : "1px solid #E5E7EB",
-        borderRadius: 18,
-        padding: 22,
-        background: highlight
-          ? "#F5F3FF"
-          : muted
-          ? "#FAF5FF"
-          : "#FFFFFF",
-        boxShadow: highlight
-          ? "0 16px 34px rgba(109,40,217,0.18)"
-          : muted
-          ? "0 14px 30px rgba(109,40,217,0.10)"
-          : "0 10px 24px rgba(0,0,0,0.06)",
-      }}
+<div
+  style={{
+    border: highlight || muted ? "2px solid #6D28D9" : "1px solid #E5E7EB",
+    borderRadius: 22,
+    padding: 24,
+    background: highlight || muted ? "#F5F3FF" : "#FFFFFF",
+    boxShadow: "0 16px 34px rgba(2,6,23,0.08)",
+  }}
+>
+
     >
       {badge && (
         <div
