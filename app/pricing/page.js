@@ -234,24 +234,21 @@ style={{
   border: highlight
     ? "2px solid #6D28D9"
     : muted
-    ? "2px solid #CBD5E1"
+    ? "2px solid #6D28D9"
     : "1px solid #E5E7EB",
-  borderRadius: 16,
+  borderRadius: 18,
   padding: 22,
   background: highlight
     ? "#F5F3FF"
     : muted
-    ? "#F9FAFB"
+    ? "#FAF5FF"
     : "#FFFFFF",
-  boxShadow: highlight ? "0 10px 28px rgba(109,40,217,0.10)" : "0 8px 22px rgba(0,0,0,0.05)",
+  boxShadow: highlight
+    ? "0 16px 34px rgba(109,40,217,0.18)"
+    : muted
+    ? "0 14px 30px rgba(109,40,217,0.10)"
+    : "0 10px 24px rgba(0,0,0,0.06)",
 }}
-    >
-      {badge && (
-        <div className="pill pill-dark" style={{ marginBottom: 8 }}>
-          {badge}
-        </div>
-      )}
-
       <h3>{title}</h3>
       <div style={{ fontWeight: 700, marginBottom: 12 }}>{price}</div>
 
