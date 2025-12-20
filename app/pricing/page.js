@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import VyndowShell from "../VyndowShell";
 
@@ -10,10 +10,18 @@ import VyndowShell from "../VyndowShell";
  */
 export default function PricingPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+ // plan intent from main site or CTA (read client-side to avoid prerender failures)
+const [planIntent, setPlanIntent] = useState(null);
 
-  // plan intent from main site or CTA
-  const planIntent = searchParams.get("plan"); // free | small_business | enterprise
+useEffect(() => {
+  try {
+    const p = new URLSearchParams(window.location.search).get("plan");
+    setPlanIntent(p);
+  } catch (e) {
+    setPlanIntent(null);
+  }
+}, []);
+
 
   // TEMP: replace later with real Firestore data
   const [currentPlan, setCurrentPlan] = useState("free"); 
