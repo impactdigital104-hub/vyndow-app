@@ -1,16 +1,19 @@
 // api/websites/team/list.js
 import admin from "../../firebaseAdmin";
+const debugVersion = "team-list-v2";
+
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
-    return res.status(200).json({ ok: true, message: "Use GET." });
+   return res.status(200).json({ ok: true, message: "Use GET.", debugVersion });
   }
 
   try {
     // 1) Verify Firebase ID token
     const authHeader = req.headers.authorization || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    if (!token) return res.status(401).json({ ok: false, error: "Missing auth token." });
+  if (!token) return res.status(401).json({ ok: false, error: "Missing auth token.", debugVersion });
+
 
     const decoded = await admin.auth().verifyIdToken(token);
     const uid = decoded.uid;
@@ -18,7 +21,8 @@ export default async function handler(req, res) {
     // 2) Validate inputs
     const websiteId = (req.query?.websiteId || "").trim();
     if (!websiteId) {
-      return res.status(400).json({ ok: false, error: "websiteId is required." });
+   return res.status(400).json({ ok: false, error: "websiteId is required.", debugVersion });
+
     }
 
     const db = admin.firestore();
@@ -88,6 +92,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       ok: true,
+      debugVersion,
       websiteId,
       seatLimit: usersIncluded,
       seatsUsed: members.length,
@@ -96,6 +101,6 @@ export default async function handler(req, res) {
     });
   } catch (e) {
     console.error("websites/team/list error:", e);
-    return res.status(500).json({ ok: false, error: e?.message || "Unknown error." });
+   return res.status(500).json({ ok: false, error: e?.message || "Unknown error.", debugVersion });
   }
 }
