@@ -22,6 +22,7 @@ export default function InviteTeamPage() {
   const [seatsUsed, setSeatsUsed] = useState(0);
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
+  const [lastApiJson, setLastApiJson] = useState("");
 
 
   // ─────────────────────────────────────────────
@@ -86,6 +87,12 @@ export default function InviteTeamPage() {
       );
 
       const json = await res.json();
+            try {
+        setLastApiJson(JSON.stringify(json, null, 2));
+      } catch (e) {
+        setLastApiJson(String(json));
+      }
+
       if (!json.ok) {
         throw new Error(json.error || "Failed to load team data");
       }
@@ -197,6 +204,21 @@ export default function InviteTeamPage() {
                       </span>
                     </p>
                   ))}
+                                      <h3 style={{ marginTop: "16px" }}>Debug: API Response</h3>
+                  <pre
+                    style={{
+                      marginTop: "8px",
+                      padding: "12px",
+                      borderRadius: "12px",
+                      border: "1px solid #e5e7eb",
+                      background: "#fafafa",
+                      overflowX: "auto",
+                      fontSize: "12px",
+                    }}
+                  >
+                    {lastApiJson || "(no response captured yet)"}
+                  </pre>
+
                 </>
               )}
             </div>
