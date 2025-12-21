@@ -1,0 +1,48 @@
+// api/websites/team/remove.js
+import admin from "../../firebaseAdmin";
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(200).json({ ok: true, message: "Use POST." });
+  }
+
+  try {
+    // 1) Verify Firebase ID token
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ ok: false, error: "Missing auth token." });
+
+    const decoded = await admin.auth().verifyIdToken(token);
+    const uid = decoded.uid;
+
+    // 2) Validate inputs
+    const websiteId = (req.body?.websiteId || "").trim();
+    const memberUid = (req.body?.memberUid || "").trim();
+    const inviteId = (req.body?.inviteId || "").trim();
+
+    if (!websiteId) return res.status(400).json({ ok: false, error: "websiteId is required." });
+    if (!memberUid && !inviteId) {
+      return res.status(400).json({ ok: false, error: "Provide memberUid OR inviteId." });
+    }
+
+    // Safety: cannot remove self (owner) in V1
+    if (memberUid && memberUid === uid) {
+      return res.status(400).json({ ok: false, error: "Owner cannot be removed." });
+    }
+
+    const db = admin.firestore();
+
+    if (memberUid) {
+      await db.doc(`users/${uid}/websites/${websiteId}/members/${memberUid}`).delete();
+    }
+
+    if (inviteId) {
+      await db.doc(`users/${uid}/websites/${websiteId}/invites/${inviteId}`).delete();
+    }
+
+    return res.status(200).json({ ok: true });
+  } catch (e) {
+    console.error("websites/team/remove error:", e);
+    return res.status(500).json({ ok: false, error: e?.message || "Unknown error." });
+  }
+}
