@@ -22,8 +22,9 @@ export default function InviteTeamPage() {
   const [seatsUsed, setSeatsUsed] = useState(0);
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
-  const [lastApiJson, setLastApiJson] = useState("");
 
+  // Debug helper (temporary — we will remove in cleanup pass)
+  const [lastApiJson, setLastApiJson] = useState("");
 
   // ─────────────────────────────────────────────
   // AUTH CHECK (same pattern as /seo)
@@ -55,16 +56,14 @@ export default function InviteTeamPage() {
         );
         return;
       }
-         setWebsiteId(id);
-      loadTeamData(id);
-
+      setWebsiteId(id);
     } catch (e) {
       setError("Unable to read selected website.");
     }
   }, []);
 
-    // ─────────────────────────────────────────────
-  // LOAD TEAM DATA FOR WEBSITE
+  // ─────────────────────────────────────────────
+  // LOAD TEAM DATA FOR WEBSITE (only after authReady + websiteId)
   // ─────────────────────────────────────────────
   async function loadTeamData(currentWebsiteId) {
     if (!currentWebsiteId) return;
@@ -73,7 +72,10 @@ export default function InviteTeamPage() {
       setLoading(true);
 
       const user = auth.currentUser;
-      if (!user) return;
+      if (!user) {
+        setLastApiJson("auth.currentUser is null (waiting for Firebase auth)...");
+        return;
+      }
 
       const token = await user.getIdToken();
 
@@ -87,7 +89,9 @@ export default function InviteTeamPage() {
       );
 
       const json = await res.json();
-            try {
+
+      // capture what the server returned (so we can debug deterministically)
+      try {
         setLastApiJson(JSON.stringify(json, null, 2));
       } catch (e) {
         setLastApiJson(String(json));
@@ -108,6 +112,12 @@ export default function InviteTeamPage() {
     }
   }
 
+  useEffect(() => {
+    if (!authReady) return;
+    if (!websiteId) return;
+    loadTeamData(websiteId);
+  }, [authReady, websiteId]);
+
   if (!authReady) {
     return (
       <div style={{ padding: 24, fontFamily: "system-ui" }}>
@@ -117,13 +127,11 @@ export default function InviteTeamPage() {
   }
 
   return (
-    <VyndowShell activeModule="websites">
+    <VyndowShell activeModule="invite-team">
       <main className="page">
         <header style={{ marginBottom: "20px" }}>
           <h1>Invite Team</h1>
-          <p className="sub">
-            Manage users who can access this website.
-          </p>
+          <p className="sub">Manage users who can access this website.</p>
         </header>
 
         {error && (
@@ -149,21 +157,34 @@ export default function InviteTeamPage() {
                 borderRadius: "12px",
                 border: "1px solid #e5e7eb",
                 background: "#ffffff",
-                marginBottom: "20px",
+                marginBottom: "16px",
               }}
             >
-              <div style={{ fontSize: "14px", color: "#374151" }}>
-                <strong>Selected Website ID:</strong>
-              </div>
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontFamily: "monospace",
-                  fontSize: "13px",
-                  color: "#111827",
-                }}
-              >
-                {websiteId}
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: "14px", color: "#374151" }}>
+                    <strong>Website ID</strong>
+                  </div>
+                  <div
+                    style={{
+                      marginTop: "6px",
+                      fontFamily: "monospace",
+                      fontSize: "13px",
+                      color: "#111827",
+                    }}
+                  >
+                    {websiteId}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: "14px", color: "#374151" }}>
+                    <strong>Seats used</strong>
+                  </div>
+                  <div style={{ marginTop: "6px", fontSize: "13px", color: "#111827" }}>
+                    {seatsUsed} / {seatLimit}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -179,11 +200,7 @@ export default function InviteTeamPage() {
 
               {!loading && (
                 <>
-                  <p>
-                    <strong>Seats used:</strong> {seatsUsed} / {seatLimit}
-                  </p>
-
-                  <h3 style={{ marginTop: "16px" }}>Members</h3>
+                  <h3 style={{ marginTop: 0 }}>Members</h3>
                   {members.length === 0 && <p>No members found.</p>}
                   {members.map((m) => (
                     <p key={m.id} style={{ marginBottom: "6px" }}>
@@ -204,7 +221,9 @@ export default function InviteTeamPage() {
                       </span>
                     </p>
                   ))}
-                                      <h3 style={{ marginTop: "16px" }}>Debug: API Response</h3>
+
+                  {/* Temporary debug (remove later) */}
+                  <h3 style={{ marginTop: "16px" }}>Debug: API Response</h3>
                   <pre
                     style={{
                       marginTop: "8px",
@@ -218,11 +237,9 @@ export default function InviteTeamPage() {
                   >
                     {lastApiJson || "(no response captured yet)"}
                   </pre>
-
                 </>
               )}
             </div>
-
           </>
         )}
       </main>
