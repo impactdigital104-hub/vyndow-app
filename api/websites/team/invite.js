@@ -24,13 +24,39 @@ export default async function handler(req, res) {
     if (!websiteId) return res.status(400).json({ ok: false, error: "websiteId is required." });
     if (!email) return res.status(400).json({ ok: false, error: "email is required." });
 
+    // prevent inviting yourself
+    const callerEmail = (decoded.email || "").toLowerCase();
+    if (callerEmail && email === callerEmail) {
+      return res.status(400).json({ ok: false, error: "You cannot invite yourself." });
+    }
+
     const db = admin.firestore();
 
-    // 3) Enforce seats: usersIncluded vs current members
+    function toPositiveInt(v) {
+      const n = parseInt(String(v ?? ""), 10);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+
+    // 3) Robust seat limit (same fallback logic as list)
     const userRef = db.doc(`users/${uid}`);
     const userSnap = await userRef.get();
-    const usersIncluded = userSnap.exists ? Number(userSnap.data()?.usersIncluded ?? 1) : 1;
+    let usersIncluded = toPositiveInt(userSnap.exists ? userSnap.data()?.usersIncluded : undefined);
 
+    if (!usersIncluded) {
+      const seoRef = db.doc(`users/${uid}/modules/seo`);
+      const seoSnap = await seoRef.get();
+      usersIncluded = toPositiveInt(seoSnap.exists ? seoSnap.data()?.usersIncluded : undefined);
+    }
+
+    if (!usersIncluded) {
+      const wRef = db.doc(`users/${uid}/websites/${websiteId}`);
+      const wSnap = await wRef.get();
+      usersIncluded = toPositiveInt(wSnap.exists ? wSnap.data()?.usersIncluded : undefined);
+    }
+
+    if (!usersIncluded) usersIncluded = 1;
+
+    // 4) Enforce seats: usersIncluded vs current members
     const membersCol = db.collection(`users/${uid}/websites/${websiteId}/members`);
     const membersSnap = await membersCol.get();
     const seatsUsed = membersSnap.size;
@@ -43,9 +69,13 @@ export default async function handler(req, res) {
       });
     }
 
-    // 4) Prevent duplicate pending invites for same email
+    // 5) Prevent duplicate pending invites for same email
     const invitesCol = db.collection(`users/${uid}/websites/${websiteId}/invites`);
-    const dupSnap = await invitesCol.where("email", "==", email).where("status", "==", "pending").get();
+    const dupSnap = await invitesCol
+      .where("email", "==", email)
+      .where("status", "==", "pending")
+      .get();
+
     if (!dupSnap.empty) {
       return res.status(409).json({
         ok: false,
@@ -54,7 +84,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 5) Create invite
+    // 6) Create invite
     const ref = await invitesCol.add({
       email,
       name,
