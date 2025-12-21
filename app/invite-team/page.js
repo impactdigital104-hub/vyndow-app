@@ -16,6 +16,14 @@ export default function InviteTeamPage() {
   const [websiteId, setWebsiteId] = useState(null);
   const [error, setError] = useState("");
 
+  // Team data
+  const [loading, setLoading] = useState(false);
+  const [seatLimit, setSeatLimit] = useState(0);
+  const [seatsUsed, setSeatsUsed] = useState(0);
+  const [members, setMembers] = useState([]);
+  const [invites, setInvites] = useState([]);
+
+
   // ─────────────────────────────────────────────
   // AUTH CHECK (same pattern as /seo)
   // ─────────────────────────────────────────────
@@ -46,11 +54,52 @@ export default function InviteTeamPage() {
         );
         return;
       }
-      setWebsiteId(id);
+         setWebsiteId(id);
+      loadTeamData(id);
+
     } catch (e) {
       setError("Unable to read selected website.");
     }
   }, []);
+
+    // ─────────────────────────────────────────────
+  // LOAD TEAM DATA FOR WEBSITE
+  // ─────────────────────────────────────────────
+  async function loadTeamData(currentWebsiteId) {
+    if (!currentWebsiteId) return;
+
+    try {
+      setLoading(true);
+
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const token = await user.getIdToken();
+
+      const res = await fetch(
+        `/api/websites/team/list?websiteId=${currentWebsiteId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const json = await res.json();
+      if (!json.ok) {
+        throw new Error(json.error || "Failed to load team data");
+      }
+
+      setSeatLimit(json.seatLimit || 0);
+      setSeatsUsed(json.seatsUsed || 0);
+      setMembers(json.members || []);
+      setInvites(json.invites || []);
+    } catch (e) {
+      setError(e.message || "Failed to load team data.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   if (!authReady) {
     return (
@@ -115,17 +164,43 @@ export default function InviteTeamPage() {
               style={{
                 padding: "16px",
                 borderRadius: "12px",
-                border: "1px dashed #e5e7eb",
-                background: "#fafafa",
+                border: "1px solid #e5e7eb",
+                background: "#ffffff",
               }}
             >
-              <p style={{ margin: 0 }}>
-                Team management UI will appear here next.
-              </p>
-              <p style={{ marginTop: "8px", fontSize: "14px", color: "#6b7280" }}>
-                (Invites, members, and seat limits will be wired in the next step.)
-              </p>
+              {loading && <p>Loading team data…</p>}
+
+              {!loading && (
+                <>
+                  <p>
+                    <strong>Seats used:</strong> {seatsUsed} / {seatLimit}
+                  </p>
+
+                  <h3 style={{ marginTop: "16px" }}>Members</h3>
+                  {members.length === 0 && <p>No members found.</p>}
+                  {members.map((m) => (
+                    <p key={m.id} style={{ marginBottom: "6px" }}>
+                      {m.email || m.id}{" "}
+                      <span style={{ color: "#6b7280" }}>
+                        ({m.role || "member"})
+                      </span>
+                    </p>
+                  ))}
+
+                  <h3 style={{ marginTop: "16px" }}>Pending Invites</h3>
+                  {invites.length === 0 && <p>No pending invites.</p>}
+                  {invites.map((i) => (
+                    <p key={i.id} style={{ marginBottom: "6px" }}>
+                      {i.email}{" "}
+                      <span style={{ color: "#6b7280" }}>
+                        ({i.status})
+                      </span>
+                    </p>
+                  ))}
+                </>
+              )}
             </div>
+
           </>
         )}
       </main>
