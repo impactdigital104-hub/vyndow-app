@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -11,10 +11,9 @@ export default function InviteTeamPage() {
   const router = useRouter();
 
   const [authReady, setAuthReady] = useState(false);
-  const [uid, setUid] = useState(null);
 
   const [websiteId, setWebsiteId] = useState(null);
-  const [error, setError] = useState("");
+  const [pageError, setPageError] = useState("");
 
   // Team data
   const [loading, setLoading] = useState(false);
@@ -23,8 +22,20 @@ export default function InviteTeamPage() {
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
 
-  // Debug helper (temporary — we will remove in cleanup pass)
-  const [lastApiJson, setLastApiJson] = useState("");
+  // Invite form
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("member");
+
+  // Actions
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionMsg, setActionMsg] = useState("");
+  const [actionErr, setActionErr] = useState("");
+
+  const seatsLeft = useMemo(() => {
+    if (!seatLimit) return 0;
+    return Math.max(0, seatLimit - seatsUsed);
+  }, [seatLimit, seatsUsed]);
 
   // ─────────────────────────────────────────────
   // AUTH CHECK (same pattern as /seo)
@@ -35,7 +46,6 @@ export default function InviteTeamPage() {
         router.replace("/login");
         return;
       }
-      setUid(user.uid);
       setAuthReady(true);
     });
 
@@ -51,62 +61,52 @@ export default function InviteTeamPage() {
     try {
       const id = localStorage.getItem("vyndow_selectedWebsiteId");
       if (!id) {
-        setError(
+        setPageError(
           "No website selected. Please go to the SEO page and select a website first."
         );
         return;
       }
       setWebsiteId(id);
     } catch (e) {
-      setError("Unable to read selected website.");
+      setPageError("Unable to read selected website.");
     }
   }, []);
 
-  // ─────────────────────────────────────────────
-  // LOAD TEAM DATA FOR WEBSITE (only after authReady + websiteId)
-  // ─────────────────────────────────────────────
+  async function authedFetch(url, options = {}) {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not logged in.");
+    const token = await user.getIdToken();
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+  }
+
   async function loadTeamData(currentWebsiteId) {
     if (!currentWebsiteId) return;
 
     try {
       setLoading(true);
+      setPageError("");
 
-      const user = auth.currentUser;
-      if (!user) {
-        setLastApiJson("auth.currentUser is null (waiting for Firebase auth)...");
-        return;
-      }
-
-      const token = await user.getIdToken();
-
-      const res = await fetch(
+      const res = await authedFetch(
         `/api/websites/team/list?websiteId=${currentWebsiteId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { method: "GET", headers: {} }
       );
 
       const json = await res.json();
-
-      // capture what the server returned (so we can debug deterministically)
-      try {
-        setLastApiJson(JSON.stringify(json, null, 2));
-      } catch (e) {
-        setLastApiJson(String(json));
-      }
-
-      if (!json.ok) {
-        throw new Error(json.error || "Failed to load team data");
-      }
+      if (!json.ok) throw new Error(json.error || "Failed to load team data.");
 
       setSeatLimit(json.seatLimit || 0);
       setSeatsUsed(json.seatsUsed || 0);
       setMembers(json.members || []);
       setInvites(json.invites || []);
     } catch (e) {
-      setError(e.message || "Failed to load team data.");
+      setPageError(e.message || "Failed to load team data.");
     } finally {
       setLoading(false);
     }
@@ -117,6 +117,107 @@ export default function InviteTeamPage() {
     if (!websiteId) return;
     loadTeamData(websiteId);
   }, [authReady, websiteId]);
+
+  async function handleInviteSubmit(e) {
+    e.preventDefault();
+    setActionMsg("");
+    setActionErr("");
+
+    const email = (inviteEmail || "").trim().toLowerCase();
+    const name = (inviteName || "").trim();
+
+    if (!websiteId) return setActionErr("No website selected.");
+    if (!email) return setActionErr("Please enter an email address.");
+
+    try {
+      setActionBusy(true);
+
+      const res = await authedFetch("/api/websites/team/invite", {
+        method: "POST",
+        body: JSON.stringify({
+          websiteId,
+          email,
+          name,
+          role: inviteRole || "member",
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!json.ok) {
+        if (json.error === "SEAT_LIMIT_REACHED") {
+          throw new Error("Seat limit reached. Upgrade plan to add more users.");
+        }
+        if (json.error === "INVITE_ALREADY_EXISTS") {
+          throw new Error("An invite to this email already exists.");
+        }
+        throw new Error(json.error || "Failed to create invite.");
+      }
+
+      setActionMsg("Invite created. (V1: no email is sent yet — it will show under Pending Invites.)");
+      setInviteName("");
+      setInviteEmail("");
+      setInviteRole("member");
+
+      await loadTeamData(websiteId);
+    } catch (e2) {
+      setActionErr(e2.message || "Failed to create invite.");
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function handleRemoveInvite(inviteId) {
+    if (!websiteId) return;
+
+    setActionMsg("");
+    setActionErr("");
+
+    try {
+      setActionBusy(true);
+
+      const res = await authedFetch("/api/websites/team/remove", {
+        method: "POST",
+        body: JSON.stringify({ websiteId, inviteId }),
+      });
+
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Failed to remove invite.");
+
+      setActionMsg("Invite removed.");
+      await loadTeamData(websiteId);
+    } catch (e) {
+      setActionErr(e.message || "Failed to remove invite.");
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function handleRemoveMember(memberUid) {
+    if (!websiteId) return;
+
+    setActionMsg("");
+    setActionErr("");
+
+    try {
+      setActionBusy(true);
+
+      const res = await authedFetch("/api/websites/team/remove", {
+        method: "POST",
+        body: JSON.stringify({ websiteId, memberUid }),
+      });
+
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Failed to remove member.");
+
+      setActionMsg("Member removed.");
+      await loadTeamData(websiteId);
+    } catch (e) {
+      setActionErr(e.message || "Failed to remove member.");
+    } finally {
+      setActionBusy(false);
+    }
+  }
 
   if (!authReady) {
     return (
@@ -129,69 +230,185 @@ export default function InviteTeamPage() {
   return (
     <VyndowShell activeModule="invite-team">
       <main className="page">
-        <header style={{ marginBottom: "20px" }}>
+        <header style={{ marginBottom: 18 }}>
           <h1>Invite Team</h1>
-          <p className="sub">Manage users who can access this website.</p>
+          <p className="sub">Add team members who can access this website.</p>
         </header>
 
-        {error && (
+        {pageError && (
           <div
             style={{
               padding: "12px 16px",
-              borderRadius: "12px",
+              borderRadius: 12,
               background: "#fff1f2",
               border: "1px solid #fecaca",
               color: "#991b1b",
-              marginBottom: "16px",
+              marginBottom: 16,
             }}
           >
-            {error}
+            {pageError}
           </div>
         )}
 
-        {!error && (
+        {!pageError && (
           <>
+            {/* Summary */}
             <div
               style={{
-                padding: "16px",
-                borderRadius: "12px",
+                padding: 16,
+                borderRadius: 14,
                 border: "1px solid #e5e7eb",
                 background: "#ffffff",
-                marginBottom: "16px",
+                marginBottom: 16,
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
                 <div>
-                  <div style={{ fontSize: "14px", color: "#374151" }}>
-                    <strong>Website ID</strong>
+                  <div style={{ fontSize: 13, color: "#374151" }}>
+                    <strong>Website</strong>
                   </div>
-                  <div
-                    style={{
-                      marginTop: "6px",
-                      fontFamily: "monospace",
-                      fontSize: "13px",
-                      color: "#111827",
-                    }}
-                  >
+                  <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: 12 }}>
                     {websiteId}
                   </div>
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: "14px", color: "#374151" }}>
-                    <strong>Seats used</strong>
+                  <div style={{ fontSize: 13, color: "#374151" }}>
+                    <strong>Seats</strong>
                   </div>
-                  <div style={{ marginTop: "6px", fontSize: "13px", color: "#111827" }}>
-                    {seatsUsed} / {seatLimit}
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#111827" }}>
+                    {seatsUsed} / {seatLimit}{" "}
+                    <span style={{ color: "#6b7280" }}>
+                      ({seatsLeft} left)
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
 
+            {/* Actions feedback */}
+            {(actionMsg || actionErr) && (
+              <div
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  border: "1px solid #e5e7eb",
+                  background: actionErr ? "#fff1f2" : "#ecfeff",
+                  color: actionErr ? "#991b1b" : "#155e75",
+                  marginBottom: 16,
+                }}
+              >
+                {actionErr || actionMsg}
+              </div>
+            )}
+
+            {/* Invite form */}
             <div
               style={{
-                padding: "16px",
-                borderRadius: "12px",
+                padding: 16,
+                borderRadius: 14,
+                border: "1px solid #e5e7eb",
+                background: "#ffffff",
+                marginBottom: 16,
+              }}
+            >
+              <h3 style={{ marginTop: 0 }}>Invite a team member</h3>
+              <form onSubmit={handleInviteSubmit}>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ flex: "1 1 220px" }}>
+                    <div style={{ fontSize: 13, color: "#374151", marginBottom: 6 }}>
+                      Name (optional)
+                    </div>
+                    <input
+                      value={inviteName}
+                      onChange={(e) => setInviteName(e.target.value)}
+                      placeholder="e.g. Reetu"
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #e5e7eb",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ flex: "1 1 260px" }}>
+                    <div style={{ fontSize: 13, color: "#374151", marginBottom: 6 }}>
+                      Email
+                    </div>
+                    <input
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="name@company.com"
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #e5e7eb",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ flex: "0 0 160px" }}>
+                    <div style={{ fontSize: 13, color: "#374151", marginBottom: 6 }}>
+                      Role
+                    </div>
+                    <select
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #e5e7eb",
+                        background: "#fff",
+                      }}
+                    >
+                      <option value="member">Member</option>
+                      <option value="editor">Editor</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  <button
+                    type="submit"
+                    disabled={actionBusy || loading || seatLimit === 0 || seatsUsed >= seatLimit}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 12,
+                      border: "1px solid #e5e7eb",
+                      background:
+                        actionBusy || loading || seatsUsed >= seatLimit ? "#f3f4f6" : "#111827",
+                      color:
+                        actionBusy || loading || seatsUsed >= seatLimit ? "#6b7280" : "#ffffff",
+                      cursor:
+                        actionBusy || loading || seatsUsed >= seatLimit ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {actionBusy ? "Working…" : "Create Invite"}
+                  </button>
+
+                  <span style={{ marginLeft: 10, fontSize: 12, color: "#6b7280" }}>
+                    V1 note: this creates an invite record; email sending will be added later.
+                  </span>
+                </div>
+              </form>
+            </div>
+
+            {/* Members + Invites */}
+            <div
+              style={{
+                padding: 16,
+                borderRadius: 14,
                 border: "1px solid #e5e7eb",
                 background: "#ffffff",
               }}
@@ -202,41 +419,86 @@ export default function InviteTeamPage() {
                 <>
                   <h3 style={{ marginTop: 0 }}>Members</h3>
                   {members.length === 0 && <p>No members found.</p>}
-                  {members.map((m) => (
-                    <p key={m.id} style={{ marginBottom: "6px" }}>
-                      {m.email || m.id}{" "}
-                      <span style={{ color: "#6b7280" }}>
-                        ({m.role || "member"})
-                      </span>
-                    </p>
-                  ))}
 
-                  <h3 style={{ marginTop: "16px" }}>Pending Invites</h3>
+                  {members.map((m) => {
+                    const isOwner = (m.role || "") === "owner";
+                    const label = m.email || m.id;
+
+                    return (
+                      <div
+                        key={m.id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          alignItems: "center",
+                          padding: "10px 0",
+                          borderTop: "1px solid #f3f4f6",
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: 14 }}>{label}</div>
+                          <div style={{ fontSize: 12, color: "#6b7280" }}>
+                            {m.role || "member"}
+                          </div>
+                        </div>
+
+                        <button
+                          disabled={actionBusy || isOwner}
+                          onClick={() => handleRemoveMember(m.uid)}
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 10,
+                            border: "1px solid #e5e7eb",
+                            background: isOwner ? "#f3f4f6" : "#fff",
+                            color: isOwner ? "#9ca3af" : "#111827",
+                            cursor: isOwner ? "not-allowed" : "pointer",
+                          }}
+                          title={isOwner ? "Owner cannot be removed" : "Remove member"}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  <h3 style={{ marginTop: 18 }}>Pending Invites</h3>
                   {invites.length === 0 && <p>No pending invites.</p>}
-                  {invites.map((i) => (
-                    <p key={i.id} style={{ marginBottom: "6px" }}>
-                      {i.email}{" "}
-                      <span style={{ color: "#6b7280" }}>
-                        ({i.status})
-                      </span>
-                    </p>
-                  ))}
 
-                  {/* Temporary debug (remove later) */}
-                  <h3 style={{ marginTop: "16px" }}>Debug: API Response</h3>
-                  <pre
-                    style={{
-                      marginTop: "8px",
-                      padding: "12px",
-                      borderRadius: "12px",
-                      border: "1px solid #e5e7eb",
-                      background: "#fafafa",
-                      overflowX: "auto",
-                      fontSize: "12px",
-                    }}
-                  >
-                    {lastApiJson || "(no response captured yet)"}
-                  </pre>
+                  {invites.map((i) => (
+                    <div
+                      key={i.id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        alignItems: "center",
+                        padding: "10px 0",
+                        borderTop: "1px solid #f3f4f6",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 14 }}>{i.email}</div>
+                        <div style={{ fontSize: 12, color: "#6b7280" }}>
+                          {i.status || "pending"}
+                        </div>
+                      </div>
+
+                      <button
+                        disabled={actionBusy}
+                        onClick={() => handleRemoveInvite(i.id)}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 10,
+                          border: "1px solid #e5e7eb",
+                          background: "#fff",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
                 </>
               )}
             </div>
