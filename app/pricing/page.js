@@ -230,15 +230,17 @@ function renderPlanButton(plan, priceLabel) {
 /* ===================== COMPONENTS ===================== */
 
 function PlanCard({ title, price, features, children, highlight, muted, badge }) {
-  return (
-<div
-  style={{
-    border: highlight || muted ? "2px solid #6D28D9" : "1px solid #E5E7EB",
-    borderRadius: 22,
-    padding: 24,
-    background: highlight || muted ? "#F5F3FF" : "#FFFFFF",
-    boxShadow: "0 16px 34px rgba(2,6,23,0.08)",
-  }}
+return (
+  <div
+    style={{
+      border: highlight || muted ? "2px solid #6D28D9" : "1px solid #E5E7EB",
+      borderRadius: 22,
+      padding: 24,
+      background: highlight || muted ? "#F5F3FF" : "#FFFFFF",
+      boxShadow: "0 16px 34px rgba(2,6,23,0.08)",
+    }}
+  >
+
 >
 
     >
