@@ -23,27 +23,56 @@ export default async function handler(req, res) {
 
     const db = admin.firestore();
 
-    // 3) Load seat limit from user doc (usersIncluded)
+    // 3) Load seat limit (robust)
+    // Priority:
+    // A) users/{uid}.usersIncluded
+    // B) users/{uid}/modules/seo.usersIncluded
+    // C) users/{uid}/websites/{websiteId}.usersIncluded (if you store it there)
+    // D) default = 1
     const userRef = db.doc(`users/${uid}`);
     const userSnap = await userRef.get();
-    const usersIncluded = userSnap.exists ? Number(userSnap.data()?.usersIncluded ?? 1) : 1;
 
-    // 4) Ensure owner is always a member (idempotent)
-    const ownerMemberRef = db.doc(`users/${uid}/websites/${websiteId}/members/${uid}`);
-    const ownerMemberSnap = await ownerMemberRef.get();
-    if (!ownerMemberSnap.exists) {
-      await ownerMemberRef.set(
-        {
-          uid,
-          email: decoded.email || "",
-          name: decoded.name || "",
-          role: "owner",
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+    let usersIncludedRaw = userSnap.exists ? userSnap.data()?.usersIncluded : undefined;
+
+    function toPositiveInt(v) {
+      const n = parseInt(String(v ?? ""), 10);
+      return Number.isFinite(n) && n > 0 ? n : null;
     }
+
+    let usersIncluded = toPositiveInt(usersIncludedRaw);
+
+    // Fallback to modules/seo if needed
+    if (!usersIncluded) {
+      const seoRef = db.doc(`users/${uid}/modules/seo`);
+      const seoSnap = await seoRef.get();
+      usersIncluded = toPositiveInt(seoSnap.exists ? seoSnap.data()?.usersIncluded : undefined);
+    }
+
+    // Fallback to website doc if needed
+    if (!usersIncluded) {
+      const wRef = db.doc(`users/${uid}/websites/${websiteId}`);
+      const wSnap = await wRef.get();
+      usersIncluded = toPositiveInt(wSnap.exists ? wSnap.data()?.usersIncluded : undefined);
+    }
+
+    // Final fallback
+    if (!usersIncluded) usersIncluded = 1;
+
+    // 4) Ensure owner is always a member (force write, idempotent)
+    const ownerMemberRef = db.doc(`users/${uid}/websites/${websiteId}/members/${uid}`);
+    await ownerMemberRef.set(
+      {
+        uid,
+        email: decoded.email || "",
+        name: decoded.name || "",
+        role: "owner",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        // only set createdAt if missing (approximation: keep it stable after first write)
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
 
     // 5) Read members
     const membersSnap = await db.collection(`users/${uid}/websites/${websiteId}/members`).get();
