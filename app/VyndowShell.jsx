@@ -61,14 +61,21 @@ export default function VyndowShell({ activeModule, children }) {
 </a>
 
 
-          <div className="sidebar-link sidebar-link-muted">
+          <a
+            href="/invite-team"
+            className={`sidebar-link sidebar-link-muted${
+              activeModule === "invite-team" ? " is-active" : ""
+            }`}
+            onClick={closeMobileSidebar}
+          >
             <span className="sidebar-link-main">Invite Team</span>
             <span className="sidebar-pill sidebar-pill-soft">Owner only</span>
             <span className="sidebar-info">i</span>
             <span className="sidebar-tip">
               Add up to 2 more users to collaborate on Vyndow.
             </span>
-          </div>
+          </a>
+
 
       <a href="/pricing" className="sidebar-link sidebar-link-muted">
   <span className="sidebar-link-main">Billing &amp; Plans</span>
