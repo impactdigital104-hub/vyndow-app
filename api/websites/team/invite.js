@@ -1,0 +1,73 @@
+// api/websites/team/invite.js
+import admin from "../../firebaseAdmin";
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(200).json({ ok: true, message: "Use POST." });
+  }
+
+  try {
+    // 1) Verify Firebase ID token
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ ok: false, error: "Missing auth token." });
+
+    const decoded = await admin.auth().verifyIdToken(token);
+    const uid = decoded.uid;
+
+    // 2) Validate inputs
+    const websiteId = (req.body?.websiteId || "").trim();
+    const email = (req.body?.email || "").trim().toLowerCase();
+    const name = (req.body?.name || "").trim();
+    const role = (req.body?.role || "member").trim();
+
+    if (!websiteId) return res.status(400).json({ ok: false, error: "websiteId is required." });
+    if (!email) return res.status(400).json({ ok: false, error: "email is required." });
+
+    const db = admin.firestore();
+
+    // 3) Enforce seats: usersIncluded vs current members
+    const userRef = db.doc(`users/${uid}`);
+    const userSnap = await userRef.get();
+    const usersIncluded = userSnap.exists ? Number(userSnap.data()?.usersIncluded ?? 1) : 1;
+
+    const membersCol = db.collection(`users/${uid}/websites/${websiteId}/members`);
+    const membersSnap = await membersCol.get();
+    const seatsUsed = membersSnap.size;
+
+    if (seatsUsed >= usersIncluded) {
+      return res.status(403).json({
+        ok: false,
+        error: "SEAT_LIMIT_REACHED",
+        details: `Seat limit: ${usersIncluded}, current members: ${seatsUsed}`,
+      });
+    }
+
+    // 4) Prevent duplicate pending invites for same email
+    const invitesCol = db.collection(`users/${uid}/websites/${websiteId}/invites`);
+    const dupSnap = await invitesCol.where("email", "==", email).where("status", "==", "pending").get();
+    if (!dupSnap.empty) {
+      return res.status(409).json({
+        ok: false,
+        error: "INVITE_ALREADY_EXISTS",
+        details: "A pending invite already exists for this email.",
+      });
+    }
+
+    // 5) Create invite
+    const ref = await invitesCol.add({
+      email,
+      name,
+      role,
+      status: "pending",
+      invitedByUid: uid,
+      invitedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return res.status(200).json({ ok: true, inviteId: ref.id });
+  } catch (e) {
+    console.error("websites/team/invite error:", e);
+    return res.status(500).json({ ok: false, error: e?.message || "Unknown error." });
+  }
+}
