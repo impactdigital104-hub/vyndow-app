@@ -59,8 +59,17 @@ useEffect(() => {
 
 // pick first website automatically (first Firestore website)
 if (rows.length && !selectedWebsite) {
-  setSelectedWebsite(rows[0].id);
+  const firstId = rows[0].id;
+  setSelectedWebsite(firstId);
+
+  // persist for other pages (Invite Team)
+  try {
+    localStorage.setItem("vyndow_selectedWebsiteId", firstId);
+  } catch (e) {
+    // ignore
+  }
 }
+
 
 
   } catch (e) {
@@ -111,6 +120,15 @@ useEffect(() => {
 
   applyWebsiteProfile(w);
 }, [selectedWebsite, websites]);
+// Persist selected website for other pages (Invite Team)
+useEffect(() => {
+  if (!selectedWebsite) return;
+  try {
+    localStorage.setItem("vyndow_selectedWebsiteId", selectedWebsite);
+  } catch (e) {
+    // ignore
+  }
+}, [selectedWebsite]);
 
 
 
