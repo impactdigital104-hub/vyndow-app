@@ -47,7 +47,9 @@ export default function AcceptInviteClient() {
         } catch {}
 
         if (!resp.ok || !data?.ok) {
-          const err = data?.error || "Failed to accept invite.";
+       const err =
+  (data && (data.error || data.details || data.message)) ||
+  `HTTP_${resp.status}`;
           setStatus("Could not accept invite.");
           setDetails(err);
           return;
