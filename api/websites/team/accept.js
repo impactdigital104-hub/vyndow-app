@@ -7,12 +7,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1) Verify Firebase ID token (invitee must be logged in)
+    // 1) Verify Firebase ID token
     const authHeader = req.headers.authorization || "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    if (!token) return res.status(401).json({ ok: false, error: "Missing auth token." });
+    const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!bearer) return res.status(401).json({ ok: false, error: "Missing auth token." });
 
-    const decoded = await admin.auth().verifyIdToken(token);
+    const decoded = await admin.auth().verifyIdToken(bearer);
     const inviteeUid = decoded.uid;
     const inviteeEmail = (decoded.email || "").toLowerCase();
 
@@ -22,25 +22,18 @@ export default async function handler(req, res) {
 
     const db = admin.firestore();
 
-    // 3) Find invite by token across all owners/websites (collectionGroup)
-    const q = await db
-      .collectionGroup("invites")
-      .where("token", "==", inviteToken)
-      .limit(1)
-      .get();
-
-    if (q.empty) {
-      return res.status(404).json({ ok: false, error: "INVITE_NOT_FOUND" });
-    }
+    // 3) Find invite by token across all owners/websites
+    const q = await db.collectionGroup("invites").where("token", "==", inviteToken).limit(1).get();
+    if (q.empty) return res.status(404).json({ ok: false, error: "INVITE_NOT_FOUND" });
 
     const inviteDoc = q.docs[0];
     const inviteData = inviteDoc.data() || {};
 
     // Expected path: users/{ownerUid}/websites/{websiteId}/invites/{inviteId}
-    const path = inviteDoc.ref.path.split("/");
-    const ownerUid = path[1];
-    const websiteId = path[3];
-    const inviteId = path[5];
+    const parts = inviteDoc.ref.path.split("/");
+    const ownerUid = parts[1];
+    const websiteId = parts[3];
+    const inviteId = parts[5];
 
     if (!ownerUid || !websiteId || !inviteId) {
       return res.status(500).json({ ok: false, error: "INVITE_PATH_INVALID" });
@@ -48,10 +41,13 @@ export default async function handler(req, res) {
 
     // 4) Basic checks
     if (inviteData.status && inviteData.status !== "pending") {
+      // idempotent: if already accepted, treat as ok
+      if (inviteData.status === "accepted") {
+        return res.status(200).json({ ok: true, ownerUid, websiteId, inviteId, alreadyAccepted: true });
+      }
       return res.status(409).json({ ok: false, error: "INVITE_NOT_PENDING", status: inviteData.status });
     }
 
-    // Email match safety (V1)
     const invitedEmail = (inviteData.email || "").toLowerCase();
     if (invitedEmail && inviteeEmail && invitedEmail !== inviteeEmail) {
       return res.status(403).json({
@@ -61,38 +57,42 @@ export default async function handler(req, res) {
       });
     }
 
-    // Expiry check (if present)
     if (inviteData.tokenExpiresAt && inviteData.tokenExpiresAt.toDate) {
       const exp = inviteData.tokenExpiresAt.toDate().getTime();
-      if (Date.now() > exp) {
-        return res.status(410).json({ ok: false, error: "INVITE_EXPIRED" });
-      }
+      if (Date.now() > exp) return res.status(410).json({ ok: false, error: "INVITE_EXPIRED" });
     }
 
     const ownerUserRef = db.doc(`users/${ownerUid}`);
     const websiteRef = db.doc(`users/${ownerUid}/websites/${websiteId}`);
     const memberRef = db.doc(`users/${ownerUid}/websites/${websiteId}/members/${inviteeUid}`);
     const inviteRef = db.doc(`users/${ownerUid}/websites/${websiteId}/invites/${inviteId}`);
+    const inviteeWebsiteRef = db.doc(`users/${inviteeUid}/websites/${websiteId}`);
 
-    // 5) Transaction: enforce seats + add member + mark invite accepted + create website copy for invitee
     await db.runTransaction(async (tx) => {
-      // seat limit from owner user doc (already used elsewhere)
-      const ownerSnap = await tx.get(ownerUserRef);
+      const [ownerSnap, websiteSnap, existingMemberSnap] = await Promise.all([
+        tx.get(ownerUserRef),
+        tx.get(websiteRef),
+        tx.get(memberRef),
+      ]);
+
       const usersIncluded = ownerSnap.exists ? Number(ownerSnap.data()?.usersIncluded ?? 1) : 1;
 
-      // count members
-      const membersSnap = await tx.get(db.collection(`users/${ownerUid}/websites/${websiteId}/members`));
-      const seatsUsed = membersSnap.size;
+      // We keep a counter on the website doc to avoid query-reads inside transactions.
+      // Default: 1 (owner) if not present.
+      const website = websiteSnap.exists ? (websiteSnap.data() || {}) : {};
+      const currentCountRaw = website.memberCount;
+      const memberCount = Number.isFinite(currentCountRaw) ? Number(currentCountRaw) : 1;
 
-      if (seatsUsed >= usersIncluded) {
-        throw new Error("SEAT_LIMIT_REACHED");
+      // If already a member, do nothing (idempotent)
+      const isNewMember = !existingMemberSnap.exists;
+
+      if (isNewMember && memberCount >= usersIncluded) {
+        const err = new Error("SEAT_LIMIT_REACHED");
+        err.code = "SEAT_LIMIT_REACHED";
+        throw err;
       }
 
-      // load website details to copy
-      const websiteSnap = await tx.get(websiteRef);
-      const website = websiteSnap.exists ? (websiteSnap.data() || {}) : {};
-
-      // add member
+      // Add member doc (merge)
       tx.set(
         memberRef,
         {
@@ -106,7 +106,7 @@ export default async function handler(req, res) {
         { merge: true }
       );
 
-      // mark invite accepted (do not delete; keep audit trail)
+      // Mark invite accepted
       tx.set(
         inviteRef,
         {
@@ -119,9 +119,19 @@ export default async function handler(req, res) {
         { merge: true }
       );
 
-      // create "website copy" under invitee so it appears in /seo dropdown
-      // IMPORTANT: /seo loads from users/{uid}/websites
-      const inviteeWebsiteRef = db.doc(`users/${inviteeUid}/websites/${websiteId}`);
+      // Increment counter only if this is a new member
+      if (isNewMember) {
+        tx.set(
+          websiteRef,
+          {
+            memberCount: admin.firestore.FieldValue.increment(1),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+
+      // Create website copy for invitee so it appears in /seo dropdown
       tx.set(
         inviteeWebsiteRef,
         {
@@ -132,28 +142,24 @@ export default async function handler(req, res) {
           sourceWebsiteId: websiteId,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          profile: website.profile || {
-            brandDescription: "",
-            targetAudience: "",
-            toneOfVoice: [],
-            readingLevel: "",
-            geoTarget: "",
-            industry: "general",
-          },
+          profile:
+            website.profile || {
+              brandDescription: "",
+              targetAudience: "",
+              toneOfVoice: [],
+              readingLevel: "",
+              geoTarget: "",
+              industry: "general",
+            },
         },
         { merge: true }
       );
     });
 
-    return res.status(200).json({
-      ok: true,
-      ownerUid,
-      websiteId,
-      inviteId,
-    });
+    return res.status(200).json({ ok: true, ownerUid, websiteId, inviteId });
   } catch (e) {
-    const msg = e?.message || "Unknown error.";
-    if (msg === "SEAT_LIMIT_REACHED") {
+    const msg = e?.message || "Unknown error";
+    if (msg === "SEAT_LIMIT_REACHED" || e?.code === "SEAT_LIMIT_REACHED") {
       return res.status(403).json({ ok: false, error: "SEAT_LIMIT_REACHED" });
     }
     console.error("websites/team/accept error:", e);
