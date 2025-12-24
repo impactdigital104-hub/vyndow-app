@@ -61,6 +61,7 @@ export default async function handler(req, res) {
     const websiteRef = db.doc(`users/${ownerUid}/websites/${websiteId}`);
     const inviteRef = db.doc(`users/${ownerUid}/websites/${websiteId}/invites/${inviteId}`);
     const memberRef = db.doc(`users/${ownerUid}/websites/${websiteId}/members/${uid}`);
+    const inviteeWebsiteRef = db.doc(`users/${uid}/websites/${websiteId}`);
 
     // 4) Transaction: check seat limit + accept invite + add member
     await db.runTransaction(async (tx) => {
@@ -72,6 +73,8 @@ export default async function handler(req, res) {
 
       const websiteSnap = await tx.get(websiteRef);
       if (!websiteSnap.exists) throw new Error("Website not found.");
+            const website = websiteSnap.data() || {};
+
 
       const inviteSnap = await tx.get(inviteRef);
       if (!inviteSnap.exists) throw new Error("Invite not found (already removed?).");
@@ -100,6 +103,23 @@ export default async function handler(req, res) {
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+              // ✅ Make the invited website appear in the invitee’s dashboard + SEO dropdown
+      tx.set(
+        inviteeWebsiteRef,
+        {
+          name: website.name || "Shared Website",
+          domain: website.domain || "",
+          ownerUid,
+          shared: true,
+          sourceWebsiteId: websiteId,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          // optional: carry over profile if you want it visible immediately
+          profile: website.profile || {},
+        },
+        { merge: true }
+      );
+
       }
 
       tx.update(inviteRef, {
