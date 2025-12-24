@@ -2,155 +2,127 @@
 import admin from "../../firebaseAdmin";
 
 export default async function handler(req, res) {
-  // IMPORTANT: to avoid "HTTP_405" surprises, we always return JSON even for wrong method
   if (req.method !== "POST") {
-    return res.status(200).json({ ok: false, error: "USE_POST" });
+    return res.status(405).json({ ok: false, error: "HTTP_405" });
   }
 
   try {
+    // 1) Verify Firebase ID token
     const authHeader = req.headers.authorization || "";
     const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     if (!idToken) return res.status(401).json({ ok: false, error: "Missing auth token." });
 
     const decoded = await admin.auth().verifyIdToken(idToken);
-    const inviteeUid = decoded.uid;
-    const inviteeEmail = (decoded.email || "").toLowerCase();
+    const uid = decoded.uid;
+    const userEmail = (decoded.email || "").toLowerCase();
 
-    const token = String(req.body?.token || "").trim();
-    if (!token) return res.status(400).json({ ok: false, error: "Missing invite token." });
+    const { token: inviteToken } = req.body || {};
+    if (!inviteToken) return res.status(400).json({ ok: false, error: "Missing invite token." });
 
     const db = admin.firestore();
 
-    // ✅ Your Firestore shows invites store `token`, NOT `tokenHash`
-    const q = await db.collectionGroup("invites").where("token", "==", token).limit(1).get();
-    if (q.empty) return res.status(404).json({ ok: false, error: "INVITE_NOT_FOUND" });
+    // 2) Direct lookup (NO collectionGroup)
+    const tokenRef = db.doc(`inviteTokens/${inviteToken}`);
+    const tokenSnap = await tokenRef.get();
 
-    const inviteDoc = q.docs[0];
-    const invite = inviteDoc.data() || {};
-
-    // Expected path: users/{ownerUid}/websites/{websiteId}/invites/{inviteId}
-    const parts = inviteDoc.ref.path.split("/");
-    const ownerUid = parts[1];
-    const websiteId = parts[3];
-    const inviteId = parts[5];
-
-    if (!ownerUid || !websiteId || !inviteId) {
-      return res.status(500).json({ ok: false, error: "INVITE_PATH_INVALID" });
-    }
-
-    // Email must match invite email
-    const invitedEmail = (invite.email || "").toLowerCase();
-    if (!invitedEmail || !inviteeEmail || invitedEmail !== inviteeEmail) {
-      return res.status(403).json({
+    if (!tokenSnap.exists) {
+      return res.status(400).json({
         ok: false,
-        error: "EMAIL_MISMATCH",
-        details: "Login email must match the invited email.",
+        error: "Invalid or expired invite token. (token not found)",
       });
     }
 
-    // Expiry check
-    if (invite.tokenExpiresAt && invite.tokenExpiresAt.toDate) {
-      const exp = invite.tokenExpiresAt.toDate().getTime();
-      if (Date.now() > exp) return res.status(410).json({ ok: false, error: "INVITE_EXPIRED" });
+    const tokenData = tokenSnap.data() || {};
+    const ownerUid = tokenData.ownerUid;
+    const websiteId = tokenData.websiteId;
+    const inviteId = tokenData.inviteId;
+    const invitedEmail = (tokenData.email || "").toLowerCase();
+    const role = tokenData.role || "member";
+
+    if (!ownerUid || !websiteId || !inviteId || !invitedEmail) {
+      return res.status(400).json({
+        ok: false,
+        error: "Invite token record is incomplete.",
+        tokenData,
+      });
     }
 
-    const ownerUserRef = db.doc(`users/${ownerUid}`);
+    // 3) Enforce: must be logged in as the invited email
+    if (!userEmail || userEmail !== invitedEmail) {
+      return res.status(403).json({
+        ok: false,
+        error: "You are logged in with a different email than the invite was sent to.",
+        expectedEmail: invitedEmail,
+        currentEmail: userEmail || "(no email on auth token)",
+      });
+    }
+
+    const ownerRef = db.doc(`users/${ownerUid}`);
     const websiteRef = db.doc(`users/${ownerUid}/websites/${websiteId}`);
-    const memberRef = db.doc(`users/${ownerUid}/websites/${websiteId}/members/${inviteeUid}`);
     const inviteRef = db.doc(`users/${ownerUid}/websites/${websiteId}/invites/${inviteId}`);
-    const inviteeWebsiteRef = db.doc(`users/${inviteeUid}/websites/${websiteId}`);
+    const memberRef = db.doc(`users/${ownerUid}/websites/${websiteId}/members/${uid}`);
 
+    // 4) Transaction: check seat limit + accept invite + add member
     await db.runTransaction(async (tx) => {
-      const [ownerSnap, websiteSnap, memberSnap, inviteSnap] = await Promise.all([
-        tx.get(ownerUserRef),
-        tx.get(websiteRef),
-        tx.get(memberRef),
-        tx.get(inviteRef),
-      ]);
+      const ownerSnap = await tx.get(ownerRef);
+      if (!ownerSnap.exists) throw new Error("Owner account not found.");
 
-      const freshInvite = inviteSnap.exists ? inviteSnap.data() : null;
-      if (!freshInvite) throw new Error("INVITE_NOT_FOUND");
-      if (freshInvite.status !== "pending") throw new Error("INVITE_NOT_PENDING");
+      const owner = ownerSnap.data() || {};
+      const seatLimit = Number(owner.usersIncluded || 1);
 
-      const usersIncluded = ownerSnap.exists ? Number(ownerSnap.data()?.usersIncluded ?? 1) : 1;
+      const websiteSnap = await tx.get(websiteRef);
+      if (!websiteSnap.exists) throw new Error("Website not found.");
 
-      const website = websiteSnap.exists ? (websiteSnap.data() || {}) : {};
-      const currentCountRaw = website.memberCount;
-      const memberCount = Number.isFinite(currentCountRaw) ? Number(currentCountRaw) : 1; // default owner=1
+      const inviteSnap = await tx.get(inviteRef);
+      if (!inviteSnap.exists) throw new Error("Invite not found (already removed?).");
 
-      const isNewMember = !memberSnap.exists;
-
-      if (isNewMember && memberCount >= usersIncluded) {
-        const e = new Error("SEAT_LIMIT_REACHED");
-        e.details = `Seat limit ${usersIncluded}, current ${memberCount}`;
-        throw e;
+      const invite = inviteSnap.data() || {};
+      if (invite.status && invite.status !== "pending") {
+        throw new Error(`Invite is not pending (status=${invite.status}).`);
       }
 
-      // Add member
-      tx.set(
-        memberRef,
-        {
-          uid: inviteeUid,
-          email: inviteeEmail,
-          role: freshInvite.role || "member",
-          name: freshInvite.name || "",
+      // Count seats used (members count)
+      const membersSnap = await tx.get(db.collection(`users/${ownerUid}/websites/${websiteId}/members`));
+      const seatsUsed = membersSnap.size;
+
+      // If already a member, treat as success (idempotent)
+      const existingMemberSnap = await tx.get(memberRef);
+      if (!existingMemberSnap.exists) {
+        if (seatsUsed >= seatLimit) {
+          throw new Error(`Seat limit reached (${seatsUsed}/${seatLimit}).`);
+        }
+
+        tx.set(memberRef, {
+          uid,
+          email: invitedEmail,
+          role,
+          name: decoded.name || "",
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      // Mark invite accepted & remove token so link cannot be reused
-      tx.set(
-        inviteRef,
-        {
-          status: "accepted",
-          acceptedByUid: inviteeUid,
-          acceptedByEmail: inviteeEmail,
-          acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
-          token: admin.firestore.FieldValue.delete(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      // Increment counter if new member
-      if (isNewMember) {
-        tx.set(
-          websiteRef,
-          {
-            memberCount: admin.firestore.FieldValue.increment(1),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
+        });
       }
 
-      // Create website copy under invitee so it appears in dropdown
-      tx.set(
-        inviteeWebsiteRef,
-        {
-          name: website.name || "Shared Website",
-          domain: website.domain || "",
-          ownerUid,
-          shared: true,
-          sourceWebsiteId: websiteId,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          profile: website.profile || {},
-        },
-        { merge: true }
-      );
+      tx.update(inviteRef, {
+        status: "accepted",
+        acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+        acceptedByUid: uid,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // remove token mapping so link can’t be reused
+      tx.delete(tokenRef);
     });
 
-    return res.status(200).json({ ok: true, ownerUid, websiteId, inviteId });
+    return res.status(200).json({
+      ok: true,
+      ownerUid,
+      websiteId,
+      inviteId,
+      acceptedUid: uid,
+      acceptedEmail: userEmail,
+    });
   } catch (e) {
-    console.error("team/accept error:", e);
-    const msg = e?.message || "Unknown error";
-
-    if (msg === "INVITE_NOT_PENDING") return res.status(409).json({ ok: false, error: "INVITE_NOT_PENDING" });
-    if (msg === "SEAT_LIMIT_REACHED") return res.status(403).json({ ok: false, error: "SEAT_LIMIT_REACHED", details: e.details || "" });
-
-    return res.status(500).json({ ok: false, error: msg, details: e?.stack || "" });
+    console.error("websites/team/accept error:", e);
+    return res.status(500).json({ ok: false, error: e?.message || "Failed to accept invite." });
   }
 }
