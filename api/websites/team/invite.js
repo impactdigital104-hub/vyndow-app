@@ -89,6 +89,10 @@ export default async function handler(req, res) {
 
     // 6) Create invite + token
     const inviteToken = crypto.randomBytes(32).toString("hex");
+        const tokenExpiresAt = admin.firestore.Timestamp.fromDate(
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    );
+
 
     const appBaseUrl = (process.env.APP_BASE_URL || "https://vyndow-app.vercel.app").replace(/\/+$/, "");
     const inviteUrl = `${appBaseUrl}/accept-invite?token=${inviteToken}`;
@@ -121,9 +125,20 @@ export default async function handler(req, res) {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
         // ✅ Token lookup doc for fast accept (avoids collectionGroup query/index issues)
-    const tokenExpiresAt = admin.firestore.Timestamp.fromDate(
-      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    );
+    await db.doc(`inviteTokens/${inviteToken}`).set({
+      ownerUid: uid,
+      websiteId,
+      inviteId: ref.id,
+      email,
+      name,
+      role,
+      tokenExpiresAt,
+      status: "pending",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+   
 
     // IMPORTANT: keep invite doc expiry consistent with token doc expiry
     // So we reuse the same tokenExpiresAt value in both places.
