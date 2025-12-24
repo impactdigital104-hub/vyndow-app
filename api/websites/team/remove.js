@@ -37,8 +37,19 @@ export default async function handler(req, res) {
     }
 
     if (inviteId) {
-      await db.doc(`users/${uid}/websites/${websiteId}/invites/${inviteId}`).delete();
+      const inviteRef = db.doc(`users/${uid}/websites/${websiteId}/invites/${inviteId}`);
+      const inviteSnap = await inviteRef.get();
+      const invite = inviteSnap.exists ? (inviteSnap.data() || {}) : {};
+
+      // delete invite doc
+      await inviteRef.delete();
+
+      // ✅ also delete token lookup doc if token exists
+      if (invite.token) {
+        await db.doc(`inviteTokens/${invite.token}`).delete().catch(() => {});
+      }
     }
+
 
     return res.status(200).json({ ok: true });
   } catch (e) {
