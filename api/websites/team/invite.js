@@ -112,15 +112,34 @@ export default async function handler(req, res) {
       status: "pending",
       token: inviteToken,
       tokenCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      // 7 days validity (V1)
-      tokenExpiresAt: admin.firestore.Timestamp.fromDate(
-        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-      ),
+           // 7 days validity (V1)
+      tokenExpiresAt,
+
       invitedByUid: uid,
       invitedByEmail: decoded.email || "",
       invitedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+        // ✅ Token lookup doc for fast accept (avoids collectionGroup query/index issues)
+    const tokenExpiresAt = admin.firestore.Timestamp.fromDate(
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    );
+
+    // IMPORTANT: keep invite doc expiry consistent with token doc expiry
+    // So we reuse the same tokenExpiresAt value in both places.
+    await db.doc(`inviteTokens/${inviteToken}`).set({
+      ownerUid: uid,
+      websiteId,
+      inviteId: ref.id,
+      email,
+      name,
+      role,
+      tokenExpiresAt,
+      status: "pending",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
 
     // 7) Send email (launch ready)
     // We do NOT fail the whole request if email sending fails; invite still exists in Pending Invites.
