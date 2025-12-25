@@ -47,15 +47,18 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3) Enforce: must be logged in as the invited email
-    if (!userEmail || userEmail !== invitedEmail) {
-      return res.status(403).json({
-        ok: false,
-        error: "You are logged in with a different email than the invite was sent to.",
-        expectedEmail: invitedEmail,
-        currentEmail: userEmail || "(no email on auth token)",
-      });
-    }
+// 3) Enforce: must be logged in as the invited email
+if (!userEmail || userEmail !== invitedEmail) {
+  return res.status(403).json({
+    ok: false,
+    code: "WRONG_EMAIL",
+    invitedEmail: invitedEmail,
+    currentEmail: userEmail || "",
+    error:
+      "You are logged in with a different email than the invite was sent to. Please sign out and sign in with the invited email to accept.",
+  });
+}
+
 
     const ownerRef = db.doc(`users/${ownerUid}`);
     const websiteRef = db.doc(`users/${ownerUid}/websites/${websiteId}`);
