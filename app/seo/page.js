@@ -92,7 +92,8 @@ if (rows.length && !selectedWebsite) {
       setSeoModuleError("");
 
       // users/{uid}/modules/seo
-      const ref = doc(db, "users", uid, "modules", "seo");
+  const { effectiveUid } = getEffectiveContext(selectedWebsite);
+const ref = doc(db, "users", effectiveUid, "modules", "seo");
       const snap = await getDoc(ref);
 
       if (snap.exists()) {
@@ -110,7 +111,7 @@ if (rows.length && !selectedWebsite) {
   }
 
   loadSeoModule();
-}, [uid]);
+}, [uid, selectedWebsite, websites]);
 useEffect(() => {
   if (!selectedWebsite) return;
   if (!websites || !websites.length) return;
@@ -210,6 +211,15 @@ setIndustry(p.industry || "general");
   const [isQuotaReached, setIsQuotaReached] = useState(false);
   const [quotaMessage, setQuotaMessage] = useState("");
   // Build the usage summary string based on the selected website's SEO plan
+    function getEffectiveContext(websiteId) {
+  const id = websiteId || selectedWebsite;
+  const w = websites.find((x) => x.id === id);
+
+  const effectiveUid = (w && w.ownerUid) ? w.ownerUid : uid;
+  const effectiveWebsiteId = (w && w.ownerWebsiteId) ? w.ownerWebsiteId : id;
+
+  return { effectiveUid, effectiveWebsiteId };
+}
     function getMonthKeyClient() {
   const d = new Date();
   const y = d.getFullYear();
@@ -222,7 +232,9 @@ setIndustry(p.industry || "general");
   setUsageLoading(true);
   try {
     const monthKey = getMonthKeyClient();
-    const usageRef = doc(db, "users", uid, "websites", websiteId, "usage", monthKey);
+const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(websiteId);
+const usageRef = doc(db, "users", effectiveUid, "websites", effectiveWebsiteId, "usage", monthKey);
+
     const snap = await getDoc(usageRef);
 
     const used = snap.exists() ? (snap.data()?.usedThisMonth ?? 0) : 0;
