@@ -72,7 +72,7 @@ if (!userEmail || userEmail !== invitedEmail) {
       if (!ownerSnap.exists) throw new Error("Owner account not found.");
 
       const owner = ownerSnap.data() || {};
-      const seatLimit = Number(owner.usersIncluded || 1);
+    const seatLimit = Number(owner.usersIncluded || owner.usersIncluded === 0 ? owner.usersIncluded : 1);
 
       const websiteSnap = await tx.get(websiteRef);
       if (!websiteSnap.exists) throw new Error("Website not found.");
@@ -87,17 +87,18 @@ if (!userEmail || userEmail !== invitedEmail) {
         throw new Error(`Invite is not pending (status=${invite.status}).`);
       }
 
-      // Count seats used (members count)
-      const membersSnap = await tx.get(db.collection(`users/${ownerUid}/websites/${websiteId}/members`));
-      const seatsUsed = membersSnap.size;
+      // Robust seat enforcement (counter on website doc)
+      const existingMemberSnap = await tx.get(memberRef);
 
       // If already a member, treat as success (idempotent)
-      const existingMemberSnap = await tx.get(memberRef);
       if (!existingMemberSnap.exists) {
+        const seatsUsed = Number(website.seatsUsed || 0);
+
         if (seatsUsed >= seatLimit) {
           throw new Error(`Seat limit reached (${seatsUsed}/${seatLimit}).`);
         }
 
+        // Create member
         tx.set(memberRef, {
           uid,
           email: invitedEmail,
@@ -106,24 +107,34 @@ if (!userEmail || userEmail !== invitedEmail) {
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-              // ✅ Make the invited website appear in the invitee’s dashboard + SEO dropdown
-      tx.set(
-        inviteeWebsiteRef,
-        {
-          name: website.name || "Shared Website",
-          domain: website.domain || "",
-          ownerUid,
-          shared: true,
-          sourceWebsiteId: websiteId,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          // optional: carry over profile if you want it visible immediately
-          profile: website.profile || {},
-        },
-        { merge: true }
-      );
 
+        // ✅ Make the invited website appear in the invitee’s dashboard + SEO dropdown
+        tx.set(
+          inviteeWebsiteRef,
+          {
+            name: website.name || "Shared Website",
+            domain: website.domain || "",
+            ownerUid,
+            shared: true,
+            sourceWebsiteId: websiteId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            profile: website.profile || {},
+          },
+          { merge: true }
+        );
+
+        // Increment seatsUsed safely
+        tx.set(
+          websiteRef,
+          {
+            seatsUsed: admin.firestore.FieldValue.increment(1),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
       }
+
 
       tx.update(inviteRef, {
         status: "accepted",
