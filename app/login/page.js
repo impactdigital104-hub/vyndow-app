@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -17,6 +17,17 @@ import { auth, db } from "../firebaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+function getSafeNextUrl() {
+  const n = searchParams?.get("next") || "";
+  // allow only internal paths
+  if (n.startsWith("/") && !n.startsWith("//")) return n;
+  return "/seo";
+}
+
+const nextUrl = getSafeNextUrl();
+
   const [mode, setMode] = useState("signin"); // "signin" | "signup"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,13 +67,14 @@ async function ensureSeoModuleDoc(user) {
 }
 
 
-  useEffect(() => {
-    // If already logged in, go to /seo
-    const unsub = onAuthStateChanged(auth, (u) => {
-      if (u) router.replace("/seo");
-    });
-    return () => unsub();
-  }, [router]);
+useEffect(() => {
+  // If already logged in, go to nextUrl (or /seo)
+  const unsub = onAuthStateChanged(auth, (u) => {
+    if (u) router.replace(nextUrl);
+  });
+  return () => unsub();
+}, [router, nextUrl]);
+
 
   async function handleGoogle() {
     setMsg("");
@@ -72,7 +84,8 @@ async function ensureSeoModuleDoc(user) {
             const cred = await signInWithPopup(auth, provider);
    await ensureUserDoc(cred.user);
 await ensureSeoModuleDoc(cred.user);
-router.replace("/seo");
+router.replace(nextUrl);
+
 
 
     } catch (e) {
@@ -104,7 +117,8 @@ router.replace("/seo");
   await ensureSeoModuleDoc(cred.user);
 
 }
-router.replace("/seo");
+router.replace(nextUrl);
+
 
     } catch (e) {
       setMsg(e?.message || "Email login failed.");
