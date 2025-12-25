@@ -16,27 +16,78 @@ async function getUidFromRequest(req) {
   const decoded = await admin.auth().verifyIdToken(idToken);
   return decoded.uid;
 }
+// Resolve the website "account context" (Model 1):
+// - Get ownerUid from the caller's website stub users/{uid}/websites/{websiteId}
+// - Verify membership in users/{ownerUid}/websites/{websiteId}/members/{uid}
+// Returns { ownerUid, websiteData }
+async function resolveWebsiteContext({ uid, websiteId }) {
+  const db = admin.firestore();
+
+  const userWebsiteRef = db.doc(`users/${uid}/websites/${websiteId}`);
+  const userWebsiteSnap = await userWebsiteRef.get();
+
+  if (!userWebsiteSnap.exists) {
+    const err = new Error("Website not found for this user.");
+    err.code = "WEBSITE_NOT_FOUND";
+    throw err;
+  }
+
+  const websiteData = userWebsiteSnap.data() || {};
+  const ownerUid = (websiteData.ownerUid || uid).trim(); // fallback for owner-created sites
+
+  // Membership check (canonical truth = owner's members list)
+  if (ownerUid !== uid) {
+    const memberRef = db.doc(`users/${ownerUid}/websites/${websiteId}/members/${uid}`);
+    const memberSnap = await memberRef.get();
+    if (!memberSnap.exists) {
+      const err = new Error("NO_ACCESS");
+      err.code = "NO_ACCESS";
+      throw err;
+    }
+  }
+
+  return { ownerUid, websiteData };
+}
+
+// Load SEO module config with safe fallback:
+// 1) preferred (future-ready): users/{ownerUid}/websites/{websiteId}/modules/seo
+// 2) fallback (legacy): users/{ownerUid}/modules/seo
+async function loadSeoModule({ ownerUid, websiteId }) {
+  const db = admin.firestore();
+
+  const websiteModuleRef = db.doc(`users/${ownerUid}/websites/${websiteId}/modules/seo`);
+  const websiteModuleSnap = await websiteModuleRef.get();
+  if (websiteModuleSnap.exists) return { module: websiteModuleSnap.data() || {}, moduleRef: websiteModuleRef };
+
+  const legacyModuleRef = db.doc(`users/${ownerUid}/modules/seo`);
+  const legacyModuleSnap = await legacyModuleRef.get();
+  if (legacyModuleSnap.exists) return { module: legacyModuleSnap.data() || {}, moduleRef: legacyModuleRef };
+
+  const err = new Error("SEO module not configured for this website owner.");
+  err.code = "NO_SEO_PLAN";
+  throw err;
+}
 
 // Reserve 1 credit BEFORE generating (atomic), rollback if generation fails
 async function reserveOneBlogCredit({ uid, websiteId }) {
   const db = admin.firestore();
   const monthKey = getMonthKey();
 
-  const moduleRef = db.doc(`users/${uid}/modules/seo`);
-  const websiteRef = db.doc(`users/${uid}/websites/${websiteId}`);
-  const usageRef = db.doc(`users/${uid}/websites/${websiteId}/usage/${monthKey}`);
 
-  const result = await db.runTransaction(async (tx) => {
-    const [moduleSnap, websiteSnap, usageSnap] = await Promise.all([
-      tx.get(moduleRef),
-      tx.get(websiteRef),
-      tx.get(usageRef),
-    ]);
 
-    if (!moduleSnap.exists) throw new Error("SEO module not configured for this user.");
-    if (!websiteSnap.exists) throw new Error("Website not found for this user.");
+  const result = await// Model 1: resolve ownerUid + verify membership
+const { ownerUid } = await resolveWebsiteContext({ uid, websiteId });
 
-    const module = moduleSnap.data() || {};
+// Model 1: plan belongs to owner+website (fallback to legacy owner plan)
+const { module, moduleRef } = await loadSeoModule({ ownerUid, websiteId });
+
+// Usage belongs to owner+website (shared quota)
+const usageRef = db.doc(`users/${ownerUid}/websites/${websiteId}/usage/${monthKey}`);
+ db.runTransaction(async (tx) => {
+const usageSnap = await tx.get(usageRef);
+
+
+// module already loaded above via loadSeoModule()
     const usageData = usageSnap.exists ? (usageSnap.data() || {}) : {};
 const used = usageData.usedThisMonth ?? 0;
 
@@ -58,11 +109,13 @@ if (used < baseLimit) {
     { merge: true }
   );
 
-  return {
-    usedAfter: used + 1,
-    baseLimit,
-    extraCreditsRemaining: module.extraBlogCreditsThisMonth ?? 0,
-  };
+return {
+  usedAfter: used + 1,
+  baseLimit,
+  extraCreditsRemaining: module.extraBlogCreditsThisMonth ?? 0,
+  usedExtraCredit: false,
+  ownerUid,
+};
 }
 
 // CASE 2: Base quota exhausted → now and ONLY now use extra credits
@@ -103,17 +156,20 @@ return {
   usedAfter: used + 1,
   baseLimit,
   extraCreditsRemaining: extraCredits,
+  usedExtraCredit: true,
+  ownerUid,
 };
+
 
   });
 
   return result;
 }
 
-async function rollbackOneBlogCredit({ uid, websiteId }) {
+async function rollbackOneBlogCredit({ uid, websiteId, ownerUid, usedExtraCredit }) {
   const db = admin.firestore();
   const monthKey = getMonthKey();
-  const usageRef = db.doc(`users/${uid}/websites/${websiteId}/usage/${monthKey}`);
+ const usageRef = db.doc(`users/${ownerUid}/websites/${websiteId}/usage/${monthKey}`);
 
   try {
     await db.runTransaction(async (tx) => {
