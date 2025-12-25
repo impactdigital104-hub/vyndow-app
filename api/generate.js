@@ -73,103 +73,101 @@ async function reserveOneBlogCredit({ uid, websiteId }) {
   const db = admin.firestore();
   const monthKey = getMonthKey();
 
+  // Model 1: resolve ownerUid + verify membership
+  const { ownerUid } = await resolveWebsiteContext({ uid, websiteId });
 
+  // Model 1: plan belongs to owner+website (fallback to legacy owner plan)
+  const { module, moduleRef } = await loadSeoModule({ ownerUid, websiteId });
 
-  const result = await// Model 1: resolve ownerUid + verify membership
-const { ownerUid } = await resolveWebsiteContext({ uid, websiteId });
+  // Usage belongs to owner+website (shared quota)
+  const usageRef = db.doc(`users/${ownerUid}/websites/${websiteId}/usage/${monthKey}`);
 
-// Model 1: plan belongs to owner+website (fallback to legacy owner plan)
-const { module, moduleRef } = await loadSeoModule({ ownerUid, websiteId });
+  const result = await db.runTransaction(async (tx) => {
+    const usageSnap = await tx.get(usageRef);
 
-// Usage belongs to owner+website (shared quota)
-const usageRef = db.doc(`users/${ownerUid}/websites/${websiteId}/usage/${monthKey}`);
- db.runTransaction(async (tx) => {
-const usageSnap = await tx.get(usageRef);
-
-
-// module already loaded above via loadSeoModule()
     const usageData = usageSnap.exists ? (usageSnap.data() || {}) : {};
-const used = usageData.usedThisMonth ?? 0;
+    const used = usageData.usedThisMonth ?? 0;
 
-const baseLimit = module.blogsPerWebsitePerMonth ?? 0;
+    const baseLimit = module.blogsPerWebsitePerMonth ?? 0;
+    if (!baseLimit || baseLimit <= 0) {
+      throw new Error("SEO plan limit missing or invalid.");
+    }
 
-if (!baseLimit || baseLimit <= 0) {
-  throw new Error("SEO plan limit missing or invalid.");
-}
+    // CASE 1: Still within base plan quota
+    if (used < baseLimit) {
+      tx.set(
+        usageRef,
+        {
+          month: monthKey,
+          usedThisMonth: used + 1,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
 
-// CASE 1: Still within base plan quota → behave exactly like before
-if (used < baseLimit) {
-  tx.set(
-    usageRef,
-    {
-      month: monthKey,
-      usedThisMonth: used + 1,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
+      return {
+        usedAfter: used + 1,
+        baseLimit,
+        extraCreditsRemaining: module.extraBlogCreditsThisMonth ?? 0,
+        usedExtraCredit: false,
+        ownerUid,
+      };
+    }
 
-return {
-  usedAfter: used + 1,
-  baseLimit,
-  extraCreditsRemaining: module.extraBlogCreditsThisMonth ?? 0,
-  usedExtraCredit: false,
-  ownerUid,
-};
-}
+    // CASE 2: Base quota exhausted → use extra credits
+    let extraCredits = module.extraBlogCreditsThisMonth ?? 0;
 
-// CASE 2: Base quota exhausted → now and ONLY now use extra credits
-let extraCredits = module.extraBlogCreditsThisMonth ?? 0;
+    if (extraCredits <= 0) {
+      const err = new Error("QUOTA_EXCEEDED");
+      err.code = "QUOTA_EXCEEDED";
+      err.used = used;
+      err.limit = baseLimit;
+      err.extraCreditsRemaining = 0;
+      throw err;
+    }
 
-if (extraCredits <= 0) {
-  const err = new Error("QUOTA_EXCEEDED");
-  err.code = "QUOTA_EXCEEDED";
-  err.used = used;
-  err.limit = baseLimit;
-  err.extraCreditsRemaining = 0;
-  throw err;
-}
+    // consume one extra blog credit
+    extraCredits = extraCredits - 1;
 
-// consume one extra blog credit
-extraCredits = extraCredits - 1;
+    tx.set(
+      moduleRef,
+      {
+        extraBlogCreditsThisMonth: extraCredits,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 
-tx.set(
-  moduleRef,
-  {
-    extraBlogCreditsThisMonth: extraCredits,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  },
-  { merge: true }
-);
+    tx.set(
+      usageRef,
+      {
+        month: monthKey,
+        usedThisMonth: used + 1,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 
-tx.set(
-  usageRef,
-  {
-    month: monthKey,
-    usedThisMonth: used + 1,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  },
-  { merge: true }
-);
-
-return {
-  usedAfter: used + 1,
-  baseLimit,
-  extraCreditsRemaining: extraCredits,
-  usedExtraCredit: true,
-  ownerUid,
-};
-
-
+    return {
+      usedAfter: used + 1,
+      baseLimit,
+      extraCreditsRemaining: extraCredits,
+      usedExtraCredit: true,
+      ownerUid,
+    };
   });
 
   return result;
 }
 
+
 async function rollbackOneBlogCredit({ uid, websiteId, ownerUid, usedExtraCredit }) {
   const db = admin.firestore();
   const monthKey = getMonthKey();
- const usageRef = db.doc(`users/${ownerUid}/websites/${websiteId}/usage/${monthKey}`);
+  const usageRef = db.doc(`users/${ownerUid}/websites/${websiteId}/usage/${monthKey}`);
+    const websiteModuleRef = db.doc(`users/${ownerUid}/websites/${websiteId}/modules/seo`);
+  const legacyModuleRef = db.doc(`users/${ownerUid}/modules/seo`);
+
 
   try {
     await db.runTransaction(async (tx) => {
@@ -179,6 +177,35 @@ async function rollbackOneBlogCredit({ uid, websiteId, ownerUid, usedExtraCredit
       const used = snap.data()?.usedThisMonth ?? 0;
       if (used <= 0) return;
 
+           // Restore extra blog credit if reserve had consumed one (best effort)
+      if (usedExtraCredit) {
+        const websiteModuleSnap = await tx.get(websiteModuleRef);
+
+        if (websiteModuleSnap.exists) {
+          const currentExtra = websiteModuleSnap.data()?.extraBlogCreditsThisMonth ?? 0;
+          tx.set(
+            websiteModuleRef,
+            {
+              extraBlogCreditsThisMonth: currentExtra + 1,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } else {
+          const legacySnap = await tx.get(legacyModuleRef);
+          if (legacySnap.exists) {
+            const currentExtra = legacySnap.data()?.extraBlogCreditsThisMonth ?? 0;
+            tx.set(
+              legacyModuleRef,
+              {
+                extraBlogCreditsThisMonth: currentExtra + 1,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+          }
+        }
+      }
       tx.update(usageRef, {
         usedThisMonth: used - 1,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -392,26 +419,6 @@ if (isBlank(b.websiteId)) {
 
   const websiteId = brief.websiteId;
 
-  // Reserve 1 blog credit BEFORE generating (atomic)
-  try {
-    await reserveOneBlogCredit({ uid, websiteId });
-  } catch (e) {
-    if (e?.code === "QUOTA_EXCEEDED") {
-      return res.status(403).json({
-        ok: false,
-        error: "QUOTA_EXCEEDED",
-        used: e.used,
-        limit: e.limit,
-      });
-    }
-    return res.status(500).json({
-      ok: false,
-      error: "QUOTA_CHECK_FAILED",
-      detail: e?.message || String(e),
-    });
-  }
-  // ----------------------------------------------------------------
-
 
   // If mandatory fields are missing, stop and send a clear error
   if (errors.length > 0) {
@@ -421,6 +428,51 @@ if (isBlank(b.websiteId)) {
       details: errors
     });
   }
+    // Reserve 1 blog credit BEFORE generating (atomic)
+  let reservation = null;
+  try {
+    reservation = await reserveOneBlogCredit({ uid, websiteId });
+  } catch (e) {
+    if (e?.code === "QUOTA_EXCEEDED") {
+      return res.status(403).json({
+        ok: false,
+        error: "QUOTA_EXCEEDED",
+        used: e.used,
+        limit: e.limit,
+      });
+    }
+        if (e?.code === "NO_ACCESS") {
+      return res.status(403).json({
+        ok: false,
+        error: "NO_ACCESS",
+        detail: "You do not have access to this website.",
+      });
+    }
+
+    if (e?.code === "WEBSITE_NOT_FOUND") {
+      return res.status(404).json({
+        ok: false,
+        error: "WEBSITE_NOT_FOUND",
+        detail: "Website not found for this user.",
+      });
+    }
+
+    if (e?.code === "NO_SEO_PLAN") {
+      return res.status(403).json({
+        ok: false,
+        error: "NO_SEO_PLAN",
+        detail: "SEO plan is not configured for the website owner.",
+      });
+    }
+
+    return res.status(500).json({
+      ok: false,
+      error: "QUOTA_CHECK_FAILED",
+      detail: e?.message || String(e),
+    });
+  }
+  // ----------------------------------------------------------------
+
 
   // Normalise requested word count and define a tight band
   const requestedWordsRaw = Number(brief.wordCount);
@@ -584,7 +636,13 @@ if (typeof articleText === "string") {
 }
 } catch (err) {
   // Roll back reserved credit because generation failed
-  await rollbackOneBlogCredit({ uid, websiteId });
+   await rollbackOneBlogCredit({
+    uid,
+    websiteId,
+    ownerUid: reservation.ownerUid,
+    usedExtraCredit: reservation.usedExtraCredit,
+  });
+
 
   return res.status(500).json({
     ok: false,
@@ -774,7 +832,13 @@ Return strictly valid JSON now.
     outputsPartial = JSON.parse(text.trim());
 } catch (err) {
   // Roll back reserved credit because generation failed
-  await rollbackOneBlogCredit({ uid, websiteId });
+    await rollbackOneBlogCredit({
+    uid,
+    websiteId,
+    ownerUid: reservation.ownerUid,
+    usedExtraCredit: reservation.usedExtraCredit,
+  });
+
 
   return res.status(500).json({
     ok: false,
