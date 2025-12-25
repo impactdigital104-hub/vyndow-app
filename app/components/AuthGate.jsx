@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { auth } from "../firebaseClient";
 
 export default function AuthGate({ children }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [checking, setChecking] = useState(true);
   const [user, setUser] = useState(null);
 
@@ -16,10 +17,12 @@ export default function AuthGate({ children }) {
       setUser(u || null);
       setChecking(false);
 
-      // If not logged in, redirect to /login (but avoid redirect loop)
-      if (!u && pathname !== "/login") {
-        router.replace("/login");
-      }
+// If not logged in, redirect to /login with next=<current path + query>
+if (!u && pathname !== "/login") {
+  const qs = searchParams?.toString();
+  const next = qs ? `${pathname}?${qs}` : pathname;
+  router.replace(`/login?next=${encodeURIComponent(next)}`);
+}
     });
 
     return () => unsub();
