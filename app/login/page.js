@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   GoogleAuthProvider,
@@ -11,34 +11,29 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
-
 import { auth, db } from "../firebaseClient";
 
-
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-function getSafeNextUrl() {
-  const n = searchParams?.get("next") || "";
-  // allow only internal paths
-  if (n.startsWith("/") && !n.startsWith("//")) return n;
-  return "/seo";
-}
-
-const nextUrl = getSafeNextUrl();
+  const nextUrl = useMemo(() => {
+    const n = searchParams?.get("next") || "";
+    // allow only internal paths
+    if (n.startsWith("/") && !n.startsWith("//")) return n;
+    return "/seo";
+  }, [searchParams]);
 
   const [mode, setMode] = useState("signin"); // "signin" | "signup"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
-    async function ensureUserDoc(user) {
-    if (!user?.uid) return;
 
+  async function ensureUserDoc(user) {
+    if (!user?.uid) return;
     const userRef = doc(db, "users", user.uid);
     const snap = await getDoc(userRef);
-
     if (!snap.exists()) {
       await setDoc(userRef, {
         email: user.email || "",
@@ -48,46 +43,42 @@ const nextUrl = getSafeNextUrl();
       });
     }
   }
-async function ensureSeoModuleDoc(user) {
-  if (!user?.uid) return;
 
-  const seoRef = doc(db, "users", user.uid, "modules", "seo");
-  const snap = await getDoc(seoRef);
+  async function ensureSeoModuleDoc(user) {
+    if (!user?.uid) return;
 
-  if (!snap.exists()) {
-    await setDoc(seoRef, {
-      plan: "free",
-      websitesIncluded: 1,
-      blogsPerWebsitePerMonth: 2,
-      extraWebsitesPurchased: 0,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    const seoRef = doc(db, "users", user.uid, "modules", "seo");
+    const snap = await getDoc(seoRef);
+
+    if (!snap.exists()) {
+      await setDoc(seoRef, {
+        plan: "free",
+        websitesIncluded: 1,
+        blogsPerWebsitePerMonth: 2,
+        extraWebsitesPurchased: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
   }
-}
 
-
-useEffect(() => {
-  // If already logged in, go to nextUrl (or /seo)
-  const unsub = onAuthStateChanged(auth, (u) => {
-    if (u) router.replace(nextUrl);
-  });
-  return () => unsub();
-}, [router, nextUrl]);
-
+  useEffect(() => {
+    // If already logged in, go to nextUrl (or /seo)
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (u) router.replace(nextUrl);
+    });
+    return () => unsub();
+  }, [router, nextUrl]);
 
   async function handleGoogle() {
     setMsg("");
     setBusy(true);
     try {
       const provider = new GoogleAuthProvider();
-            const cred = await signInWithPopup(auth, provider);
-   await ensureUserDoc(cred.user);
-await ensureSeoModuleDoc(cred.user);
-router.replace(nextUrl);
-
-
-
+      const cred = await signInWithPopup(auth, provider);
+      await ensureUserDoc(cred.user);
+      await ensureSeoModuleDoc(cred.user);
+      router.replace(nextUrl);
     } catch (e) {
       setMsg(e?.message || "Google sign-in failed.");
     } finally {
@@ -106,20 +97,16 @@ router.replace(nextUrl);
 
     setBusy(true);
     try {
-  if (mode === "signup") {
-  const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-  await ensureUserDoc(cred.user);
-  await ensureSeoModuleDoc(cred.user);
-
-} else {
-  const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-  await ensureUserDoc(cred.user);
-  await ensureSeoModuleDoc(cred.user);
-
-}
-router.replace(nextUrl);
-
-
+      if (mode === "signup") {
+        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        await ensureUserDoc(cred.user);
+        await ensureSeoModuleDoc(cred.user);
+      } else {
+        const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+        await ensureUserDoc(cred.user);
+        await ensureSeoModuleDoc(cred.user);
+      }
+      router.replace(nextUrl);
     } catch (e) {
       setMsg(e?.message || "Email login failed.");
     } finally {
@@ -289,5 +276,19 @@ router.replace(nextUrl);
         )}
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "#fff7ed" }}>
+          <div style={{ color: "#374151" }}>Loading…</div>
+        </main>
+      }
+    >
+      <LoginInner />
+    </Suspense>
   );
 }
