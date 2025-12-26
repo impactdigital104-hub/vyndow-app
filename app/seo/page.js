@@ -92,8 +92,8 @@ if (rows.length && !selectedWebsite) {
       setSeoModuleError("");
 
       // users/{uid}/modules/seo
-  const { effectiveUid } = getEffectiveContext(selectedWebsite);
-const ref = doc(db, "users", effectiveUid, "modules", "seo");
+const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsite);
+const ref = doc(db, "users", effectiveUid, "websites", effectiveWebsiteId, "modules", "seo");
       const snap = await getDoc(ref);
 
       if (snap.exists()) {
