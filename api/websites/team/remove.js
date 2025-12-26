@@ -34,18 +34,22 @@ export default async function handler(req, res) {
 
 if (memberUid) {
   const websiteRef = db.doc(`users/${uid}/websites/${websiteId}`);
+  const memberRef = db.doc(`users/${uid}/websites/${websiteId}/members/${memberUid}`);
 
   await db.runTransaction(async (tx) => {
     const websiteSnap = await tx.get(websiteRef);
     const website = websiteSnap.exists ? (websiteSnap.data() || {}) : {};
     const currentSeatsUsed = Number(website.seatsUsed ?? 1);
 
-    const memberRef = db.doc(`users/${uid}/websites/${websiteId}/members/${memberUid}`);
     tx.delete(memberRef);
 
     // Decrement seatsUsed but never go below 1 (owner seat)
     const nextSeatsUsed = Math.max(1, currentSeatsUsed - 1);
-    tx.set(websiteRef, { seatsUsed: nextSeatsUsed, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    tx.set(
+      websiteRef,
+      { seatsUsed: nextSeatsUsed, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+      { merge: true }
+    );
   });
 }
 
