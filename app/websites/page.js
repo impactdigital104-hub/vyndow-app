@@ -73,26 +73,35 @@ const [profileMsg, setProfileMsg] = useState("");
     return () => unsub();
   }, []);
 
-  // 2) Load SEO module plan/limits for this user
-  useEffect(() => {
-    if (!uid) return;
+  // 2) Load SEO module plan/limits per WEBSITE (workspace-scoped)
+useEffect(() => {
+  if (!uid) return;
+  if (!websites || websites.length === 0) return;
 
-    async function loadSeoModule() {
-      setLoadingSeoModule(true);
-      try {
-        const ref = doc(db, "users", uid, "modules", "seo");
+  async function loadSeoModulesForWebsites() {
+    setLoadingSeoModule(true);
+    try {
+      const map = {};
+
+      for (const w of websites) {
+        // Each website doc id is the workspace id under this uid
+        const ref = doc(db, "users", uid, "websites", w.id, "modules", "seo");
         const snap = await getDoc(ref);
-        setSeoModule(snap.exists() ? snap.data() : null);
-      } catch (e) {
-        console.error("Failed to load SEO module:", e);
-        setSeoModule(null);
-      } finally {
-        setLoadingSeoModule(false);
+        map[w.id] = snap.exists() ? snap.data() : null;
       }
-    }
 
-    loadSeoModule();
-  }, [uid]);
+      // Store as a dictionary keyed by websiteId
+      setSeoModule(map);
+    } catch (e) {
+      console.error("Failed to load SEO modules:", e);
+      setSeoModule({});
+    } finally {
+      setLoadingSeoModule(false);
+    }
+  }
+
+  loadSeoModulesForWebsites();
+}, [uid, websites]);
 
   // 3) Load websites list for this user
   useEffect(() => {
@@ -124,13 +133,29 @@ const [profileMsg, setProfileMsg] = useState("");
     loadWebsites();
   }, [uid]);
 
-  // 4) Compute allowed websites for SEO (Free plan default)
-  const websitesIncluded = seoModule?.websitesIncluded ?? 1;
-  const extraWebsitesPurchased = seoModule?.extraWebsitesPurchased ?? 0;
-  const allowedWebsites = websitesIncluded + extraWebsitesPurchased;
-  const currentWebsiteCount = websites.length;
-  const canAddWebsite =
-    !loadingSeoModule && currentWebsiteCount < allowedWebsites;
+// 4) Compute allowed websites for SEO (temporary: derive from first website's SEO module)
+// NOTE: seoModule is a map keyed by websiteId: { [id]: moduleDoc }
+const firstWebsiteId = websites?.[0]?.id || null;
+const firstWebsiteModule = firstWebsiteId ? (seoModule?.[firstWebsiteId] || null) : null;
+
+// Default to Free plan behavior if module is missing
+const plan = firstWebsiteModule?.plan || "free";
+
+// Your pricing truth:
+// Free: 1 website
+// Small Business: 1 website (add-ons later)
+// Enterprise: 1 website (add-ons later)
+const websitesIncluded =
+  plan === "enterprise" ? 1 : plan === "small_business" ? 1 : 1;
+
+// Placeholder for future “additional website add-ons” per plan.
+// For now keep existing UI behavior: no add-ons tracked here.
+const extraWebsitesPurchased = 0;
+
+const allowedWebsites = websitesIncluded + extraWebsitesPurchased;
+const currentWebsiteCount = websites.length;
+const canAddWebsite = !loadingSeoModule && currentWebsiteCount < allowedWebsites;
+
 
   async function handleAddWebsite(e) {
     e.preventDefault();
@@ -312,7 +337,7 @@ async function handleSaveProfile(e) {
             ) : (
               <div style={{ display: "grid", gap: 6 }}>
                 <div>
-                  <b>Plan:</b> {seoModule?.plan || "free"}
+               <b>Plan:</b> {plan}
                 </div>
                 <div>
                   <b>Websites allowed:</b> {allowedWebsites}{" "}
