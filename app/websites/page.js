@@ -321,7 +321,7 @@ async function handleSaveProfile(e) {
       <VyndowShell activeModule="websites">
         <main className="page">
           <header style={{ marginBottom: "20px" }}>
-            <span className="badge">Phase 8 — Website Manager (Firestore)</span>
+            <span className="badge">This is where you can control your brand voice</span>
             <h1>Websites &amp; Clients</h1>
             <p className="sub">
               Add and manage websites. Your plan controls how many websites you
