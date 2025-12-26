@@ -66,6 +66,7 @@ if (!userEmail || userEmail !== invitedEmail) {
     const websiteRef = db.doc(`users/${ownerUid}/websites/${websiteId}`);
     const inviteRef = db.doc(`users/${ownerUid}/websites/${websiteId}/invites/${inviteId}`);
     const memberRef = db.doc(`users/${ownerUid}/websites/${websiteId}/members/${uid}`);
+    const membersCol = db.collection(`users/${ownerUid}/websites/${websiteId}/members`);
     const inviteeWebsiteRef = db.doc(`users/${uid}/websites/${websiteId}`);
     // Ensure website-scoped SEO module exists for this workspace (auto-backfill)
 await ensureWebsiteSeoModule({ admin, ownerUid, websiteId });
@@ -102,7 +103,9 @@ const seatLimit = Number(seatsIncluded ?? 1);
 
       // If already a member, treat as success (idempotent)
       if (!existingMemberSnap.exists) {
-        const seatsUsed = Number(website.seatsUsed || 0);
+      const membersSnap = await tx.get(membersCol);
+const seatsUsed = Math.max(1, membersSnap.size);
+
 
         if (seatsUsed >= seatLimit) {
           throw new Error(`Seat limit reached (${seatsUsed}/${seatLimit}).`);
