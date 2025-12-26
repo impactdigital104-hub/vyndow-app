@@ -115,6 +115,50 @@ export default async function handler(req, res) {
         { merge: true }
       );
     });
+    // 4B) IMPORTANT: propagate plan limits to all existing website-scoped SEO modules
+    // Reason: /api/generate and UI prefer users/{uid}/websites/{websiteId}/modules/seo
+    // ensureWebsiteSeoModule() only creates if missing; it does NOT update existing modules.
+    try {
+      const websitesSnap = await db.collection(`users/${targetUid}/websites`).get();
+
+      if (!websitesSnap.empty) {
+        const batch = db.batch();
+
+        websitesSnap.forEach((wDoc) => {
+          const websiteId = wDoc.id;
+
+          const websiteSeoRef = db.doc(
+            `users/${targetUid}/websites/${websiteId}/modules/seo`
+          );
+
+          batch.set(
+            websiteSeoRef,
+            {
+              plan: base.plan,
+              websitesIncluded: base.websitesIncluded,
+              blogsPerWebsitePerMonth: base.blogsPerWebsitePerMonth,
+
+              // Seat limits used by team accept flow (keep both fields for safety)
+              seatsIncluded: base.usersIncluded,
+              usersIncluded: base.usersIncluded,
+
+              // Extra credits are consumed from website-scoped module in /api/generate
+              extraBlogCreditsThisMonth: Number.isFinite(extraBlogCreditsThisMonth)
+                ? extraBlogCreditsThisMonth
+                : 0,
+
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        });
+
+        await batch.commit();
+      }
+    } catch (e) {
+      // Do not fail plan assignment if propagation fails — but log loudly
+      console.error("Plan propagation to website modules failed:", e);
+    }
 
     // 5) Respond with the new effective limits
     const effectiveAllowedWebsites = base.websitesIncluded + (Number.isFinite(extraWebsitesPurchased) ? extraWebsitesPurchased : 0);
