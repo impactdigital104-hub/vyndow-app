@@ -159,6 +159,8 @@ useEffect(() => {
   }, [uid]);
 
 // 4) Compute allowed websites using canonical entitlements (user-level module doc)
+  const plan = userSeoEntitlements?.plan ?? "free";
+
 const websitesIncluded = userSeoEntitlements?.websitesIncluded ?? 1;
 const extraWebsitesPurchased = userSeoEntitlements?.extraWebsitesPurchased ?? 0;
 
