@@ -1,5 +1,6 @@
 // /api/generate.js
 import admin from "./firebaseAdmin";
+import { ensureWebsiteSeoModule } from "./seoModuleProvision";
 function getMonthKey() {
   const d = new Date();
   const y = d.getFullYear();
@@ -75,6 +76,9 @@ async function reserveOneBlogCredit({ uid, websiteId }) {
 
   // Model 1: resolve ownerUid + verify membership
   const { ownerUid } = await resolveWebsiteContext({ uid, websiteId });
+  // Ensure website-scoped module exists (auto-backfill from legacy if needed)
+await ensureWebsiteSeoModule({ admin, ownerUid, websiteId });
+
 
   // Model 1: plan belongs to owner+website (fallback to legacy owner plan)
   const { module, moduleRef } = await loadSeoModule({ ownerUid, websiteId });
