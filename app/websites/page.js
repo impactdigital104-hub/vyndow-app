@@ -324,8 +324,8 @@ async function handleSaveProfile(e) {
             <span className="badge">This is where you can control your brand voice</span>
             <h1>Websites &amp; Clients</h1>
             <p className="sub">
-              Add and manage websites. Your plan controls how many websites you
-              can create.
+              Start the process by adding websites and managing them. Your plan controls how many websites you
+              can create. You can buy more websites if you need it
             </p>
           </header>
 
