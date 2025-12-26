@@ -1,6 +1,8 @@
 
 // api/websites/create.js
 import admin from "../firebaseAdmin";
+import { planDefaults } from "../seoModuleProvision";
+
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -99,6 +101,23 @@ export default async function handler(req, res) {
         industry: "general",
       },
     });
+    // Create website-scoped SEO module (Model 1)
+// This keeps plan/quota tied to the website workspace.
+const base = planDefaults(seo?.plan || "free");
+const websiteSeoRef = db.doc(`users/${uid}/websites/${newRef.id}/modules/seo`);
+await websiteSeoRef.set(
+  {
+    moduleId: "seo",
+    plan: base.plan,
+    blogsPerWebsitePerMonth: Number(seo?.blogsPerWebsitePerMonth ?? base.blogsPerWebsitePerMonth),
+    seatsIncluded: Number(seo?.seatsIncluded ?? seo?.usersIncluded ?? base.seatsIncluded),
+    extraBlogCreditsThisMonth: Number(seo?.extraBlogCreditsThisMonth ?? 0),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  { merge: true }
+);
+
 
     return res.status(200).json({
       ok: true,
