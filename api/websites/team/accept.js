@@ -1,5 +1,7 @@
 // api/websites/team/accept.js
 import admin from "../../firebaseAdmin";
+import { ensureWebsiteSeoModule } from "../../seoModuleProvision";
+
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -65,14 +67,22 @@ if (!userEmail || userEmail !== invitedEmail) {
     const inviteRef = db.doc(`users/${ownerUid}/websites/${websiteId}/invites/${inviteId}`);
     const memberRef = db.doc(`users/${ownerUid}/websites/${websiteId}/members/${uid}`);
     const inviteeWebsiteRef = db.doc(`users/${uid}/websites/${websiteId}`);
+    // Ensure website-scoped SEO module exists for this workspace (auto-backfill)
+await ensureWebsiteSeoModule({ admin, ownerUid, websiteId });
+
+const websiteSeoModuleRef = db.doc(`users/${ownerUid}/websites/${websiteId}/modules/seo`);
+
 
     // 4) Transaction: check seat limit + accept invite + add member
     await db.runTransaction(async (tx) => {
       const ownerSnap = await tx.get(ownerRef);
       if (!ownerSnap.exists) throw new Error("Owner account not found.");
 
-      const owner = ownerSnap.data() || {};
-    const seatLimit = Number(owner.usersIncluded || owner.usersIncluded === 0 ? owner.usersIncluded : 1);
+// Seat limit must come from the WEBSITE module (Model 1)
+const websiteSeoSnap = await tx.get(websiteSeoModuleRef);
+const seatsIncluded = websiteSeoSnap.exists ? (websiteSeoSnap.data() || {}).seatsIncluded : null;
+const seatLimit = Number(seatsIncluded ?? 1);
+
 
       const websiteSnap = await tx.get(websiteRef);
       if (!websiteSnap.exists) throw new Error("Website not found.");
@@ -116,7 +126,9 @@ if (!userEmail || userEmail !== invitedEmail) {
             domain: website.domain || "",
             ownerUid,
             shared: true,
-            sourceWebsiteId: websiteId,
+          ownerWebsiteId: websiteId,
+sourceWebsiteId: websiteId,
+
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             profile: website.profile || {},
