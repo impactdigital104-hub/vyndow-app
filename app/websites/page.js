@@ -48,6 +48,9 @@ export default function WebsitesPage() {
 
   const [seoModule, setSeoModule] = useState(null);
   const [loadingSeoModule, setLoadingSeoModule] = useState(true);
+    const [userSeoEntitlements, setUserSeoEntitlements] = useState(null);
+  const [loadingUserEntitlements, setLoadingUserEntitlements] = useState(true);
+
 
   const [name, setName] = useState("");
   const [domain, setDomain] = useState("");
@@ -102,6 +105,28 @@ useEffect(() => {
 
   loadSeoModulesForWebsites();
 }, [uid, websites]);
+  // 2B) Load SEO entitlements from the canonical user-level module doc
+  // Source of truth for website count limits:
+  // users/{uid}/modules/seo -> websitesIncluded + extraWebsitesPurchased
+  useEffect(() => {
+    if (!uid) return;
+
+    async function loadUserEntitlements() {
+      setLoadingUserEntitlements(true);
+      try {
+        const ref = doc(db, "users", uid, "modules", "seo");
+        const snap = await getDoc(ref);
+        setUserSeoEntitlements(snap.exists() ? snap.data() : null);
+      } catch (e) {
+        console.error("Failed to load user SEO entitlements:", e);
+        setUserSeoEntitlements(null);
+      } finally {
+        setLoadingUserEntitlements(false);
+      }
+    }
+
+    loadUserEntitlements();
+  }, [uid]);
 
   // 3) Load websites list for this user
   useEffect(() => {
@@ -133,29 +158,16 @@ useEffect(() => {
     loadWebsites();
   }, [uid]);
 
-// 4) Compute allowed websites for SEO (temporary: derive from first website's SEO module)
-// NOTE: seoModule is a map keyed by websiteId: { [id]: moduleDoc }
-const firstWebsiteId = websites?.[0]?.id || null;
-const firstWebsiteModule = firstWebsiteId ? (seoModule?.[firstWebsiteId] || null) : null;
-
-// Default to Free plan behavior if module is missing
-const plan = firstWebsiteModule?.plan || "free";
-
-// Your pricing truth:
-// Free: 1 website
-// Small Business: 1 website (add-ons later)
-// Enterprise: 1 website (add-ons later)
-const websitesIncluded =
-  plan === "enterprise" ? 1 : plan === "small_business" ? 1 : 1;
-
-// Placeholder for future “additional website add-ons” per plan.
-// For now keep existing UI behavior: no add-ons tracked here.
-const extraWebsitesPurchased = 0;
+// 4) Compute allowed websites using canonical entitlements (user-level module doc)
+const websitesIncluded = userSeoEntitlements?.websitesIncluded ?? 1;
+const extraWebsitesPurchased = userSeoEntitlements?.extraWebsitesPurchased ?? 0;
 
 const allowedWebsites = websitesIncluded + extraWebsitesPurchased;
 const currentWebsiteCount = websites.length;
-const canAddWebsite = !loadingSeoModule && currentWebsiteCount < allowedWebsites;
 
+const canAddWebsite =
+  !loadingUserEntitlements &&
+  currentWebsiteCount < allowedWebsites;
 
   async function handleAddWebsite(e) {
     e.preventDefault();
