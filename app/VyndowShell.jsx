@@ -203,13 +203,14 @@ export default function VyndowShell({ activeModule, children }) {
         <div className="sidebar-footer">
           <div className="sidebar-footer-title">Vyndow Terms</div>
 
-          <div className="sidebar-footer-links">
-            <a href="#">Terms of Use</a>
-            <a href="#">Privacy Policy</a>
-            <a href="#">Refund &amp; Cancellation Policy</a>
-            <a href="#">Contact Us</a>
-            <a href="#">About Vyndow</a>
-          </div>
+<div className="sidebar-footer-links">
+  <a href="/terms" onClick={closeMobileSidebar}>Terms of Use</a>
+  <a href="/privacy" onClick={closeMobileSidebar}>Privacy Policy</a>
+  <a href="/refund" onClick={closeMobileSidebar}>Refund &amp; Cancellation Policy</a>
+  <a href="/contact" onClick={closeMobileSidebar}>Contact Us</a>
+  <a href="/about" onClick={closeMobileSidebar}>About Vyndow</a>
+</div>
+
 
           <div className="sidebar-footer-meta">
             © {year} Vyndow
