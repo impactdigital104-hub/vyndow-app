@@ -93,8 +93,17 @@ if (rows.length && !selectedWebsite) {
 
       // users/{uid}/modules/seo
 const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsite);
+
+// If user has no websites yet, do NOT try to load website module plan
+if (!effectiveWebsiteId) {
+  setSeoModule(null);
+  setSeoModuleError("");
+  return;
+}
+
 const ref = doc(db, "users", effectiveUid, "websites", effectiveWebsiteId, "modules", "seo");
-      const snap = await getDoc(ref);
+const snap = await getDoc(ref);
+
 
       if (snap.exists()) {
         setSeoModule({ id: snap.id, ...snap.data() });
@@ -250,7 +259,9 @@ const usageRef = doc(db, "users", effectiveUid, "websites", effectiveWebsiteId, 
 function buildUsageSummary() {
   if (seoModuleLoading) return "Loading SEO plan…";
   if (seoModuleError) return "SEO plan load error";
-  if (!seoModule) return "No SEO plan found for this account.";
+ if (!selectedWebsite) return "No websites yet — please create a website first.";
+if (!seoModule) return "SEO plan not set for this website yet.";
+
 
 if (usageLoading) return "Loading usage…";
 const used = usedThisMonth;
