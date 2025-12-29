@@ -47,7 +47,7 @@ export default function WebsitesPage() {
   const [websitesError, setWebsitesError] = useState("");
 
   const [seoModule, setSeoModule] = useState(null);
-  const [loadingSeoModule, setLoadingSeoModule] = useState(true);
+ const [loadingSeoModule, setLoadingSeoModule] = useState(false);
     const [userSeoEntitlements, setUserSeoEntitlements] = useState(null);
   const [loadingUserEntitlements, setLoadingUserEntitlements] = useState(true);
 
@@ -76,24 +76,27 @@ const [profileMsg, setProfileMsg] = useState("");
     return () => unsub();
   }, []);
 
-  // 2) Load SEO module plan/limits per WEBSITE (workspace-scoped)
+// 2) Load SEO module plan/limits per WEBSITE (workspace-scoped)
 useEffect(() => {
   if (!uid) return;
-  if (!websites || websites.length === 0) return;
 
   async function loadSeoModulesForWebsites() {
     setLoadingSeoModule(true);
     try {
-      const map = {};
+      // If user has no websites yet, don't try to load website modules.
+      // IMPORTANT: still flip loading to false so the page doesn't get stuck.
+      if (!websites || websites.length === 0) {
+        setSeoModule({});
+        return;
+      }
 
+      const map = {};
       for (const w of websites) {
-        // Each website doc id is the workspace id under this uid
         const ref = doc(db, "users", uid, "websites", w.id, "modules", "seo");
         const snap = await getDoc(ref);
         map[w.id] = snap.exists() ? snap.data() : null;
       }
 
-      // Store as a dictionary keyed by websiteId
       setSeoModule(map);
     } catch (e) {
       console.error("Failed to load SEO modules:", e);
@@ -105,6 +108,7 @@ useEffect(() => {
 
   loadSeoModulesForWebsites();
 }, [uid, websites]);
+
   // 2B) Load SEO entitlements from the canonical user-level module doc
   // Source of truth for website count limits:
   // users/{uid}/modules/seo -> websitesIncluded + extraWebsitesPurchased
@@ -346,9 +350,9 @@ async function handleSaveProfile(e) {
           <section style={{ marginBottom: 18 }}>
             <h2>SEO Plan Limits (for this account)</h2>
 
-            {loadingSeoModule ? (
-              <p style={{ color: "#6b7280" }}>Loading plan…</p>
-            ) : (
+     {loadingUserEntitlements ? (
+  <p style={{ color: "#6b7280" }}>Loading plan…</p>
+) : (
               <div style={{ display: "grid", gap: 6 }}>
                 <div>
                <b>Plan:</b> {plan}
@@ -369,7 +373,7 @@ async function handleSaveProfile(e) {
           <section style={{ marginBottom: 18 }}>
             <h2>Add Website</h2>
 
-            {!canAddWebsite && !loadingSeoModule ? (
+ {!canAddWebsite && !loadingUserEntitlements ? (
               <p style={{ color: "#b91c1c" }}>
                 Website limit reached. You can’t add more websites on this plan.
               </p>
@@ -408,7 +412,7 @@ async function handleSaveProfile(e) {
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <button
                   type="submit"
-                  disabled={saving || loadingSeoModule || !canAddWebsite}
+            disabled={saving || loadingUserEntitlements || !canAddWebsite}
                   style={{
                     padding: "10px 14px",
                     borderRadius: "999px",
