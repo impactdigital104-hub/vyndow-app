@@ -138,7 +138,7 @@ function LoginInner() {
       >
         <h1 style={{ margin: 0 }}>Sign in to Vyndow</h1>
         <p style={{ color: "#6b7280", marginTop: 6 }}>
-          Internal testing login (Phase 7A)
+          After sign-in, you will be directed to your dashboard
         </p>
 
         <button
