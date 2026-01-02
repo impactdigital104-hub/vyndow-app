@@ -479,9 +479,14 @@ if (baseLimit > 0 && used >= totalAllowed) {
      {/* Top bar: Website / Brand selector + usage (UI-only for now) */}
         <div className="project-bar">
           <div className="project-bar-left">
-            <label htmlFor="websiteSelect" className="project-bar-label">
-              Website / Brand
-            </label>
+           <label
+  htmlFor="websiteSelect"
+  className="project-bar-label"
+  style={{ color: "#6D28D9" }}
+>
+  Website / Brand
+</label>
+
 <select
   id="websiteSelect"
   className="project-bar-select"
@@ -589,9 +594,9 @@ if (baseLimit > 0 && used >= totalAllowed) {
     background: "#fff",
   }}
 >
-  <summary style={{ cursor: "pointer", fontWeight: 600 }}>
-    See a filled example (template)
-  </summary>
+  <summary style={{ cursor: "pointer", fontWeight: 700, color: "#6D28D9" }}>
+  See a filled example (template)
+</summary>
 
   <div style={{ marginTop: "10px" }}>
     <div className="small" style={{ marginBottom: "10px" }}>
@@ -694,7 +699,10 @@ if (baseLimit > 0 && used >= totalAllowed) {
         <div className="inputs-grid">
           {/* LEFT CARD – Brand & Article Brief */}
           <div className="inputs-card">
-            <p className="section-label">Brand &amp; Voice</p>
+            <p className="section-label" style={{ color: "#6D28D9" }}>
+  Brand &amp; Voice
+</p>
+
 
             <div className="field-group">
               <label htmlFor="brandDescription">Brand Description</label>
@@ -798,7 +806,10 @@ if (baseLimit > 0 && used >= totalAllowed) {
   </div>
             </div>
 
-            <p className="section-label">Article Brief</p>
+            <p className="section-label" style={{ color: "#6D28D9" }}>
+  Article Brief
+</p>
+
 
             <div className="field-group">
               <label htmlFor="topic">Blog Topic / Working Title</label>
@@ -850,7 +861,10 @@ if (baseLimit > 0 && used >= totalAllowed) {
 
           {/* RIGHT CARD – SEO Levers */}
           <div className="inputs-card">
-            <p className="section-label">SEO Intent &amp; Keywords</p>
+            <p className="section-label" style={{ color: "#6D28D9" }}>
+  SEO Intent &amp; Keywords
+</p>
+
 
             <div className="field-group">
               <label htmlFor="primaryKeyword">Primary Keyword</label>
@@ -926,7 +940,10 @@ if (baseLimit > 0 && used >= totalAllowed) {
 
             </div>
 
-            <p className="section-label">Linking &amp; Images</p>
+           <p className="section-label" style={{ color: "#6D28D9" }}>
+  Linking &amp; Images
+</p>
+
 
             <div className="field-group">
               <label htmlFor="internalLinkingPreference">
