@@ -656,14 +656,17 @@ style={{ width: "100%", minHeight: 120 }}
           type="submit"
           disabled={savingProfile}
           style={{
-            padding: "10px 14px",
-            borderRadius: "999px",
-            border: "1px solid #e5e7eb",
-            background: "#f9fafb",
-            fontSize: "0.9rem",
-            fontWeight: 600,
-            cursor: savingProfile ? "not-allowed" : "pointer",
-          }}
+  padding: "10px 16px",
+  borderRadius: "999px",
+  border: "0",
+  background: savingProfile ? "#E5E7EB" : "#6D28D9",
+  color: savingProfile ? "#111827" : "#fff",
+  fontSize: "0.9rem",
+  fontWeight: 700,
+  cursor: savingProfile ? "not-allowed" : "pointer",
+  boxShadow: savingProfile ? "none" : "0 14px 30px rgba(109,40,217,0.18)",
+  opacity: savingProfile ? 0.9 : 1,
+}}
         >
           {savingProfile ? "Saving…" : "Save Profile"}
         </button>
