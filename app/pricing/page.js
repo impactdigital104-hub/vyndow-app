@@ -73,21 +73,25 @@ function renderPlanButton(plan, priceLabel) {
   };
 
   if (isCurrent(plan)) {
-return (
-  <button
-    type="button"
-    style={{
-      ...base,
-      border: "0",
-      color: "#fff",
-      background: "#6D28D9",
-      boxShadow: "0 14px 30px rgba(109,40,217,0.18)",
-    }}
-  >
-    Upgrade
-  </button>
-);
+    return (
+      <button
+        type="button"
+        disabled
+        style={{
+          ...base,
+          cursor: "not-allowed",
+          border: "1px solid rgba(148,163,184,0.45)",
+          background: "#E5E7EB",
+          color: "#111827",
+          boxShadow: "none",
+          opacity: 0.9,
+        }}
+      >
+        Current Plan
+      </button>
+    );
   }
+
 
   if (isIntent(plan)) {
     return (
@@ -111,13 +115,16 @@ return (
       type="button"
       style={{
         ...base,
-        background: "#fff",
-        color: "#0F172A",
+        border: "0",
+        color: "#fff",
+        background: "#6D28D9",
+        boxShadow: "0 14px 30px rgba(109,40,217,0.18)",
       }}
     >
       Upgrade
     </button>
   );
+
 }
 
 
