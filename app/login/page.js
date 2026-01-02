@@ -257,6 +257,13 @@ function LoginInner() {
             </>
           )}
         </div>
+<p style={{ marginTop: 8, fontSize: 13, color: "#6b7280" }}>
+  Having trouble accessing your account?{" "}
+  <a href="mailto:feedback@vyndow.com" style={{ color: "#2563eb", fontWeight: 600 }}>
+    Write to us at feedback@vyndow.com
+  </a>
+</p>
+
 
         {msg && (
           <div
