@@ -320,7 +320,7 @@ export default function InviteTeamPage() {
                 marginBottom: 16,
               }}
             >
-              <h3 style={{ marginTop: 0 }}>Invite a team member</h3>
+              <h3 style={{ marginTop: 0, color: "#6D28D9" }}>Invite a team member</h3>
               <form onSubmit={handleInviteSubmit}>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                   <div style={{ flex: "1 1 220px" }}>
@@ -379,23 +379,30 @@ export default function InviteTeamPage() {
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                  <button
-                    type="submit"
-                    disabled={actionBusy || loading || seatLimit === 0 || seatsUsed >= seatLimit}
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      border: "1px solid #e5e7eb",
-                      background:
-                        actionBusy || loading || seatsUsed >= seatLimit ? "#f3f4f6" : "#111827",
-                      color:
-                        actionBusy || loading || seatsUsed >= seatLimit ? "#6b7280" : "#ffffff",
-                      cursor:
-                        actionBusy || loading || seatsUsed >= seatLimit ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {actionBusy ? "Working…" : "Create Invite"}
-                  </button>
+           <button
+  type="submit"
+  disabled={actionBusy || loading || seatLimit === 0 || seatsUsed >= seatLimit}
+  style={{
+    padding: "10px 16px",
+    borderRadius: 999,
+    border: "0",
+    background:
+      actionBusy || loading || seatsUsed >= seatLimit ? "#E5E7EB" : "#6D28D9",
+    color:
+      actionBusy || loading || seatsUsed >= seatLimit ? "#111827" : "#ffffff",
+    fontWeight: 700,
+    cursor:
+      actionBusy || loading || seatsUsed >= seatLimit ? "not-allowed" : "pointer",
+    boxShadow:
+      actionBusy || loading || seatsUsed >= seatLimit
+        ? "none"
+        : "0 14px 30px rgba(109,40,217,0.18)",
+    opacity: actionBusy || loading || seatsUsed >= seatLimit ? 0.9 : 1,
+  }}
+>
+  {actionBusy ? "Working…" : "Create Invite"}
+</button>
+
 
                   <span style={{ marginLeft: 10, fontSize: 12, color: "#6b7280" }}>
                     V1 note: this creates an invite record; email sending will be added later.
@@ -417,7 +424,7 @@ export default function InviteTeamPage() {
 
               {!loading && (
                 <>
-                  <h3 style={{ marginTop: 0 }}>Members</h3>
+                  <h3 style={{ marginTop: 0, color: "#6D28D9" }}>Members</h3>
                   {members.length === 0 && <p>No members found.</p>}
 
                   {members.map((m) => {
@@ -462,7 +469,7 @@ export default function InviteTeamPage() {
                     );
                   })}
 
-                  <h3 style={{ marginTop: 18 }}>Pending Invites</h3>
+                  <h3 style={{ marginTop: 18, color: "#6D28D9" }}>Pending Invites</h3>
                   {invites.length === 0 && <p>No pending invites.</p>}
 
                   {invites.map((i) => (
