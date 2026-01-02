@@ -73,20 +73,20 @@ function renderPlanButton(plan, priceLabel) {
   };
 
   if (isCurrent(plan)) {
-    return (
-      <button
-        type="button"
-        disabled
-        style={{
-          ...base,
-          background: "#F1F5F9",
-          color: "#64748B",
-          cursor: "not-allowed",
-        }}
-      >
-        Current Plan
-      </button>
-    );
+return (
+  <button
+    type="button"
+    style={{
+      ...base,
+      border: "0",
+      color: "#fff",
+      background: "#6D28D9",
+      boxShadow: "0 14px 30px rgba(109,40,217,0.18)",
+    }}
+  >
+    Upgrade
+  </button>
+);
   }
 
   if (isIntent(plan)) {
@@ -290,7 +290,7 @@ function AddOnCard({ title, price, description, actionLabel, onAction = () => {}
       }}
     >
       <div>
-        <strong>{title}</strong>
+       <strong style={{ color: "#6D28D9" }}>{title}</strong>
         <div style={{ fontSize: "0.9rem", color: "#6b7280" }}>
           {description}
         </div>
@@ -306,13 +306,15 @@ function AddOnCard({ title, price, description, actionLabel, onAction = () => {}
     borderRadius: 999,
     fontWeight: 800,
     cursor: "pointer",
-    border: "1px solid #e5e7eb",
-    background: "#fff",
-    color: "#111827",
+    border: "0",
+    background: "#6D28D9",
+    color: "#fff",
+    boxShadow: "0 14px 30px rgba(109,40,217,0.18)",
   }}
 >
   {actionLabel}
 </button>
+
 
       </div>
     </div>
