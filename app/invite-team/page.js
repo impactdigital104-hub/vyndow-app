@@ -405,7 +405,7 @@ export default function InviteTeamPage() {
 
 
                   <span style={{ marginLeft: 10, fontSize: 12, color: "#6b7280" }}>
-                    V1 note: this creates an invite record; email sending will be added later.
+                    Note: this will send an email invite to the user. please inform them.
                   </span>
                 </div>
               </form>
