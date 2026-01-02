@@ -348,7 +348,7 @@ async function handleSaveProfile(e) {
           </header>
 
           <section style={{ marginBottom: 18 }}>
-            <h2>SEO Plan Limits (for this account)</h2>
+        <h2 style={{ color: "#6D28D9" }}>SEO Plan Limits (for this account)</h2>
 
      {loadingUserEntitlements ? (
   <p style={{ color: "#6b7280" }}>Loading plan…</p>
@@ -371,7 +371,7 @@ async function handleSaveProfile(e) {
           </section>
 
           <section style={{ marginBottom: 18 }}>
-            <h2>Add Website</h2>
+           <h2 style={{ color: "#6D28D9" }}>Add Website</h2>
 
  {!canAddWebsite && !loadingUserEntitlements ? (
               <p style={{ color: "#b91c1c" }}>
@@ -436,7 +436,7 @@ async function handleSaveProfile(e) {
           </section>
 
           <section>
-            <h2>Current Websites</h2>
+           <h2 style={{ color: "#6D28D9" }}>Current Websites</h2>
 
             {websitesError ? (
               <p style={{ color: "#b91c1c" }}>{websitesError}</p>
@@ -476,20 +476,23 @@ async function handleSaveProfile(e) {
                             : "—"}
                         </td>
                        <td style={cellStyle}>
-  <button
-    type="button"
-    onClick={() => startEditProfile(site)}
-    style={{
-      padding: "6px 10px",
-      borderRadius: 10,
-      border: "1px solid #e5e7eb",
-      background: "#fff",
-      cursor: "pointer",
-      fontWeight: 600,
-    }}
-  >
-    Edit Profile
-  </button>
+ <button
+  type="button"
+  onClick={() => startEditProfile(site)}
+  style={{
+    padding: "6px 12px",
+    borderRadius: 999,
+    border: "0",
+    background: "#6D28D9",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 700,
+    boxShadow: "0 14px 30px rgba(109,40,217,0.18)",
+  }}
+>
+  Edit Profile
+</button>
+
 </td>
            
                       </tr>
@@ -508,7 +511,7 @@ async function handleSaveProfile(e) {
           </section>
               {editingSiteId ? (
   <section style={{ marginTop: 18 }}>
-    <h2>Edit Website Profile</h2>
+    <h2 style={{ color: "#6D28D9" }}>Edit Website Profile</h2>
     <p style={{ color: "#6b7280" }}>
       These are your saved defaults for this website. You can still override
       Brand Description / Tone / Reading Level per blog inside the SEO page.
