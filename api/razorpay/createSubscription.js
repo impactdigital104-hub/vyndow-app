@@ -1,5 +1,5 @@
 // api/razorpay/createSubscription.js
-import admin from "../../firebaseAdmin";
+import admin from "../firebaseAdmin";
 import crypto from "crypto";
 
 function getPlanIdFor(plan) {
