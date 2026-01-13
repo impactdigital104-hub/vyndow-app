@@ -7,9 +7,11 @@ import { getFirestore, doc, getDoc } from "firebase/firestore";
 import VyndowShell from "../VyndowShell";
 
 /**
- * UI-ONLY Pricing Page
- * Payments (Razorpay) will be wired later.
+ * Pricing Page
+ * Razorpay subscription checkout is wired via /api/razorpay/createSubscription
+ * Plan activation happens via Razorpay webhook -> Firestore.
  */
+
 export default function PricingPage() {
   const router = useRouter();
  // plan intent from main site or CTA (read client-side to avoid prerender failures)
@@ -61,7 +63,80 @@ useEffect(() => {
   function isIntent(plan) {
     return planIntent === plan && !isCurrent(plan);
   }
+// --- Razorpay loader ---
+async function loadRazorpay() {
+  if (typeof window === "undefined") return false;
+  if (window.Razorpay) return true;
 
+  return await new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
+// --- Start subscription checkout ---
+async function startSubscriptionCheckout(plan) {
+  try {
+    const ok = await loadRazorpay();
+    if (!ok) {
+      alert("Razorpay checkout failed to load. Please try again.");
+      return;
+    }
+
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please login again.");
+      router.push("/login");
+      return;
+    }
+
+    const token = await user.getIdToken();
+
+    // Call your API to create subscription
+    const resp = await fetch("/api/razorpay/createSubscription", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ plan }),
+    });
+
+    const json = await resp.json();
+
+    if (!resp.ok || !json.ok) {
+      alert("Could not start payment: " + (json.error || "Unknown error"));
+      return;
+    }
+
+    const options = {
+      key: json.razorpayKeyId,
+      subscription_id: json.subscriptionId,
+      name: "Vyndow SEO",
+      description: plan === "enterprise" ? "Enterprise Monthly" : "Small Business Monthly",
+      prefill: {
+        email: user.email || "",
+      },
+      notes: {
+        uid: user.uid,
+        vyndowPlan: plan,
+      },
+      handler: function () {
+        alert("Payment received. Activating plan... Please refresh in 10–20 seconds.");
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  } catch (e) {
+    alert("Error: " + (e?.message || String(e)));
+  }
+}
+  
 function renderPlanButton(plan, priceLabel) {
   const base = {
     padding: "12px 18px",
@@ -72,6 +147,27 @@ function renderPlanButton(plan, priceLabel) {
     transition: "all 0.15s ease",
   };
 
+  // Free plan → no Razorpay
+  if (plan === "free") {
+    return (
+      <button
+        type="button"
+        disabled
+        style={{
+          ...base,
+          cursor: "not-allowed",
+          background: "#E5E7EB",
+          color: "#111827",
+          boxShadow: "none",
+          opacity: 0.9,
+        }}
+      >
+        Free Plan
+      </button>
+    );
+  }
+
+  // Current plan → disabled
   if (isCurrent(plan)) {
     return (
       <button
@@ -80,7 +176,6 @@ function renderPlanButton(plan, priceLabel) {
         style={{
           ...base,
           cursor: "not-allowed",
-          border: "1px solid rgba(148,163,184,0.45)",
           background: "#E5E7EB",
           color: "#111827",
           boxShadow: "none",
@@ -92,11 +187,12 @@ function renderPlanButton(plan, priceLabel) {
     );
   }
 
-
+  // Intent flow → Activate
   if (isIntent(plan)) {
     return (
       <button
         type="button"
+        onClick={() => startSubscriptionCheckout(plan)}
         style={{
           ...base,
           border: "0",
@@ -110,9 +206,11 @@ function renderPlanButton(plan, priceLabel) {
     );
   }
 
+  // Default → Upgrade
   return (
     <button
       type="button"
+      onClick={() => startSubscriptionCheckout(plan)}
       style={{
         ...base,
         border: "0",
@@ -124,8 +222,8 @@ function renderPlanButton(plan, priceLabel) {
       Upgrade
     </button>
   );
-
 }
+
 
 
 
@@ -237,16 +335,16 @@ function renderPlanButton(plan, priceLabel) {
 /* ===================== COMPONENTS ===================== */
 
 function PlanCard({ title, price, features, children, highlight, muted, badge }) {
-return (
-  <div
-    style={{
-      border: highlight || muted ? "2px solid #6D28D9" : "1px solid #E5E7EB",
-      borderRadius: 22,
-      padding: 24,
-      background: highlight || muted ? "#F5F3FF" : "#FFFFFF",
-      boxShadow: "0 16px 34px rgba(2,6,23,0.08)",
-    }}
-  >
+  return (
+    <div
+      style={{
+        border: highlight || muted ? "2px solid #6D28D9" : "1px solid #E5E7EB",
+        borderRadius: 22,
+        padding: 24,
+        background: highlight || muted ? "#F5F3FF" : "#FFFFFF",
+        boxShadow: "0 16px 34px rgba(2,6,23,0.08)",
+      }}
+    >
       {badge && (
         <div
           style={{
