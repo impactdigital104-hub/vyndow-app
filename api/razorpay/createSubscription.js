@@ -3,8 +3,8 @@ import admin from "../firebaseAdmin";
 import crypto from "crypto";
 
 function getPlanIdFor(plan) {
-  if (plan === "small_business") return process.env.RAZORPAY_PLAN_ID_SMALL_BUSINESS_TEST;
-  if (plan === "enterprise") return process.env.RAZORPAY_PLAN_ID_ENTERPRISE_TEST;
+ if (plan === "small_business") return process.env.RAZORPAY_PLAN_ID_SMALL_BUSINESS_TEST;
+if (plan === "enterprise") return process.env.RAZORPAY_PLAN_ID_ENTERPRISE_TEST;
   return null;
 }
 
