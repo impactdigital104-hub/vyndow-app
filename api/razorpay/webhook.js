@@ -1,5 +1,5 @@
 // api/razorpay/webhook.js
-import admin from "../../firebaseAdmin";
+import admin from "../firebaseAdmin";
 import crypto from "crypto";
 
 // IMPORTANT: We need RAW body for signature verification in Next API routes
