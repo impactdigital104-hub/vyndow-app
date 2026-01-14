@@ -46,7 +46,7 @@ export default async function handler(req, res) {
       bodyObj: {
         amount,
         currency: "INR",
-        receipt: `blog_credits_${uid}_${Date.now()}`,
+       receipt: `bc_${Date.now()}`,
         notes: {
           uid,
           email,
