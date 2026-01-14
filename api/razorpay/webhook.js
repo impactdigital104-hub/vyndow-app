@@ -84,6 +84,76 @@ async function applyPlanToUserAndWebsites({ uid, plan }) {
     console.error("Webhook plan propagation failed:", e);
   }
 }
+// ===== ADD-ON HELPERS (inserted) =====
+
+// Idempotent grant: increments extraBlogCreditsThisMonth once per paymentId
+async function grantBlogCreditsOnce({ uid, paymentId, qty = 2 }) {
+  const db = admin.firestore();
+  const paymentRef = db.doc(`users/${uid}/razorpayPayments/${paymentId}`);
+  const seoRef = db.doc(`users/${uid}/modules/seo`);
+
+  await db.runTransaction(async (tx) => {
+    const paySnap = await tx.get(paymentRef);
+    if (paySnap.exists) return; // already processed
+
+    tx.set(paymentRef, {
+      type: "extra_blog_credits",
+      qty,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    tx.set(
+      seoRef,
+      {
+        extraBlogCreditsThisMonth: admin.firestore.FieldValue.increment(qty),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+
+  // Optional propagation to website modules (helps UI consistency if UI reads website module)
+  try {
+    const websitesSnap = await db.collection(`users/${uid}/websites`).get();
+    if (!websitesSnap.empty) {
+      const batch = db.batch();
+      websitesSnap.forEach((wDoc) => {
+        const websiteSeoRef = db.doc(`users/${uid}/websites/${wDoc.id}/modules/seo`);
+        batch.set(
+          websiteSeoRef,
+          {
+            extraBlogCreditsThisMonth: admin.firestore.FieldValue.increment(qty),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      });
+      await batch.commit();
+    }
+  } catch (e) {
+    console.error("Webhook blog credits propagation failed:", e);
+  }
+}
+
+// Keeps extraWebsitesPurchased equal to count of ACTIVE add-on subscriptions
+async function syncExtraWebsitesFromActiveAddons({ uid }) {
+  const db = admin.firestore();
+  const addonsSnap = await db
+    .collection(`users/${uid}/razorpayAddons`)
+    .where("addonType", "==", "additional_website")
+    .where("status", "==", "active")
+    .get();
+
+  const activeCount = addonsSnap.size;
+
+  await db.doc(`users/${uid}/modules/seo`).set(
+    {
+      extraWebsitesPurchased: activeCount,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(200).json({ ok: true, message: "Use POST." });
@@ -112,23 +182,66 @@ export default async function handler(req, res) {
 
     const uid = (notes.uid || "").trim();
     const vyndowPlan = (notes.vyndowPlan || "").trim(); // "small_business" | "enterprise"
+    const addonType = (notes.addonType || "").trim(); // "" | "extra_blog_credits" | "additional_website"
     if (!uid) {
       // If uid is missing, we can't apply entitlements safely.
       return res.status(200).json({ ok: true, skipped: true, reason: "Missing notes.uid" });
     }
 
-    // Decide what to do based on event
-    // You can extend later; these cover most cases.
-    if (event === "subscription.activated" || event === "subscription.charged") {
-      // Apply paid plan
-      const planToApply = vyndowPlan === "enterprise" ? "enterprise" : "small_business";
-      await applyPlanToUserAndWebsites({ uid, plan: planToApply });
-    }
+ // Decide what to do based on event
 
-    if (event === "subscription.cancelled" || event === "subscription.completed") {
-      // Downgrade to free on cancellation/completion
-      await applyPlanToUserAndWebsites({ uid, plan: "free" });
-    }
+// ===== MAIN PLAN SUBSCRIPTIONS (no addonType) =====
+if ((event === "subscription.activated" || event === "subscription.charged") && !addonType) {
+  const planToApply = vyndowPlan === "enterprise" ? "enterprise" : "small_business";
+  await applyPlanToUserAndWebsites({ uid, plan: planToApply });
+}
+
+if ((event === "subscription.cancelled" || event === "subscription.completed") && !addonType) {
+  await applyPlanToUserAndWebsites({ uid, plan: "free" });
+}
+
+// ===== BLOG CREDIT ADD-ON (one-time payment) =====
+if (event === "payment.captured" && addonType === "extra_blog_credits") {
+  const paymentId = payload?.payload?.payment?.entity?.id || "";
+  const qty = parseInt(notes.qty || "2", 10) || 2;
+  if (paymentId) {
+    await grantBlogCreditsOnce({ uid, paymentId, qty });
+  }
+}
+
+// ===== ADD WEBSITE ADD-ON (recurring subscription) =====
+if ((event === "subscription.activated" || event === "subscription.charged") && addonType === "additional_website") {
+  const subId = payload?.payload?.subscription?.entity?.id || "";
+  if (subId) {
+    const addonRef = admin.firestore().doc(`users/${uid}/razorpayAddons/${subId}`);
+    await addonRef.set(
+      {
+        addonType: "additional_website",
+        status: "active",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    await syncExtraWebsitesFromActiveAddons({ uid });
+  }
+}
+
+if ((event === "subscription.cancelled" || event === "subscription.completed") && addonType === "additional_website") {
+  const subId = payload?.payload?.subscription?.entity?.id || "";
+  if (subId) {
+    const addonRef = admin.firestore().doc(`users/${uid}/razorpayAddons/${subId}`);
+    await addonRef.set(
+      {
+        addonType: "additional_website",
+        status: "inactive",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    await syncExtraWebsitesFromActiveAddons({ uid });
+  }
+}
+
 
     // Always return 200 to Razorpay once verified/processed
     return res.status(200).json({ ok: true });
