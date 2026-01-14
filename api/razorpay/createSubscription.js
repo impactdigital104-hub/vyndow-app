@@ -58,16 +58,66 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3) Create (or reuse) a Razorpay customer
-    // We’ll create a new customer each time only if needed; simplest approach: always create.
-    const customer = await razorpayRequest("/customers", {
+// 3) Create (or reuse) a Razorpay customer (IMPORTANT: one customer per user)
+const userRef = admin.firestore().doc(`users/${uid}`);
+const userSnap = await userRef.get();
+
+let razorpayCustomerId = userSnap.exists ? userSnap.data()?.razorpayCustomerId : null;
+
+// Helper: try to find an existing customer by email (fallback)
+async function findCustomerIdByEmail(emailToFind) {
+  // Fetch a batch of customers and match by email
+  // (Good enough for staging/test; in production this still works unless you have huge counts)
+  const list = await razorpayRequest("/customers?count=100", { method: "GET" });
+  const items = list?.items || [];
+  const hit = items.find((c) => (c.email || "").toLowerCase() === (emailToFind || "").toLowerCase());
+  return hit ? hit.id : null;
+}
+
+let customer = null;
+
+if (razorpayCustomerId) {
+  // Reuse stored customer id
+  customer = { id: razorpayCustomerId };
+} else {
+  try {
+    // Try creating the customer (first time)
+    const created = await razorpayRequest("/customers", {
       method: "POST",
       bodyObj: {
-        name: email ? email.split("@")[0] : "Vyndow User",
-        email: email || undefined,
+        name: userSnap.exists ? (userSnap.data()?.name || email) : email,
+        email,
         notes: { uid },
       },
     });
+
+    razorpayCustomerId = created.id;
+    customer = created;
+
+    // Store for future upgrades
+    await userRef.set({ razorpayCustomerId }, { merge: true });
+  } catch (err) {
+    const msg = (err?.message || "").toLowerCase();
+
+    // Razorpay: customer already exists → find by email and store it
+    if (msg.includes("customer already exists")) {
+      const foundId = await findCustomerIdByEmail(email);
+
+      if (!foundId) {
+        throw new Error("Customer already exists, but could not find existing customer by email.");
+      }
+
+      razorpayCustomerId = foundId;
+      customer = { id: foundId };
+
+      // Store for future upgrades
+      await userRef.set({ razorpayCustomerId }, { merge: true });
+    } else {
+      throw err;
+    }
+  }
+}
+
 
     // 4) Create subscription for the plan
     const subscription = await razorpayRequest("/subscriptions", {
