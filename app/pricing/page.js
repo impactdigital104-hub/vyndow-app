@@ -31,12 +31,15 @@ const [currentPlan, setCurrentPlan] = useState(null);
 // free | small_business | enterprise
 
 useEffect(() => {
-  async function loadPlan() {
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (!user) return;
+  const auth = getAuth();
 
+  const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      setCurrentPlan("free");
+      return;
+    }
+
+    try {
       const db = getFirestore();
       const ref = doc(db, `users/${user.uid}/modules/seo`);
       const snap = await getDoc(ref);
@@ -50,10 +53,11 @@ useEffect(() => {
       console.error("Failed to load plan", e);
       setCurrentPlan("free");
     }
-  }
+  });
 
-  loadPlan();
+  return () => unsubscribe();
 }, []);
+
 
 
   function isCurrent(plan) {
