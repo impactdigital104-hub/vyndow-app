@@ -5,6 +5,8 @@
 
 export function normalizePlan(plan) {
   const p = (plan || "").toLowerCase().trim();
+  if (p === "small_business") return "small_business";
+if (p === "small-business") return "small_business";
   if (p === "small business") return "small_business";
   if (p === "smallbusiness") return "small_business";
   if (p === "enterprise") return "enterprise";
