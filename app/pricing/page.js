@@ -136,7 +136,132 @@ async function startSubscriptionCheckout(plan) {
     alert("Error: " + (e?.message || String(e)));
   }
 }
-  
+ // --- Start blog credits (one-time order) ---
+async function startBlogCreditsCheckout() {
+  try {
+    const ok = await loadRazorpay();
+    if (!ok) {
+      alert("Razorpay checkout failed to load. Please try again.");
+      return;
+    }
+
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please login again.");
+      router.push("/login");
+      return;
+    }
+
+    const token = await user.getIdToken();
+
+    const resp = await fetch("/api/razorpay/createBlogCreditsOrder", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const json = await resp.json();
+
+    if (!resp.ok || !json.ok) {
+      alert("Could not start payment: " + (json.error || "Unknown error"));
+      return;
+    }
+
+    const options = {
+      key: json.razorpayKeyId,
+      order_id: json.orderId,
+      name: "Vyndow SEO",
+      description: "Extra Blog Credits (+2)",
+      prefill: { email: user.email || "" },
+      notes: {
+        uid: user.uid,
+        addonType: "extra_blog_credits",
+        qty: "2",
+      },
+      handler: function () {
+        alert("Payment received. Credits will reflect shortly. Please refresh in 10–20 seconds.");
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  } catch (e) {
+    alert("Error: " + (e?.message || String(e)));
+  }
+}
+
+// --- Start add website (recurring subscription) ---
+async function startAddWebsiteCheckout() {
+  try {
+    const ok = await loadRazorpay();
+    if (!ok) {
+      alert("Razorpay checkout failed to load. Please try again.");
+      return;
+    }
+
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please login again.");
+      router.push("/login");
+      return;
+    }
+
+    // Only paid plans can buy website add-on
+    if (currentPlan !== "small_business" && currentPlan !== "enterprise") {
+      alert("Please upgrade to a paid plan before buying an additional website.");
+      return;
+    }
+
+    const token = await user.getIdToken();
+
+    const resp = await fetch("/api/razorpay/createAddWebsiteSubscription", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const json = await resp.json();
+
+    if (!resp.ok || !json.ok) {
+      // Handle the explicit error we return from API
+      if (json.error === "UPGRADE_REQUIRED") {
+        alert("Please upgrade to a paid plan first.");
+      } else {
+        alert("Could not start payment: " + (json.error || "Unknown error"));
+      }
+      return;
+    }
+
+    const options = {
+      key: json.razorpayKeyId,
+      subscription_id: json.subscriptionId,
+      name: "Vyndow SEO",
+      description:
+        currentPlan === "enterprise" ? "Add Website (Enterprise)" : "Add Website (Small Business)",
+      prefill: { email: user.email || "" },
+      notes: {
+        uid: user.uid,
+        addonType: "additional_website",
+        qty: "1",
+      },
+      handler: function () {
+        alert("Payment received. Website capacity will update shortly. Please refresh in 10–20 seconds.");
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  } catch (e) {
+    alert("Error: " + (e?.message || String(e)));
+  }
+}
+ 
 function renderPlanButton(plan, priceLabel) {
   const base = {
     padding: "12px 18px",
@@ -306,21 +431,24 @@ function renderPlanButton(plan, priceLabel) {
           <h2>Add-ons</h2>
 
           {/* BLOG CREDITS */}
-          <AddOnCard
-            title="Extra Blog Credits"
-            price="₹199"
-            description="+2 blog credits (used after monthly limit)"
-            actionLabel="Buy 2 Credits"
-          />
+<AddOnCard
+  title="Extra Blog Credits"
+  price="₹199"
+  description="+2 blog credits (used after monthly limit)"
+  actionLabel="Buy 2 Credits"
+  onAction={startBlogCreditsCheckout}
+/>
+
 
           {/* ADD WEBSITE */}
-          <AddOnCard
-            title="Additional Website"
-            price="As per plan"
-            description="Adds capacity for 1 more website with full monthly quota"
-            actionLabel="Add Website"
-            onAction={() => router.push("/websites")}
-          />
+     <AddOnCard
+  title="Additional Website"
+  price={currentPlan === "enterprise" ? "₹999 / month" : currentPlan === "small_business" ? "₹499 / month" : "Upgrade to buy"}
+  description="Adds capacity for 1 more website with full monthly quota"
+  actionLabel={currentPlan === "free" ? "Upgrade first" : "Add Website"}
+  onAction={currentPlan === "free" ? () => router.push("/pricing?plan=small_business") : startAddWebsiteCheckout}
+/>
+
         </section>
 
         {/* ================= FOOTER NOTE ================= */}
