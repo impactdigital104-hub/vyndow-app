@@ -22,7 +22,7 @@ export function geoPlanDefaults(planRaw) {
   if (plan === "small_business") {
     return { plan, pagesPerMonth: 100 };
   }
-  return { plan: "free", pagesPerMonth: 10 };
+ return { plan: "free", pagesPerMonth: 5 };
 }
 
 /**
