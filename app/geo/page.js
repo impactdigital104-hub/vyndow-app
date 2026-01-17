@@ -29,8 +29,13 @@ export default function GeoPage() {
   const [geoModuleError, setGeoModuleError] = useState("");
   const [ensureInfo, setEnsureInfo] = useState(null);
 
-  // Phase 2.1 UI: URL input
+  // URL input
   const [urlListRaw, setUrlListRaw] = useState("");
+
+  // Run creation state
+  const [creatingRun, setCreatingRun] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [createdRun, setCreatedRun] = useState(null);
 
   // -----------------------------
   // Auth gate (same as SEO)
@@ -51,7 +56,7 @@ export default function GeoPage() {
   }, [router]);
 
   // -----------------------------
-  // Load websites (same as SEO page uses)
+  // Load websites
   // -----------------------------
   useEffect(() => {
     async function loadWebsites() {
@@ -68,13 +73,10 @@ export default function GeoPage() {
         const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setWebsites(rows);
 
-        // Prefer saved websiteId (shared convention used across modules)
         let saved = "";
         try {
           saved = localStorage.getItem("vyndow_selectedWebsiteId") || "";
-        } catch (e) {
-          // ignore
-        }
+        } catch {}
 
         const exists = saved && rows.some((r) => r.id === saved);
 
@@ -84,9 +86,7 @@ export default function GeoPage() {
           setSelectedWebsite(rows[0].id);
           try {
             localStorage.setItem("vyndow_selectedWebsiteId", rows[0].id);
-          } catch (e) {
-            // ignore
-          }
+          } catch {}
         } else {
           setSelectedWebsite("");
         }
@@ -102,18 +102,15 @@ export default function GeoPage() {
     loadWebsites();
   }, [uid]);
 
-  // Persist selected website (so other pages can use same context)
   useEffect(() => {
     if (!selectedWebsite) return;
     try {
       localStorage.setItem("vyndow_selectedWebsiteId", selectedWebsite);
-    } catch (e) {
-      // ignore
-    }
+    } catch {}
   }, [selectedWebsite]);
 
   // -----------------------------
-  // Ensure GEO module doc exists + load its values (plan/pagesPerMonth/etc)
+  // Ensure GEO module doc exists + load values
   // -----------------------------
   useEffect(() => {
     async function ensureGeoModule() {
@@ -123,6 +120,8 @@ export default function GeoPage() {
       try {
         setGeoModuleLoading(true);
         setGeoModuleError("");
+        setCreatedRun(null);
+        setCreateError("");
 
         const token = await auth.currentUser.getIdToken();
 
@@ -159,7 +158,7 @@ export default function GeoPage() {
   }, [uid, selectedWebsite]);
 
   // -----------------------------
-  // URL parsing + validation (Phase 2.1 only)
+  // URL parsing + validation
   // -----------------------------
   const parsed = useMemo(() => {
     const lines = (urlListRaw || "")
@@ -167,13 +166,11 @@ export default function GeoPage() {
       .map((x) => x.trim())
       .filter(Boolean);
 
-    // De-dupe while preserving order
     const seen = new Set();
     const unique = [];
     for (const u of lines) {
-      const key = u;
-      if (!seen.has(key)) {
-        seen.add(key);
+      if (!seen.has(u)) {
+        seen.add(u);
         unique.push(u);
       }
     }
@@ -201,8 +198,16 @@ export default function GeoPage() {
     };
   }, [urlListRaw]);
 
+  const canCreateRun =
+    !creatingRun &&
+    !!selectedWebsite &&
+    !geoModuleLoading &&
+    !geoModuleError &&
+    parsed.creditsToConsume > 0 &&
+    parsed.invalid.length === 0;
+
   // -----------------------------
-  // Usage pill text (Phase 2.1 = plan display only)
+  // Usage pill text
   // -----------------------------
   function buildGeoUsageSummary() {
     if (geoModuleLoading) return "Loading usage…";
@@ -212,7 +217,6 @@ export default function GeoPage() {
     const plan = (geoModule.plan || "free").toString();
     const pagesPerMonth = Number(geoModule.pagesPerMonth ?? 0);
 
-    // Phase 2.1: we show plan + pagesPerMonth only (no counters yet)
     const planLabel =
       plan === "enterprise"
         ? "Enterprise Plan"
@@ -221,6 +225,78 @@ export default function GeoPage() {
         : "Free Plan";
 
     return `${pagesPerMonth} pages / month · ${planLabel}`;
+  }
+
+  // -----------------------------
+  // Create run (Phase 2.2)
+  // -----------------------------
+  async function onCreateRun() {
+    try {
+      setCreatingRun(true);
+      setCreateError("");
+      setCreatedRun(null);
+
+      const token = await auth.currentUser.getIdToken();
+
+      const resp = await fetch("/api/geo/run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          websiteId: selectedWebsite,
+          urls: parsed.valid,
+        }),
+      });
+
+      const data = await resp.json().catch(() => ({}));
+
+      if (!resp.ok || !data?.ok) {
+        // Quota exceeded payload
+        if (data?.error === "QUOTA_EXCEEDED") {
+          const d = data?.details || {};
+          throw new Error(
+            `Quota exceeded. Used ${d.used}/${d.limit} pages. Requested ${d.requested}. Extra remaining: ${d.extraRemaining ?? 0}.`
+          );
+        }
+
+        // Domain mismatch payload
+        if (data?.error === "URL_DOMAIN_MISMATCH") {
+          const domain = data?.websiteDomain || "(unknown domain)";
+          const bad = (data?.invalidForWebsite || []).slice(0, 3).join(" | ");
+          throw new Error(
+            `Some URLs don’t belong to the selected website domain (${domain}). Example: ${bad}`
+          );
+        }
+
+        // Invalid URLs payload
+        if (data?.error === "INVALID_URLS") {
+          const bad = (data?.invalid || []).slice(0, 3).join(" | ");
+          throw new Error(`Invalid URLs detected. Example: ${bad}`);
+        }
+
+        throw new Error(data?.error || "Failed to create GEO run.");
+      }
+
+      setCreatedRun({
+        runId: data.runId,
+        pagesReserved: data.pagesReserved,
+        monthKey: data.monthKey,
+        usedAfter: data.usedAfter,
+        baseLimit: data.baseLimit,
+        extraRemaining: data.extraRemaining,
+        overflowUsed: data.overflowUsed,
+      });
+
+      // OPTIONAL: clear input after successful run creation
+      setUrlListRaw("");
+    } catch (e) {
+      console.error("Create GEO run failed:", e);
+      setCreateError(e?.message || "Unknown error creating GEO run.");
+    } finally {
+      setCreatingRun(false);
+    }
   }
 
   // -----------------------------
@@ -275,8 +351,7 @@ export default function GeoPage() {
         <header>
           <h1 style={{ marginBottom: 6 }}>Vyndow GEO — AI Readiness Audit</h1>
           <p style={{ marginTop: 0, opacity: 0.9 }}>
-            Paste one or more URLs below. In Phase 2.1, we’re building the UI and data model.
-            Phase 2.2 will create runs and reserve credits server-side.
+            Paste one or more URLs below. Phase 2.2 now creates runs and reserves credits server-side.
           </p>
         </header>
 
@@ -294,6 +369,7 @@ export default function GeoPage() {
                   value={urlListRaw}
                   onChange={(e) => setUrlListRaw(e.target.value)}
                 />
+
                 <div style={{ fontSize: 13, marginTop: 10, opacity: 0.85 }}>
                   This will consume: <b>{parsed.creditsToConsume}</b> pages
                   {parsed.invalid.length > 0 ? (
@@ -306,17 +382,59 @@ export default function GeoPage() {
 
               <button
                 type="button"
-                className="btn-disabled"
-                disabled
-                title="Phase 2.2 will connect this button to POST /api/geo/run"
+                onClick={onCreateRun}
+                disabled={!canCreateRun}
+                className={canCreateRun ? "btn btn-primary" : "btn-disabled"}
                 style={{ marginTop: 8 }}
+                title={
+                  !canCreateRun
+                    ? parsed.invalid.length > 0
+                      ? "Fix invalid URLs first."
+                      : parsed.creditsToConsume === 0
+                      ? "Paste at least one valid URL."
+                      : "Loading module/website…"
+                    : "Create a new GEO audit run"
+                }
               >
-                Create Audit Run (Phase 2.2)
+                {creatingRun ? "Creating Audit Run…" : "Create Audit Run"}
               </button>
 
-              <div style={{ fontSize: 12, marginTop: 10, opacity: 0.7 }}>
-                Phase 2.1 note: No Firestore writes happen from this button yet.
-              </div>
+              {createError ? (
+                <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>
+                  {createError}
+                </div>
+              ) : null}
+
+              {createdRun ? (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: 12,
+                    borderRadius: 12,
+                    background: "#f0f9ff",
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  <div style={{ fontWeight: 700 }}>Run created ✅</div>
+                  <div>
+                    <b>Run ID:</b> {createdRun.runId}
+                  </div>
+                  <div>
+                    <b>Pages reserved:</b> {createdRun.pagesReserved}
+                  </div>
+                  <div>
+                    <b>Month:</b> {createdRun.monthKey}
+                  </div>
+                  <div>
+                    <b>Usage after:</b> {createdRun.usedAfter}/{createdRun.baseLimit} (extra remaining:{" "}
+                    {createdRun.extraRemaining})
+                  </div>
+                  <div style={{ opacity: 0.7, marginTop: 6 }}>
+                    Next Phase 2.3 will show Runs List and Run Detail pages.
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="output-card">
