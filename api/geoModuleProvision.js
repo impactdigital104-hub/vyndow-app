@@ -62,21 +62,22 @@ export async function ensureWebsiteGeoModule({ admin, ownerUid, websiteId }) {  
     return { ref: websiteModuleRef, data: websiteModuleSnap.data() || {} };
   }
 
-  // Optional legacy source (future-proofing)
-  const legacyRef = db.doc(`users/${ownerUid}/modules/geo`);
-  const legacySnap = await legacyRef.get();
-  const legacy = legacySnap.exists ? legacySnap.data() || {} : {};
+  // Use user-level GEO module as the master source of truth (SEO-style)
+  const masterRef = db.doc(`users/${ownerUid}/modules/geo`);
+  const masterSnap = await masterRef.get();
+  const master = masterSnap.exists ? masterSnap.data() || {} : {};
 
-  const base = geoPlanDefaults(legacy.plan);
+  const base = geoPlanDefaults(master.plan);
 
   const payload = {
     moduleId: "geo",
     plan: base.plan,
-    pagesPerMonth: Number(legacy.pagesPerMonth ?? base.pagesPerMonth),
-    extraGeoCreditsThisMonth: Number(legacy.extraGeoCreditsThisMonth ?? 0),
+    pagesPerMonth: Number(master.pagesPerMonth ?? base.pagesPerMonth),
+    extraGeoCreditsThisMonth: Number(master.extraGeoCreditsThisMonth ?? 0),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+
 
   await websiteModuleRef.set(payload, { merge: true });
   return { ref: websiteModuleRef, data: payload };
