@@ -15,6 +15,8 @@ export default function GeoPage() {
   const [websites, setWebsites] = useState([]);
   const [selectedWebsite, setSelectedWebsite] = useState("");
   const [ensureStatus, setEnsureStatus] = useState("idle"); // idle | running | ok | error
+  const [selectedWebsiteName, setSelectedWebsiteName] = useState("");
+const [ensureInfo, setEnsureInfo] = useState(null);
   const [ensureError, setEnsureError] = useState("");
 
   // Auth gate (same as SEO)
@@ -41,8 +43,22 @@ export default function GeoPage() {
       const q = query(colRef, orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
 
-      const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setWebsites(rows);
+const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+setWebsites(rows);
+
+function getWebsiteName(row) {
+  // try common field names without guessing too much
+  return (
+    row?.websiteName ||
+    row?.name ||
+    row?.domain ||
+    row?.website ||
+    row?.url ||
+    row?.id ||
+    ""
+  );
+}
+
 
       // Prefer saved websiteId (set by SEO page), else first website
       let saved = "";
@@ -53,16 +69,19 @@ export default function GeoPage() {
       }
 
       const exists = saved && rows.some((r) => r.id === saved);
-      if (exists) {
-        setSelectedWebsite(saved);
-      } else if (rows.length) {
-        setSelectedWebsite(rows[0].id);
-        try {
-          localStorage.setItem("vyndow_selectedWebsiteId", rows[0].id);
-        } catch (e) {
-          // ignore
-        }
-      }
+if (exists) {
+  setSelectedWebsite(saved);
+  const match = rows.find((r) => r.id === saved);
+  setSelectedWebsiteName(getWebsiteName(match));
+} else if (rows.length) {
+  setSelectedWebsite(rows[0].id);
+  setSelectedWebsiteName(getWebsiteName(rows[0]));
+  try {
+    localStorage.setItem("vyndow_selectedWebsiteId", rows[0].id);
+  } catch (e) {
+    // ignore
+  }
+}
     }
 
     loadWebsites().catch((e) => console.error("GEO loadWebsites error:", e));
@@ -91,11 +110,16 @@ export default function GeoPage() {
 
         const data = await resp.json().catch(() => ({}));
 
-        if (!resp.ok || !data?.ok) {
-          throw new Error(data?.error || "Failed to ensure GEO module");
-        }
+if (!resp.ok || !data?.ok) {
+  throw new Error(data?.error || "Failed to ensure GEO module");
+}
 
-        setEnsureStatus("ok");
+setEnsureInfo({
+  ownerUid: data.ownerUid,
+  websiteId: data.websiteId,
+});
+setEnsureStatus("ok");
+
       } catch (e) {
         console.error(e);
         setEnsureStatus("error");
@@ -139,7 +163,8 @@ export default function GeoPage() {
 
         <div style={{ fontSize: 14, opacity: 0.9 }}>
           <div>
-            <b>Selected websiteId:</b> {selectedWebsite || "(none yet)"}
+      <b>Selected website:</b>{" "}
+{selectedWebsiteName ? `${selectedWebsiteName} (${selectedWebsite})` : selectedWebsite || "(none yet)"}
           </div>
           <div>
             <b>GEO module ensure:</b>{" "}
@@ -147,6 +172,12 @@ export default function GeoPage() {
             {ensureStatus === "running" && "Running..."}
             {ensureStatus === "ok" && "OK ✅"}
             {ensureStatus === "error" && `Error ❌ (${ensureError})`}
+{ensureInfo?.ownerUid && (
+  <div style={{ marginTop: 6 }}>
+    <b>Ensured at:</b> users/{ensureInfo.ownerUid}/websites/{ensureInfo.websiteId}/modules/geo
+  </div>
+)}
+
           </div>
         </div>
       </div>
