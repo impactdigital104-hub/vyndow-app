@@ -109,14 +109,19 @@ export default function VyndowShell({ activeModule, children }) {
           </a>
 
           {/* Other modules – Coming Soon */}
-          <div className="sidebar-link is-soon">
-            <span className="sidebar-link-main">Vyndow GEO</span>
-            <span className="sidebar-pill sidebar-pill-soon">Soon</span>
-            <span className="sidebar-info">i</span>
-            <span className="sidebar-tip">
-              Audit and get your website optimized for AI Search.
-            </span>
-          </div>
+<a
+  href="/geo"
+  className={`sidebar-link is-soon${activeModule === "geo" ? " is-active" : ""}`}
+  onClick={closeMobileSidebar}
+>
+  <span className="sidebar-link-main">Vyndow GEO</span>
+  <span className="sidebar-pill sidebar-pill-soon">Soon</span>
+  <span className="sidebar-info">i</span>
+  <span className="sidebar-tip">
+    Audit and get your website optimized for AI Search.
+  </span>
+</a>
+
 
           <div className="sidebar-link is-soon">
             <span className="sidebar-link-main">Vyndow ABM</span>
