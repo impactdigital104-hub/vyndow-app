@@ -31,8 +31,28 @@ export function geoPlanDefaults(planRaw) {
  *
  * SAFE to call on every request (idempotent).
  */
-export async function ensureWebsiteGeoModule({ admin, ownerUid, websiteId }) {
+export async function ensureWebsiteGeoModule({ admin, ownerUid, websiteId }) {  // 1) Ensure user-level GEO module exists (SEO-style master)
   const db = admin.firestore();
+
+  const userModuleRef = db.doc(`users/${ownerUid}/modules/geo`);
+  const userModuleSnap = await userModuleRef.get();
+
+  if (!userModuleSnap.exists) {
+    const baseUser = geoPlanDefaults("free"); // default master plan for now
+
+    await userModuleRef.set(
+      {
+        moduleId: "geo",
+        plan: baseUser.plan,
+        pagesPerMonth: baseUser.pagesPerMonth, // free = 5 (we fixed this)
+        extraGeoCreditsThisMonth: 0,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+  
 
   const websiteModuleRef = db.doc(
     `users/${ownerUid}/websites/${websiteId}/modules/geo`
