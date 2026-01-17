@@ -243,23 +243,26 @@ export default function GeoRunsListPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => (
-                      <tr
-                        key={r.runId}
-                        style={{ borderBottom: "1px solid #f3f4f6", cursor: "pointer" }}
-                        onClick={() => router.push(`/geo/runs/${r.runId}?websiteId=${selectedWebsite}`)}
-                        title="Open run details"
-                      >
-                        <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }}>
-                          {r.createdAt?.toDate ? r.createdAt.toDate().toLocaleString() : "—"}
-                        </td>
-                        <td style={{ padding: "10px 8px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
-                          {r.runId}
-                        </td>
-                        <td style={{ padding: "10px 8px" }}>{r.pagesCount}</td>
-                        <td style={{ padding: "10px 8px" }}>{r.status}</td>
-                      </tr>
-                    ))}
+{rows.map((r) => (
+  <tr
+    key={r.id}
+    style={{ borderBottom: "1px solid #f3f4f6", cursor: "pointer" }}
+    onClick={() => router.push(`/geo/runs/${r.id}?websiteId=${selectedWebsite}`)}
+    title="Open run details"
+  >
+    <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }}>
+      {r.createdAt?.toDate ? r.createdAt.toDate().toLocaleString() : "—"}
+    </td>
+
+    <td style={{ padding: "10px 8px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+      {r.id}
+    </td>
+
+    <td style={{ padding: "10px 8px" }}>{r.pagesCount}</td>
+    <td style={{ padding: "10px 8px" }}>{r.status}</td>
+  </tr>
+))}
+
                   </tbody>
                 </table>
               </div>
