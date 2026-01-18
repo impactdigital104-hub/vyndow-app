@@ -31,6 +31,8 @@ export default function GeoRunDetailPage() {
   const [generatingPageId, setGeneratingPageId] = useState(null);
   const [generateErrorByPageId, setGenerateErrorByPageId] = useState({});
   const [expandedFixByPageId, setExpandedFixByPageId] = useState({});
+  const [expandedAuditByPageId, setExpandedAuditByPageId] = useState({});
+
 
 
   // Auth gate
@@ -214,8 +216,11 @@ if (data.page) {
     })
   );
 
+  // auto-open audit + fix output once generated
+  setExpandedAuditByPageId((prev) => ({ ...prev, [pid]: true }));
   setExpandedFixByPageId((prev) => ({ ...prev, [pid]: true }));
 }
+
     } catch (e) {
       setGenerateErrorByPageId((prev) => ({
         ...prev,
@@ -351,113 +356,191 @@ function isAnalyzedStatus(s) {
                   <div style={{ opacity: 0.75 }}>No pages found.</div>
                 ) : (
                   <div style={{ width: "100%", overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        >
-                          <th style={{ padding: "10px 8px" }}>URL</th>
-                          <th style={{ padding: "10px 8px" }}>Status</th>
-                          <th style={{ padding: "10px 8px" }}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-{sortedPages.map((p) => (
-  <>
+   <table style={{ width: "100%", borderCollapse: "collapse" }}>
+  <thead>
     <tr
-      key={p.id || p.url}
       style={{
-        borderBottom: "1px solid #f3f4f6",
+        textAlign: "left",
+        borderBottom: "1px solid #eee",
       }}
     >
-                            <td style={{ padding: "10px 8px" }}>
-                              <a
-                                href={p.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{ textDecoration: "underline" }}
-                              >
-                                {p.url}
-                              </a>
-                            </td>
-                            <td style={{ padding: "10px 8px" }}>
-                              {normalizeStatus(p.status) || "—"}
-                            </td>
-                              <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }}>
-<button
- className="btn btn-primary"
- disabled={generatingPageId === (p.id || p.pageId) || !isAnalyzedStatus(p.status)}
-  onClick={() => handleGenerateFix(p)}
-  title={
-    !isAnalyzedStatus(p.status)
-      ? "Fix can be generated after analysis is complete."
-      : ""
-  }
->
-{generatingPageId === (p.id || p.pageId) ? "Generating…" : "Generate Fix"}
-</button>
+      <th style={{ padding: "10px 8px" }}>URL</th>
+      <th style={{ padding: "10px 8px" }}>GEO Score</th>
+      <th style={{ padding: "10px 8px" }}>Status</th>
+      <th style={{ padding: "10px 8px" }}>Actions</th>
+    </tr>
+  </thead>
 
+  <tbody>
+    {sortedPages.map((p) => {
+      const pid = p?.id || p?.pageId;
+      const statusText = normalizeStatus(p.status) || "—";
 
-{generateErrorByPageId?.[p.id || p.pageId] ? (
-    <div style={{ marginTop: 8, color: "#b91c1c", fontSize: 12 }}>
-{generateErrorByPageId[p.id || p.pageId]}
+      return (
+        <>
+          {/* Row 1: Summary */}
+          <tr
+            key={pid || p.url}
+            style={{
+              borderBottom: "1px solid #f3f4f6",
+            }}
+          >
+            <td style={{ padding: "10px 8px" }}>
+              <a
+                href={p.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{ textDecoration: "underline" }}
+              >
+                {p.url}
+              </a>
+            </td>
 
-    </div>
-  ) : null}
+            <td style={{ padding: "10px 8px", fontWeight: 700 }}>
+              {typeof p.geoScore === "number" ? p.geoScore : "—"}
+            </td>
 
-  <div style={{ marginTop: 8 }}>
-    <button
-      className="btn btn-secondary"
-      style={{ padding: "6px 10px", fontSize: 12, opacity: 0.9 }}
-onClick={() =>
-  setExpandedFixByPageId((prev) => ({
-    ...prev,
-    [p.id || p.pageId]: !prev?.[p.id || p.pageId],
-  }))
-}
+            <td style={{ padding: "10px 8px" }}>{statusText}</td>
 
-      type="button"
-    >
-{expandedFixByPageId?.[p.id || p.pageId] ? "Hide Fix Output" : "Show Fix Output"}
-    </button>
-  </div>
-</td>
-                          </tr>
-{expandedFixByPageId?.[p.id || p.pageId] ? (
-  <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
-    <td colSpan={3} style={{ padding: "10px 8px", background: "#fafafa" }}>
-      <div style={{ fontWeight: 800, marginBottom: 6 }}>Fix Output</div>
+            <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }}>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: "6px 10px", fontSize: 12 }}
+                type="button"
+                onClick={() => {
+                  if (!pid) return;
+                  setExpandedAuditByPageId((prev) => ({
+                    ...prev,
+                    [pid]: !prev?.[pid],
+                  }));
+                }}
+                title={!pid ? "Page id missing for this row" : ""}
+              >
+                {expandedAuditByPageId?.[pid] ? "Hide Audit" : "View Audit"}
+              </button>
+            </td>
+          </tr>
 
-      {p?.fixes ? (
-        <pre
-          style={{
-            margin: 0,
-            padding: 12,
-            border: "1px solid #eee",
-            borderRadius: 8,
-            overflowX: "auto",
-            fontSize: 12,
-            lineHeight: 1.4,
-            background: "white",
-          }}
-        >
-          {JSON.stringify(p.fixes, null, 2)}
-        </pre>
-      ) : (
-        <div style={{ opacity: 0.75, fontSize: 13 }}>
-          No fixes saved yet for this page. Click “Generate Fix”.
-        </div>
-      )}
-    </td>
-  </tr>
-) : null}
-  </>
-))}
-                      </tbody>
-                    </table>
+          {/* Row 2: Expanded Audit Report + Generate Fix */}
+          {pid && expandedAuditByPageId?.[pid] ? (
+            <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
+              <td colSpan={4} style={{ padding: "12px 8px", background: "#fafafa" }}>
+                <div style={{ fontWeight: 800, marginBottom: 10 }}>
+                  Audit Report
+                </div>
+
+                <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>GEO Score</div>
+                    <div style={{ fontSize: 18, fontWeight: 800 }}>
+                      {typeof p.geoScore === "number" ? p.geoScore : "—"}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>Status</div>
+                    <div style={{ fontWeight: 700 }}>{statusText}</div>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Issues Found</div>
+                  {Array.isArray(p.issues) && p.issues.length > 0 ? (
+                    <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 18 }}>
+                      {p.issues.map((it, idx) => (
+                        <li key={idx} style={{ marginBottom: 4 }}>{it}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div style={{ opacity: 0.75 }}>No issues found.</div>
+                  )}
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Suggestions</div>
+                  {Array.isArray(p.suggestions) && p.suggestions.length > 0 ? (
+                    <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 18 }}>
+                      {p.suggestions.map((it, idx) => (
+                        <li key={idx} style={{ marginBottom: 4 }}>{it}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div style={{ opacity: 0.75 }}>No suggestions available.</div>
+                  )}
+                </div>
+
+                {/* Generate Fix is ONLY here (inside the audit report) */}
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <button
+                    className="btn btn-primary"
+                    disabled={
+                      generatingPageId === pid || !isAnalyzedStatus(p.status)
+                    }
+                    onClick={() => handleGenerateFix(p)}
+                    title={
+                      !isAnalyzedStatus(p.status)
+                        ? "Fix can be generated only after analysis is complete."
+                        : ""
+                    }
+                  >
+                    {generatingPageId === pid ? "Generating…" : "Generate Fix"}
+                  </button>
+
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: "6px 10px", fontSize: 12, opacity: 0.9 }}
+                    onClick={() =>
+                      setExpandedFixByPageId((prev) => ({
+                        ...prev,
+                        [pid]: !prev?.[pid],
+                      }))
+                    }
+                    type="button"
+                  >
+                    {expandedFixByPageId?.[pid] ? "Hide Fix Output" : "Show Fix Output"}
+                  </button>
+                </div>
+
+                {generateErrorByPageId?.[pid] ? (
+                  <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 12 }}>
+                    {generateErrorByPageId[pid]}
+                  </div>
+                ) : null}
+
+                {expandedFixByPageId?.[pid] ? (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Fix Output</div>
+
+                    {p?.fixes ? (
+                      <pre
+                        style={{
+                          margin: 0,
+                          padding: 12,
+                          border: "1px solid #eee",
+                          borderRadius: 8,
+                          overflowX: "auto",
+                          fontSize: 12,
+                          lineHeight: 1.4,
+                          background: "white",
+                        }}
+                      >
+                        {JSON.stringify(p.fixes, null, 2)}
+                      </pre>
+                    ) : (
+                      <div style={{ opacity: 0.75, fontSize: 13 }}>
+                        No fixes saved yet for this page. Click “Generate Fix”.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </td>
+            </tr>
+          ) : null}
+        </>
+      );
+    })}
+  </tbody>
+</table>
                   </div>
                 )}
               </div>
