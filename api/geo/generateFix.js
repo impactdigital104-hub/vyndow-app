@@ -1,0 +1,258 @@
+// api/geo/generateFix.js
+import admin from "../firebaseAdmin";
+
+/* ---------------- AUTH ---------------- */
+
+async function getUidFromRequest(req) {
+  const authHeader = req.headers.authorization || "";
+  const match = authHeader.match(/^Bearer (.+)$/);
+  if (!match) throw new Error("Missing Authorization Bearer token.");
+  const idToken = match[1];
+  const decoded = await admin.auth().verifyIdToken(idToken);
+  return decoded.uid;
+}
+
+/* ---------------- ACCESS CONTROL ---------------- */
+
+// Same membership resolution pattern as /api/geo/runDetail.js
+async function resolveWebsiteContext({ uid, websiteId }) {
+  const db = admin.firestore();
+
+  const userWebsiteRef = db.doc(`users/${uid}/websites/${websiteId}`);
+  const userWebsiteSnap = await userWebsiteRef.get();
+  if (!userWebsiteSnap.exists) {
+    const err = new Error("Website not found for this user.");
+    err.code = "WEBSITE_NOT_FOUND";
+    throw err;
+  }
+
+  const websiteData = userWebsiteSnap.data() || {};
+  const ownerUid = (websiteData.ownerUid || uid).trim();
+
+  if (ownerUid !== uid) {
+    const memberRef = db.doc(
+      `users/${ownerUid}/websites/${websiteId}/members/${uid}`
+    );
+    const memberSnap = await memberRef.get();
+    if (!memberSnap.exists) {
+      const err = new Error("NO_ACCESS");
+      err.code = "NO_ACCESS";
+      throw err;
+    }
+  }
+
+  return { ownerUid };
+}
+
+/* ---------------- OPENAI ---------------- */
+
+async function callOpenAIForFixes({ url, signals }) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    const err = new Error("OPENAI_API_KEY is missing.");
+    err.code = "OPENAI_KEY_MISSING";
+    throw err;
+  }
+
+  // Keep prompts small + deterministic. Output MUST be JSON only.
+  const system = `
+You are Vyndow GEO Fix Generator.
+Return ONLY valid JSON (no markdown, no commentary).
+Do NOT invent facts. If a fact is unknown, use a placeholder like {{ADD_DATE}} or {{ADD_ENTITY}}.
+No external links.
+Language: English.
+  `.trim();
+
+  const user = `
+We analyzed a web page for GEO readiness.
+
+URL: ${url}
+
+Signals:
+- title: ${JSON.stringify(signals.title || "")}
+- h1Count: ${Number(signals.h1Count || 0)}
+- h2Count: ${Number(signals.h2Count || 0)}
+- wordCount: ${Number(signals.wordCount || 0)}
+- jsonLdPresent: ${Boolean(signals.jsonLdPresent)}
+- updatedSignalFound: ${Boolean(signals.updatedSignalFound)}
+- geoScore: ${typeof signals.geoScore === "number" ? signals.geoScore : null}
+- issues: ${JSON.stringify(Array.isArray(signals.issues) ? signals.issues : [])}
+- suggestions: ${JSON.stringify(
+    Array.isArray(signals.suggestions) ? signals.suggestions : []
+  )}
+
+Task:
+Generate paste-ready improvement blocks for this page to improve GEO score.
+
+Return JSON with EXACT keys:
+{
+  "tldr": string,
+  "updatedReviewedSnippet": string,
+  "entityBlock": string,
+  "faqHtml": string,
+  "faqJsonLd": object
+}
+
+Rules:
+- updatedReviewedSnippet should be a small HTML snippet containing "Updated on" and/or "Reviewed on" with placeholders if needed.
+- entityBlock should be a short "Entities covered" block (HTML or plain text) listing important entities with placeholders if uncertain.
+- faqHtml should contain 4 to 6 FAQs in HTML (<section> or <div> is fine).
+- faqJsonLd must be valid FAQPage JSON-LD as an object (not a string).
+- Keep tldr to 2-4 bullets.
+  `.trim();
+
+  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      temperature: 0.2,
+    }),
+  });
+
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const msg =
+      data?.error?.message ||
+      `OpenAI error (status ${resp.status}) generating fixes`;
+    throw new Error(msg);
+  }
+
+  const text = data?.choices?.[0]?.message?.content || "";
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (e) {
+    // Sometimes models wrap JSON with whitespace; last try: trim
+    try {
+      parsed = JSON.parse(String(text).trim());
+    } catch (e2) {
+      throw new Error("MODEL_RETURNED_NON_JSON");
+    }
+  }
+
+  // Minimal shape validation
+  const required = [
+    "tldr",
+    "updatedReviewedSnippet",
+    "entityBlock",
+    "faqHtml",
+    "faqJsonLd",
+  ];
+  for (const k of required) {
+    if (!(k in parsed)) throw new Error(`MISSING_KEY_${k}`);
+  }
+
+  return parsed;
+}
+
+/* ---------------- HANDLER ---------------- */
+
+export default async function handler(req, res) {
+  try {
+    if (req.method !== "POST") {
+      return res.status(405).json({ ok: false, error: "Method not allowed" });
+    }
+
+    const uid = await getUidFromRequest(req);
+    const { runId, websiteId, pageId } = req.body || {};
+
+    if (!websiteId)
+      return res.status(400).json({ ok: false, error: "Missing websiteId" });
+    if (!runId)
+      return res.status(400).json({ ok: false, error: "Missing runId" });
+    if (!pageId)
+      return res.status(400).json({ ok: false, error: "Missing pageId" });
+
+    const { ownerUid } = await resolveWebsiteContext({ uid, websiteId });
+
+    const db = admin.firestore();
+
+    // Load + verify run ownership
+    const runRef = db.doc(`geoRuns/${runId}`);
+    const runSnap = await runRef.get();
+    if (!runSnap.exists) {
+      return res.status(404).json({ ok: false, error: "RUN_NOT_FOUND" });
+    }
+    const run = runSnap.data() || {};
+    if (run.ownerUid !== ownerUid || run.websiteId !== websiteId) {
+      return res.status(403).json({ ok: false, error: "NO_ACCESS_TO_RUN" });
+    }
+
+    // Load page
+    const pageRef = runRef.collection("pages").doc(pageId);
+    const pageSnap = await pageRef.get();
+    if (!pageSnap.exists) {
+      return res.status(404).json({ ok: false, error: "PAGE_NOT_FOUND" });
+    }
+
+    const page = pageSnap.data() || {};
+    if ((page.status || "") !== "analyzed") {
+      return res.status(400).json({
+        ok: false,
+        error: "PAGE_NOT_ANALYZED_YET",
+      });
+    }
+
+    const url = page.url || "";
+    if (!url) {
+      return res.status(400).json({ ok: false, error: "PAGE_URL_MISSING" });
+    }
+
+    const signals = {
+      title: page.title || "",
+      h1Count: page.h1Count || 0,
+      h2Count: page.h2Count || 0,
+      wordCount: page.wordCount || 0,
+      jsonLdPresent: Boolean(page.jsonLdPresent),
+      updatedSignalFound: Boolean(page.updatedSignalFound),
+      geoScore: typeof page.geoScore === "number" ? page.geoScore : null,
+      issues: Array.isArray(page.issues) ? page.issues : [],
+      suggestions: Array.isArray(page.suggestions) ? page.suggestions : [],
+    };
+
+    // Generate fixes
+    const fixes = await callOpenAIForFixes({ url, signals });
+
+    // Save fixes to Firestore
+    await pageRef.set(
+      {
+        fixes,
+        fixesGeneratedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Re-read updated doc to return to UI
+    const updatedSnap = await pageRef.get();
+    const updated = updatedSnap.data() || {};
+
+    // Return in the UI-friendly shape (id matches your UI usage)
+    return res.status(200).json({
+      ok: true,
+      page: {
+        id: pageId,
+        pageId,
+        url: updated.url || url,
+        status: updated.status || page.status,
+        geoScore: updated.geoScore ?? null,
+        issues: updated.issues ?? [],
+        suggestions: updated.suggestions ?? [],
+        fixes: updated.fixes ?? null,
+        fixesGeneratedAt: updated.fixesGeneratedAt ?? null,
+        updatedAt: updated.updatedAt ?? null,
+      },
+    });
+  } catch (e) {
+    console.error("GEO generateFix error:", e);
+    return res.status(400).json({ ok: false, error: e?.message || "Unknown error" });
+  }
+}
