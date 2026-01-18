@@ -192,12 +192,64 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.json({
-      ok: true,
-      runId,
-      analyzedCount: analyzed.length,
-      analyzed,
-    });
+// ---------- RUN-LEVEL AGGREGATION (Phase 3.4) ----------
+let sumScores = 0;
+let scoredPages = 0;
+
+for (const item of analyzed) {
+  if (typeof item.geoScore === "number") {
+    sumScores += item.geoScore;
+    scoredPages += 1;
+  }
+}
+
+const overallScore = scoredPages > 0 ? Math.round(sumScores / scoredPages) : 0;
+
+// Count critical issues across analyzed pages (simple v1 rule)
+let criticalIssuesCount = 0;
+
+// Read back the analyzed page docs we just wrote (only for these pages)
+for (const item of analyzed) {
+  // We don't have pageId in the response list here, so we approximate critical count from score.
+  // v1 rule: score < 50 => 1 critical flag
+  if (typeof item.geoScore === "number" && item.geoScore < 50) {
+    criticalIssuesCount += 1;
+  }
+}
+
+// Count failed pages in this run (status == failed)
+const failedSnap = await pagesRef.where("status", "==", "failed").get();
+const pagesFailed = failedSnap.size;
+
+// Count analyzed pages in this run (status == analyzed)
+const analyzedSnap = await pagesRef.where("status", "==", "analyzed").get();
+const pagesAnalyzed = analyzedSnap.size;
+
+// Write run summary onto geoRuns/{runId}
+await runDoc.ref.set(
+  {
+    overallScore,
+    pagesAnalyzed,
+    pagesFailed,
+    criticalIssuesCount,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  { merge: true }
+);
+
+return res.json({
+  ok: true,
+  runId,
+  analyzedCount: analyzed.length,
+  analyzed,
+  runSummary: {
+    overallScore,
+    pagesAnalyzed,
+    pagesFailed,
+    criticalIssuesCount,
+  },
+});
+
   } catch (e) {
     console.error(e);
     return res.status(400).json({ ok: false, error: e.message });
