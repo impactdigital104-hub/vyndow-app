@@ -205,14 +205,17 @@ setGeneratingPageId(pid);
       }
 
       // Expect API to return an updated page doc
-      if (data.page) {
-        setPages((prev) =>
-          (Array.isArray(prev) ? prev : []).map((p) =>
-            p.id === data.page.id ? data.page : p
-          )
-        );
-     setExpandedFixByPageId((prev) => ({ ...prev, [pid]: true }));
-      }
+if (data.page) {
+  setPages((prev) =>
+    (Array.isArray(prev) ? prev : []).map((p) => {
+      const left = p?.id || p?.pageId;
+      const right = data?.page?.id || data?.page?.pageId;
+      return left === right ? { ...p, ...data.page } : p;
+    })
+  );
+
+  setExpandedFixByPageId((prev) => ({ ...prev, [pid]: true }));
+}
     } catch (e) {
       setGenerateErrorByPageId((prev) => ({
         ...prev,
@@ -398,9 +401,10 @@ function isAnalyzedStatus(s) {
 </button>
 
 
-  {generateErrorByPageId?.[p.id] ? (
+{generateErrorByPageId?.[p.id || p.pageId] ? (
     <div style={{ marginTop: 8, color: "#b91c1c", fontSize: 12 }}>
-      {generateErrorByPageId[p.id]}
+{generateErrorByPageId[p.id || p.pageId]}
+
     </div>
   ) : null}
 
@@ -408,17 +412,21 @@ function isAnalyzedStatus(s) {
     <button
       className="btn btn-secondary"
       style={{ padding: "6px 10px", fontSize: 12, opacity: 0.9 }}
-      onClick={() =>
-        setExpandedFixByPageId((prev) => ({ ...prev, [p.id]: !prev?.[p.id] }))
-      }
+onClick={() =>
+  setExpandedFixByPageId((prev) => ({
+    ...prev,
+    [p.id || p.pageId]: !prev?.[p.id || p.pageId],
+  }))
+}
+
       type="button"
     >
-      {expandedFixByPageId?.[p.id] ? "Hide Fix Output" : "Show Fix Output"}
+{expandedFixByPageId?.[p.id || p.pageId] ? "Hide Fix Output" : "Show Fix Output"}
     </button>
   </div>
 </td>
                           </tr>
-{expandedFixByPageId?.[p.id] ? (
+{expandedFixByPageId?.[p.id || p.pageId] ? (
   <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
     <td colSpan={3} style={{ padding: "10px 8px", background: "#fafafa" }}>
       <div style={{ fontWeight: 800, marginBottom: 6 }}>Fix Output</div>
