@@ -13,13 +13,78 @@ async function getUidFromRequest(req) {
   return decoded.uid;
 }
 
+function safeTextFromHtml(html) {
+  if (!html) return "";
+  // Remove scripts/styles then strip tags
+  const noScripts = html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ");
+  const text = noScripts.replace(/<[^>]+>/g, " ");
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function countTag(html, tag) {
+  if (!html) return 0;
+  const re = new RegExp(`<${tag}(\\s|>)`, "gi");
+  const matches = html.match(re);
+  return matches ? matches.length : 0;
+}
+
+function extractTitle(html) {
+  if (!html) return "";
+  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (!m) return "";
+  return m[1].replace(/\s+/g, " ").trim().slice(0, 200);
+}
+
+function hasJsonLd(html) {
+  if (!html) return false;
+  return /<script[^>]+type=["']application\/ld\+json["'][^>]*>/i.test(html);
+}
+
+function detectUpdatedSignal(text) {
+  if (!text) return false;
+  return /(updated on|last updated|reviewed on|updated:|last modified)/i.test(text);
+}
+
+async function fetchWithTimeout(url, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const resp = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        // Mildly "browser-like" without being fancy
+        "User-Agent":
+          "Mozilla/5.0 (compatible; VyndowGEO/1.0; +https://vyndow.com)",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+    });
+
+    const contentType = resp.headers.get("content-type") || "";
+    const html = await resp.text();
+
+    return {
+      ok: resp.ok,
+      status: resp.status,
+      contentType,
+      html,
+    };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ ok: false, error: "Method not allowed" });
     }
 
-    // Auth check (keeps this endpoint private)
+    // Auth check (keeps endpoint private)
     await getUidFromRequest(req);
 
     const db = admin.firestore();
@@ -39,6 +104,7 @@ export default async function handler(req, res) {
         ok: true,
         message: "No queued runs found.",
         claimedCount: 0,
+        analyzedCount: 0,
       });
     }
 
@@ -54,7 +120,7 @@ export default async function handler(req, res) {
       { merge: true }
     );
 
-    // 3) Claim queued pages for this run
+    // 3) Claim queued pages for this run (queued -> fetching)
     const pagesRef = db.collection("geoRuns").doc(runId).collection("pages");
 
     const pagesSnap = await pagesRef
@@ -64,32 +130,24 @@ export default async function handler(req, res) {
       .get();
 
     if (pagesSnap.empty) {
-      // If no pages are queued, finish the run safely
-      await runDoc.ref.set(
-        {
-          status: "completed",
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-
       return res.status(200).json({
         ok: true,
         runId,
-        message: "Run had no queued pages; marked completed.",
+        message: "No queued pages left for this run.",
         claimedCount: 0,
-        claimedPages: [],
+        analyzedCount: 0,
       });
     }
 
     const claimedPages = [];
-    const batch = db.batch();
+    const claimBatch = db.batch();
 
     for (const p of pagesSnap.docs) {
       const data = p.data() || {};
-      claimedPages.push({ pageId: p.id, url: data.url || "" });
+      const url = data.url || "";
+      claimedPages.push({ pageId: p.id, url });
 
-      batch.set(
+      claimBatch.set(
         p.ref,
         {
           status: "fetching",
@@ -99,13 +157,86 @@ export default async function handler(req, res) {
       );
     }
 
-    await batch.commit();
+    await claimBatch.commit();
+
+    // 4) Fetch + extract signals for each claimed page, then mark analyzed
+    const analyzedPages = [];
+
+    for (const p of claimedPages) {
+      const pageRef = pagesRef.doc(p.pageId);
+
+      if (!p.url) {
+        await pageRef.set(
+          {
+            status: "failed",
+            error: "Missing URL on page doc",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+        continue;
+      }
+
+      try {
+        const fetched = await fetchWithTimeout(p.url, 12000);
+
+        const title = extractTitle(fetched.html);
+        const h1Count = countTag(fetched.html, "h1");
+        const h2Count = countTag(fetched.html, "h2");
+        const h3Count = countTag(fetched.html, "h3");
+
+        const text = safeTextFromHtml(fetched.html);
+        const wordCount = text ? text.split(" ").filter(Boolean).length : 0;
+
+        const jsonLdPresent = hasJsonLd(fetched.html);
+        const updatedSignalFound = detectUpdatedSignal(text);
+
+        await pageRef.set(
+          {
+            status: "analyzed",
+            fetchedAt: admin.firestore.FieldValue.serverTimestamp(),
+            httpStatus: fetched.status,
+            contentType: fetched.contentType,
+            title,
+            h1Count,
+            h2Count,
+            h3Count,
+            wordCount,
+            jsonLdPresent,
+            updatedSignalFound,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        analyzedPages.push({
+          pageId: p.pageId,
+          url: p.url,
+          httpStatus: fetched.status,
+          wordCount,
+          h1Count,
+          h2Count,
+          jsonLdPresent,
+          updatedSignalFound,
+        });
+      } catch (err) {
+        await pageRef.set(
+          {
+            status: "failed",
+            error: err?.message || "Fetch failed",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+    }
 
     return res.status(200).json({
       ok: true,
       runId,
       claimedCount: claimedPages.length,
-      claimedPages,
+      analyzedCount: analyzedPages.length,
+      analyzedPages,
     });
   } catch (e) {
     console.error("GEO worker process error:", e);
