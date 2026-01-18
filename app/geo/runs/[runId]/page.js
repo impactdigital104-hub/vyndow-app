@@ -382,14 +382,19 @@ function isAnalyzedStatus(s) {
                               {normalizeStatus(p.status) || "—"}
                             </td>
                               <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }}>
-  <button
-    className="btn btn-secondary"
-    disabled={generatingPageId === p.id || !isAnalyzedStatus(p.status)}
-    onClick={() => handleGenerateFix(p)}
+<button
+  className="btn btn-secondary"
+  disabled={generatingPageId === p.id || !isAnalyzedStatus(p.status)}
+  onClick={() => handleGenerateFix(p)}
+  title={
+    !isAnalyzedStatus(p.status)
+      ? "Fix can be generated after analysis is complete."
+      : ""
+  }
+>
+  {generatingPageId === p.id ? "Generating…" : "Generate Fix"}
+</button>
 
-  >title={!isAnalyzedStatus(p.status) ? "Fix can be generated after analysis is complete." : ""}
-    {generatingPageId === p.id ? "Generating…" : "Generate Fix"}
-  </button>
 
   {generateErrorByPageId?.[p.id] ? (
     <div style={{ marginTop: 8, color: "#b91c1c", fontSize: 12 }}>
