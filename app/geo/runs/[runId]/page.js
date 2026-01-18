@@ -176,11 +176,13 @@ export default function GeoRunDetailPage() {
   }, [authReady, runId, websiteId, run, pages]);
 
   async function handleGenerateFix(page) {
-    if (!page?.id) return;
+ const pid = page?.id || page?.pageId;
+if (!pid) return;
+
 
     try {
-      setGeneratingPageId(page.id);
-      setGenerateErrorByPageId((prev) => ({ ...prev, [page.id]: "" }));
+setGeneratingPageId(pid);
+      setGenerateErrorByPageId((prev) => ({ ...prev, [pid]: "" }));
 
       const token = await auth.currentUser.getIdToken();
 
@@ -193,7 +195,7 @@ export default function GeoRunDetailPage() {
         body: JSON.stringify({
           runId,
           websiteId,
-          pageId: page.id,
+          pageId: pid,
         }),
       });
 
@@ -209,12 +211,12 @@ export default function GeoRunDetailPage() {
             p.id === data.page.id ? data.page : p
           )
         );
-        setExpandedFixByPageId((prev) => ({ ...prev, [page.id]: true }));
+     setExpandedFixByPageId((prev) => ({ ...prev, [pid]: true }));
       }
     } catch (e) {
       setGenerateErrorByPageId((prev) => ({
         ...prev,
-        [page.id]: e?.message || "Unknown error generating fix",
+   [pid]: e?.message || "Unknown error generating fix",
       }));
     } finally {
       setGeneratingPageId(null);
@@ -384,7 +386,7 @@ function isAnalyzedStatus(s) {
                               <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }}>
 <button
   className="btn btn-secondary"
-  disabled={generatingPageId === p.id || !isAnalyzedStatus(p.status)}
+ disabled={generatingPageId === (p.id || p.pageId) || !isAnalyzedStatus(p.status)}
   onClick={() => handleGenerateFix(p)}
   title={
     !isAnalyzedStatus(p.status)
@@ -392,7 +394,7 @@ function isAnalyzedStatus(s) {
       : ""
   }
 >
-  {generatingPageId === p.id ? "Generating…" : "Generate Fix"}
+{generatingPageId === (p.id || p.pageId) ? "Generating…" : "Generate Fix"}
 </button>
 
 
