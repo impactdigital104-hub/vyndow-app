@@ -226,6 +226,17 @@ export default function GeoRunDetailPage() {
     // keep stable, but if you later add "createdAt" you can sort here
     return arr;
   }, [pages]);
+  // ---------- GEO STATUS HELPERS (DO NOT EDIT) ----------
+function normalizeStatus(s) {
+  return String(s || "").toLowerCase().trim();
+}
+
+function isAnalyzedStatus(s) {
+  const x = normalizeStatus(s);
+  return x === "analyzed" || x === "analysed";
+}
+// -----------------------------------------------------
+
 
   if (!authReady) {
     return (
@@ -368,15 +379,15 @@ export default function GeoRunDetailPage() {
                               </a>
                             </td>
                             <td style={{ padding: "10px 8px" }}>
-                              {p.status || "—"}
+                              {normalizeStatus(p.status) || "—"}
                             </td>
                               <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }}>
   <button
     className="btn btn-secondary"
-    disabled={generatingPageId === p.id || p.status !== "analyzed"}
+    disabled={generatingPageId === p.id || !isAnalyzedStatus(p.status)}
     onClick={() => handleGenerateFix(p)}
-    title={p.status !== "analyzed" ? "Fix can be generated after analysis is complete." : ""}
-  >
+
+  >title={!isAnalyzedStatus(p.status) ? "Fix can be generated after analysis is complete." : ""}
     {generatingPageId === p.id ? "Generating…" : "Generate Fix"}
   </button>
 
