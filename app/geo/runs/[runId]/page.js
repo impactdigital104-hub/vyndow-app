@@ -388,7 +388,7 @@ function isAnalyzedStatus(s) {
                             </td>
                               <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }}>
 <button
-  className="btn btn-secondary"
+ className="btn btn-primary"
  disabled={generatingPageId === (p.id || p.pageId) || !isAnalyzedStatus(p.status)}
   onClick={() => handleGenerateFix(p)}
   title={
