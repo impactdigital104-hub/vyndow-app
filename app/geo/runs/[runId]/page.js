@@ -238,13 +238,14 @@ export default function GeoRunDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sortedPages.map((p) => (
-                          <tr
-                            key={p.id || p.url}
-                            style={{
-                              borderBottom: "1px solid #f3f4f6",
-                            }}
-                          >
+{sortedPages.map((p) => (
+  <>
+    <tr
+      key={p.id || p.url}
+      style={{
+        borderBottom: "1px solid #f3f4f6",
+      }}
+    >
                             <td style={{ padding: "10px 8px" }}>
                               <a
                                 href={p.url}
@@ -316,7 +317,8 @@ export default function GeoRunDetailPage() {
     </td>
   </tr>
 ) : null}
-                        ))}
+  </>
+))}
                       </tbody>
                     </table>
                   </div>
