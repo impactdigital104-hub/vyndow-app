@@ -21,6 +21,11 @@ export default function GeoRunDetailPage() {
   const [error, setError] = useState("");
   const [run, setRun] = useState(null);
   const [pages, setPages] = useState([]);
+    // Phase 3 auto-worker (make analysis automatic on this page)
+  const [autoWorkerRunning, setAutoWorkerRunning] = useState(false);
+  const [autoWorkerMsg, setAutoWorkerMsg] = useState("");
+  const [autoWorkerErr, setAutoWorkerErr] = useState("");
+
 
   // Phase 4 UI state (Generate Fix)
   const [generatingPageId, setGeneratingPageId] = useState(null);
@@ -40,9 +45,32 @@ export default function GeoRunDetailPage() {
     return () => (typeof unsub === "function" ? unsub() : undefined);
   }, [router]);
 
+   async function refreshRunDetail() {
+    if (!authReady) return;
+    if (!runId) return;
+
+    const token = await auth.currentUser.getIdToken();
+    const resp = await fetch("/api/geo/runDetail", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ runId, websiteId }),
+    });
+
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data?.ok) {
+      throw new Error(data?.error || "Failed to load run detail");
+    }
+
+    setRun(data.run || null);
+    setPages(Array.isArray(data.pages) ? data.pages : []);
+  }
+
   // Load run detail
   useEffect(() => {
-    async function loadRunDetail() {
+    async function load() {
       if (!authReady) return;
       if (!runId) return;
 
@@ -52,23 +80,7 @@ export default function GeoRunDetailPage() {
         setRun(null);
         setPages([]);
 
-        const token = await auth.currentUser.getIdToken();
-        const resp = await fetch("/api/geo/runDetail", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ runId, websiteId }),
-        });
-
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || !data?.ok) {
-          throw new Error(data?.error || "Failed to load run detail");
-        }
-
-        setRun(data.run || null);
-        setPages(Array.isArray(data.pages) ? data.pages : []);
+        await refreshRunDetail();
       } catch (e) {
         setError(e?.message || "Unknown error loading run detail.");
       } finally {
@@ -76,8 +88,93 @@ export default function GeoRunDetailPage() {
       }
     }
 
-    loadRunDetail();
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady, runId, websiteId]);
+
+  // Auto-trigger Phase 3 worker while pages are queued/processing.
+  // This makes "Create Audit Run" feel automatic: user lands here and it starts moving.
+  useEffect(() => {
+    if (!authReady) return;
+    if (!runId) return;
+    if (!websiteId) return;
+    if (!run) return;
+    if (!Array.isArray(pages) || pages.length === 0) return;
+
+    const unfinished = pages.filter((p) =>
+      ["queued", "fetching", "processing"].includes(
+        String(p.status || "").toLowerCase()
+      )
+    );
+
+    // Stop if everything is done
+    if (unfinished.length === 0) {
+      setAutoWorkerMsg("Analysis complete.");
+      setAutoWorkerErr("");
+      setAutoWorkerRunning(false);
+      return;
+    }
+
+    // If worker is already running, don't start another
+    if (autoWorkerRunning) return;
+
+    let cancelled = false;
+
+    async function tick() {
+      try {
+        setAutoWorkerRunning(true);
+        setAutoWorkerErr("");
+        setAutoWorkerMsg(
+          `Analyzing… ${pages.length - unfinished.length}/${pages.length} completed`
+        );
+
+        const token = await auth.currentUser.getIdToken();
+
+        const resp = await fetch("/api/geo/worker/process", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({}),
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) {
+          throw new Error(data?.error || "Worker failed");
+        }
+
+        // Refresh run detail after worker does a pass
+        await refreshRunDetail();
+
+        if (!cancelled) {
+          setAutoWorkerMsg(
+            data?.message ||
+              `Worker ran. Analyzed: ${data?.analyzedCount ?? 0} page(s).`
+          );
+        }
+      } catch (e) {
+        if (!cancelled) setAutoWorkerErr(e?.message || "Worker error");
+      } finally {
+        if (!cancelled) setAutoWorkerRunning(false);
+      }
+    }
+
+    // Run one pass now
+    tick();
+
+    // Poll every 4 seconds until done (safe + simple)
+    const interval = setInterval(() => {
+      if (!cancelled) tick();
+    }, 4000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, runId, websiteId, run, pages]);
+
   async function handleGenerateFix(page) {
     if (!page?.id) return;
 
@@ -168,6 +265,20 @@ export default function GeoRunDetailPage() {
             ← Back to Runs
           </button>
         </header>
+        {(autoWorkerMsg || autoWorkerErr) ? (
+          <div style={{ marginTop: 10 }}>
+            {autoWorkerMsg ? (
+              <div style={{ fontSize: 13, opacity: 0.9 }}>
+                {autoWorkerMsg} {autoWorkerRunning ? "⏳" : ""}
+              </div>
+            ) : null}
+            {autoWorkerErr ? (
+              <div style={{ marginTop: 6, color: "#b91c1c", fontSize: 13 }}>
+                {autoWorkerErr}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <section className="inputs-section">
           <div className="output-card" style={{ width: "100%" }}>
