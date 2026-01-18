@@ -22,6 +22,12 @@ export default function GeoRunDetailPage() {
   const [run, setRun] = useState(null);
   const [pages, setPages] = useState([]);
 
+  // Phase 4 UI state (Generate Fix)
+  const [generatingPageId, setGeneratingPageId] = useState(null);
+  const [generateErrorByPageId, setGenerateErrorByPageId] = useState({});
+  const [expandedFixByPageId, setExpandedFixByPageId] = useState({});
+
+
   // Auth gate
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -72,6 +78,51 @@ export default function GeoRunDetailPage() {
 
     loadRunDetail();
   }, [authReady, runId, websiteId]);
+  async function handleGenerateFix(page) {
+    if (!page?.id) return;
+
+    try {
+      setGeneratingPageId(page.id);
+      setGenerateErrorByPageId((prev) => ({ ...prev, [page.id]: "" }));
+
+      const token = await auth.currentUser.getIdToken();
+
+      const resp = await fetch("/api/geo/generateFix", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          runId,
+          websiteId,
+          pageId: page.id,
+        }),
+      });
+
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) {
+        throw new Error(data?.error || "Failed to generate fix");
+      }
+
+      // Expect API to return an updated page doc
+      if (data.page) {
+        setPages((prev) =>
+          (Array.isArray(prev) ? prev : []).map((p) =>
+            p.id === data.page.id ? data.page : p
+          )
+        );
+        setExpandedFixByPageId((prev) => ({ ...prev, [page.id]: true }));
+      }
+    } catch (e) {
+      setGenerateErrorByPageId((prev) => ({
+        ...prev,
+        [page.id]: e?.message || "Unknown error generating fix",
+      }));
+    } finally {
+      setGeneratingPageId(null);
+    }
+  }
 
   const sortedPages = useMemo(() => {
     const arr = Array.isArray(pages) ? [...pages] : [];
@@ -183,6 +234,7 @@ export default function GeoRunDetailPage() {
                         >
                           <th style={{ padding: "10px 8px" }}>URL</th>
                           <th style={{ padding: "10px 8px" }}>Status</th>
+                          <th style={{ padding: "10px 8px" }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -206,7 +258,64 @@ export default function GeoRunDetailPage() {
                             <td style={{ padding: "10px 8px" }}>
                               {p.status || "—"}
                             </td>
+                              <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }}>
+  <button
+    className="btn btn-secondary"
+    disabled={generatingPageId === p.id || p.status !== "analyzed"}
+    onClick={() => handleGenerateFix(p)}
+    title={p.status !== "analyzed" ? "Fix can be generated after analysis is complete." : ""}
+  >
+    {generatingPageId === p.id ? "Generating…" : "Generate Fix"}
+  </button>
+
+  {generateErrorByPageId?.[p.id] ? (
+    <div style={{ marginTop: 8, color: "#b91c1c", fontSize: 12 }}>
+      {generateErrorByPageId[p.id]}
+    </div>
+  ) : null}
+
+  <div style={{ marginTop: 8 }}>
+    <button
+      className="btn btn-secondary"
+      style={{ padding: "6px 10px", fontSize: 12, opacity: 0.9 }}
+      onClick={() =>
+        setExpandedFixByPageId((prev) => ({ ...prev, [p.id]: !prev?.[p.id] }))
+      }
+      type="button"
+    >
+      {expandedFixByPageId?.[p.id] ? "Hide Fix Output" : "Show Fix Output"}
+    </button>
+  </div>
+</td>
                           </tr>
+{expandedFixByPageId?.[p.id] ? (
+  <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
+    <td colSpan={3} style={{ padding: "10px 8px", background: "#fafafa" }}>
+      <div style={{ fontWeight: 800, marginBottom: 6 }}>Fix Output</div>
+
+      {p?.fixes ? (
+        <pre
+          style={{
+            margin: 0,
+            padding: 12,
+            border: "1px solid #eee",
+            borderRadius: 8,
+            overflowX: "auto",
+            fontSize: 12,
+            lineHeight: 1.4,
+            background: "white",
+          }}
+        >
+          {JSON.stringify(p.fixes, null, 2)}
+        </pre>
+      ) : (
+        <div style={{ opacity: 0.75, fontSize: 13 }}>
+          No fixes saved yet for this page. Click “Generate Fix”.
+        </div>
+      )}
+    </td>
+  </tr>
+) : null}
                         ))}
                       </tbody>
                     </table>
