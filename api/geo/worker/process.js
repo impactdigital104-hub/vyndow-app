@@ -2,75 +2,115 @@
 
 import admin from "../../firebaseAdmin";
 
-// Same auth pattern as /api/geo/run.js
+/* ---------------- AUTH ---------------- */
+
 async function getUidFromRequest(req) {
   const authHeader = req.headers.authorization || "";
   const match = authHeader.match(/^Bearer (.+)$/);
   if (!match) throw new Error("Missing Authorization Bearer token.");
-
   const idToken = match[1];
   const decoded = await admin.auth().verifyIdToken(idToken);
   return decoded.uid;
 }
 
+/* ---------------- HELPERS ---------------- */
+
 function safeTextFromHtml(html) {
   if (!html) return "";
-  // Remove scripts/styles then strip tags
-  const noScripts = html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ");
-  const text = noScripts.replace(/<[^>]+>/g, " ");
-  return text.replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function countTag(html, tag) {
   if (!html) return 0;
   const re = new RegExp(`<${tag}(\\s|>)`, "gi");
-  const matches = html.match(re);
-  return matches ? matches.length : 0;
+  return (html.match(re) || []).length;
 }
 
 function extractTitle(html) {
-  if (!html) return "";
-  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  if (!m) return "";
-  return m[1].replace(/\s+/g, " ").trim().slice(0, 200);
+  const m = html?.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return m ? m[1].trim().slice(0, 200) : "";
 }
 
 function hasJsonLd(html) {
-  if (!html) return false;
-  return /<script[^>]+type=["']application\/ld\+json["'][^>]*>/i.test(html);
+  return /application\/ld\+json/i.test(html || "");
 }
 
 function detectUpdatedSignal(text) {
-  if (!text) return false;
-  return /(updated on|last updated|reviewed on|updated:|last modified)/i.test(text);
+  return /(updated on|last updated|reviewed on|last modified)/i.test(text || "");
 }
 
-async function fetchWithTimeout(url, timeoutMs = 12000) {
+/* ---------------- GEO SCORING (v1) ---------------- */
+
+function computeGeoScore(signals) {
+  let score = 0;
+  const issues = [];
+  const suggestions = [];
+
+  if (signals.httpStatus === 200) score += 10;
+  else issues.push("Page did not return HTTP 200");
+
+  if (signals.title) score += 10;
+  else {
+    issues.push("Missing <title>");
+    suggestions.push("Add a clear SEO-friendly title tag");
+  }
+
+  if (signals.h1Count >= 1) score += 10;
+  else {
+    issues.push("No H1 heading found");
+    suggestions.push("Add one clear H1 heading");
+  }
+
+  if (signals.h2Count >= 1) score += 10;
+  else {
+    issues.push("No H2 headings found");
+    suggestions.push("Add supporting H2 subheadings");
+  }
+
+  if (signals.wordCount >= 800) score += 15;
+  else if (signals.wordCount < 300) {
+    score -= 10;
+    issues.push("Very low word count");
+    suggestions.push("Expand content depth (800+ words recommended)");
+  }
+
+  if (signals.jsonLdPresent) score += 15;
+  else {
+    issues.push("No JSON-LD structured data found");
+    suggestions.push("Add FAQ or Article schema using JSON-LD");
+  }
+
+  if (signals.updatedSignalFound) score += 15;
+  else {
+    issues.push("No visible freshness signal");
+    suggestions.push("Add an 'Updated on' or 'Reviewed on' date");
+  }
+
+  if (score < 0) score = 0;
+  if (score > 100) score = 100;
+
+  return { score, issues, suggestions };
+}
+
+/* ---------------- FETCH ---------------- */
+
+async function fetchPage(url) {
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), timeoutMs);
+  const t = setTimeout(() => controller.abort(), 12000);
 
   try {
-    const resp = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
+    const r = await fetch(url, {
+      headers: { "User-Agent": "VyndowGEO/1.0" },
       signal: controller.signal,
-      headers: {
-        // Mildly "browser-like" without being fancy
-        "User-Agent":
-          "Mozilla/5.0 (compatible; VyndowGEO/1.0; +https://vyndow.com)",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
     });
-
-    const contentType = resp.headers.get("content-type") || "";
-    const html = await resp.text();
-
+    const html = await r.text();
     return {
-      ok: resp.ok,
-      status: resp.status,
-      contentType,
+      httpStatus: r.status,
       html,
     };
   } finally {
@@ -78,20 +118,17 @@ async function fetchWithTimeout(url, timeoutMs = 12000) {
   }
 }
 
+/* ---------------- HANDLER ---------------- */
+
 export default async function handler(req, res) {
   try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ ok: false, error: "Method not allowed" });
-    }
+    if (req.method !== "POST")
+      return res.status(405).json({ ok: false });
 
-    // Auth check (keeps endpoint private)
     await getUidFromRequest(req);
 
     const db = admin.firestore();
-    const batchSize =
-      typeof req.body?.batchSize === "number" ? req.body.batchSize : 3;
 
-    // 1) Find the oldest queued run
     const runsSnap = await db
       .collection("geoRuns")
       .where("status", "==", "queued")
@@ -99,150 +136,70 @@ export default async function handler(req, res) {
       .limit(1)
       .get();
 
-    if (runsSnap.empty) {
-      return res.status(200).json({
-        ok: true,
-        message: "No queued runs found.",
-        claimedCount: 0,
-        analyzedCount: 0,
-      });
-    }
+    if (runsSnap.empty)
+      return res.json({ ok: true, message: "No queued runs found." });
 
     const runDoc = runsSnap.docs[0];
     const runId = runDoc.id;
 
-    // 2) Mark run as processing
-    await runDoc.ref.set(
-      {
-        status: "processing",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+    await runDoc.ref.update({
+      status: "processing",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
-    // 3) Claim queued pages for this run (queued -> fetching)
-    const pagesRef = db.collection("geoRuns").doc(runId).collection("pages");
+    const pagesRef = runDoc.ref.collection("pages");
 
     const pagesSnap = await pagesRef
       .where("status", "==", "queued")
-      .orderBy("createdAt", "asc")
-      .limit(batchSize)
+      .limit(3)
       .get();
 
-    if (pagesSnap.empty) {
-      return res.status(200).json({
-        ok: true,
-        runId,
-        message: "No queued pages left for this run.",
-        claimedCount: 0,
-        analyzedCount: 0,
+    const analyzed = [];
+
+    for (const p of pagesSnap.docs) {
+      const url = p.data().url;
+      if (!url) continue;
+
+      await p.ref.update({ status: "fetching" });
+
+      const fetched = await fetchPage(url);
+      const text = safeTextFromHtml(fetched.html);
+
+      const signals = {
+        httpStatus: fetched.httpStatus,
+        title: extractTitle(fetched.html),
+        h1Count: countTag(fetched.html, "h1"),
+        h2Count: countTag(fetched.html, "h2"),
+        wordCount: text.split(" ").length,
+        jsonLdPresent: hasJsonLd(fetched.html),
+        updatedSignalFound: detectUpdatedSignal(text),
+      };
+
+      const scoring = computeGeoScore(signals);
+
+      await p.ref.update({
+        status: "analyzed",
+        ...signals,
+        geoScore: scoring.score,
+        issues: scoring.issues,
+        suggestions: scoring.suggestions,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      analyzed.push({
+        url,
+        geoScore: scoring.score,
       });
     }
 
-    const claimedPages = [];
-    const claimBatch = db.batch();
-
-    for (const p of pagesSnap.docs) {
-      const data = p.data() || {};
-      const url = data.url || "";
-      claimedPages.push({ pageId: p.id, url });
-
-      claimBatch.set(
-        p.ref,
-        {
-          status: "fetching",
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-    }
-
-    await claimBatch.commit();
-
-    // 4) Fetch + extract signals for each claimed page, then mark analyzed
-    const analyzedPages = [];
-
-    for (const p of claimedPages) {
-      const pageRef = pagesRef.doc(p.pageId);
-
-      if (!p.url) {
-        await pageRef.set(
-          {
-            status: "failed",
-            error: "Missing URL on page doc",
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-        continue;
-      }
-
-      try {
-        const fetched = await fetchWithTimeout(p.url, 12000);
-
-        const title = extractTitle(fetched.html);
-        const h1Count = countTag(fetched.html, "h1");
-        const h2Count = countTag(fetched.html, "h2");
-        const h3Count = countTag(fetched.html, "h3");
-
-        const text = safeTextFromHtml(fetched.html);
-        const wordCount = text ? text.split(" ").filter(Boolean).length : 0;
-
-        const jsonLdPresent = hasJsonLd(fetched.html);
-        const updatedSignalFound = detectUpdatedSignal(text);
-
-        await pageRef.set(
-          {
-            status: "analyzed",
-            fetchedAt: admin.firestore.FieldValue.serverTimestamp(),
-            httpStatus: fetched.status,
-            contentType: fetched.contentType,
-            title,
-            h1Count,
-            h2Count,
-            h3Count,
-            wordCount,
-            jsonLdPresent,
-            updatedSignalFound,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-
-        analyzedPages.push({
-          pageId: p.pageId,
-          url: p.url,
-          httpStatus: fetched.status,
-          wordCount,
-          h1Count,
-          h2Count,
-          jsonLdPresent,
-          updatedSignalFound,
-        });
-      } catch (err) {
-        await pageRef.set(
-          {
-            status: "failed",
-            error: err?.message || "Fetch failed",
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-      }
-    }
-
-    return res.status(200).json({
+    return res.json({
       ok: true,
       runId,
-      claimedCount: claimedPages.length,
-      analyzedCount: analyzedPages.length,
-      analyzedPages,
+      analyzedCount: analyzed.length,
+      analyzed,
     });
   } catch (e) {
-    console.error("GEO worker process error:", e);
-    return res.status(400).json({
-      ok: false,
-      error: e?.message || "Unknown error",
-    });
+    console.error(e);
+    return res.status(400).json({ ok: false, error: e.message });
   }
 }
