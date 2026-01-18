@@ -68,17 +68,24 @@ export default async function handler(req, res) {
       return res.status(403).json({ ok: false, error: "NO_ACCESS_TO_RUN" });
     }
 
-    const pagesSnap = await runRef.collection("pages").orderBy("createdAt", "asc").get();
-    const pages = pagesSnap.docs.map((d) => {
-      const p = d.data() || {};
-      return {
-        pageId: d.id,
-        url: p.url || "",
-        status: p.status || "unknown",
-        createdAt: p.createdAt || null,
-        updatedAt: p.updatedAt || null,
-      };
-    });
+const pagesSnap = await runRef.collection("pages").orderBy("createdAt", "asc").get();
+const pages = pagesSnap.docs.map((d) => {
+  const p = d.data() || {};
+  return {
+    pageId: d.id,
+    url: p.url || "",
+    status: p.status || "unknown",
+
+    // ✅ These are the missing audit fields (needed for View Audit + GEO Score column)
+    geoScore: typeof p.geoScore === "number" ? p.geoScore : null,
+    issues: Array.isArray(p.issues) ? p.issues : [],
+    suggestions: Array.isArray(p.suggestions) ? p.suggestions : [],
+
+    createdAt: p.createdAt || null,
+    updatedAt: p.updatedAt || null,
+  };
+});
+
 
     return res.status(200).json({
       ok: true,
