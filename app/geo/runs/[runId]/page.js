@@ -32,6 +32,63 @@ export default function GeoRunDetailPage() {
   const [generateErrorByPageId, setGenerateErrorByPageId] = useState({});
   const [expandedFixByPageId, setExpandedFixByPageId] = useState({});
   const [expandedAuditByPageId, setExpandedAuditByPageId] = useState({});
+    // Phase 4 Part C UI state (Fix Output accordion + copy feedback)
+  const [openFixSectionByPageId, setOpenFixSectionByPageId] = useState({});
+  const [copiedByKey, setCopiedByKey] = useState({});
+
+  function setCopied(pid, section) {
+    const key = `${pid}:${section}`;
+    setCopiedByKey((prev) => ({ ...prev, [key]: true }));
+    setTimeout(() => {
+      setCopiedByKey((prev) => ({ ...prev, [key]: false }));
+    }, 1200);
+  }
+
+  async function copyToClipboard(text, pid, section) {
+    try {
+      const value = String(text || "");
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        // Fallback
+        const ta = document.createElement("textarea");
+        ta.value = value;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "absolute";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopied(pid, section);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function hasPlaceholders(str) {
+    return /\{\{[^}]+\}\}/.test(String(str || ""));
+  }
+
+  function renderPlaceholderNote(text) {
+    return hasPlaceholders(text) ? (
+      <div style={{ marginTop: 8, fontSize: 12, color: "#92400e" }}>
+        Note: Replace placeholders like <code>{{"{{ADD_DATE}}"}}</code> before publishing.
+      </div>
+    ) : null;
+  }
+
+  function parseTldrToBullets(tldr) {
+    const raw = String(tldr || "");
+    const lines = raw
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => l.replace(/^[-*•]\s*/, ""));
+    return lines.length ? lines : raw ? [raw] : [];
+  }
+
 
 
 
@@ -219,6 +276,8 @@ if (data.page) {
   // auto-open audit + fix output once generated
   setExpandedAuditByPageId((prev) => ({ ...prev, [pid]: true }));
   setExpandedFixByPageId((prev) => ({ ...prev, [pid]: true }));
+    setOpenFixSectionByPageId((prev) => ({ ...prev, [pid]: "tldr" }));
+
 }
 
     } catch (e) {
@@ -612,25 +671,198 @@ function isAnalyzedStatus(s) {
                   <div style={{ marginTop: 12 }}>
                     <div style={{ fontWeight: 800, marginBottom: 6 }}>Fix Output</div>
 
-                    {p?.fixes ? (
-                      <pre
-                        style={{
-                          margin: 0,
-                          padding: 12,
-                          border: "1px solid #eee",
-                          borderRadius: 8,
-                          overflowX: "auto",
-                          fontSize: 12,
-                          lineHeight: 1.4,
-                          background: "white",
-                        }}
-                      >
-                        {JSON.stringify(p.fixes, null, 2)}
-                      </pre>
-                    ) : (
-                      <div style={{ opacity: 0.75, fontSize: 13 }}>
-                        No fixes saved yet for this page. Click “Generate Fix”.
-                      </div>
+            <div
+  style={{
+    fontSize: 12,
+    opacity: 0.85,
+    marginBottom: 10,
+    lineHeight: 1.45,
+  }}
+>
+  These are AI-generated suggestions. Please verify accuracy before publishing.
+</div>
+
+{p?.fixes ? (() => {
+  const fixes = p.fixes || {};
+  const openKey = openFixSectionByPageId?.[pid] || "";
+
+  const sections = [
+    {
+      key: "tldr",
+      title: "TL;DR (quick actions)",
+      copyText: String(fixes.tldr || ""),
+      body: (
+        <div>
+          {parseTldrToBullets(fixes.tldr).length ? (
+            <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 18 }}>
+              {parseTldrToBullets(fixes.tldr).map((b, i) => (
+                <li key={i} style={{ marginBottom: 6 }}>{b}</li>
+              ))}
+            </ul>
+          ) : (
+            <div style={{ opacity: 0.75 }}>No TL;DR available.</div>
+          )}
+          {renderPlaceholderNote(fixes.tldr)}
+        </div>
+      )
+    },
+    {
+      key: "updatedReviewedSnippet",
+      title: "Updated / Reviewed snippet (HTML)",
+      copyText: String(fixes.updatedReviewedSnippet || ""),
+      body: (
+        <div>
+          <pre style={{
+            margin: 0,
+            padding: 12,
+            border: "1px solid #eee",
+            borderRadius: 8,
+            overflowX: "auto",
+            fontSize: 12,
+            lineHeight: 1.45,
+            background: "white",
+          }}>{String(fixes.updatedReviewedSnippet || "")}</pre>
+          {renderPlaceholderNote(fixes.updatedReviewedSnippet)}
+        </div>
+      )
+    },
+    {
+      key: "entityBlock",
+      title: "Entities covered block",
+      copyText: String(fixes.entityBlock || ""),
+      body: (
+        <div>
+          <pre style={{
+            margin: 0,
+            padding: 12,
+            border: "1px solid #eee",
+            borderRadius: 8,
+            overflowX: "auto",
+            fontSize: 12,
+            lineHeight: 1.45,
+            background: "white",
+          }}>{String(fixes.entityBlock || "")}</pre>
+          {renderPlaceholderNote(fixes.entityBlock)}
+        </div>
+      )
+    },
+    {
+      key: "faqHtml",
+      title: "FAQ block (HTML)",
+      copyText: String(fixes.faqHtml || ""),
+      body: (
+        <div>
+          <pre style={{
+            margin: 0,
+            padding: 12,
+            border: "1px solid #eee",
+            borderRadius: 8,
+            overflowX: "auto",
+            fontSize: 12,
+            lineHeight: 1.45,
+            background: "white",
+          }}>{String(fixes.faqHtml || "")}</pre>
+          {renderPlaceholderNote(fixes.faqHtml)}
+        </div>
+      )
+    },
+    {
+      key: "faqJsonLd",
+      title: "FAQ JSON-LD (paste into <script type=\"application/ld+json\">)",
+      copyText: JSON.stringify(fixes.faqJsonLd || {}, null, 2),
+      body: (
+        <div>
+          <pre style={{
+            margin: 0,
+            padding: 12,
+            border: "1px solid #eee",
+            borderRadius: 8,
+            overflowX: "auto",
+            fontSize: 12,
+            lineHeight: 1.45,
+            background: "white",
+          }}>{JSON.stringify(fixes.faqJsonLd || {}, null, 2)}</pre>
+          {renderPlaceholderNote(JSON.stringify(fixes.faqJsonLd || {}))}
+        </div>
+      )
+    },
+  ];
+
+  return (
+    <div>
+      {sections.map((s) => {
+        const isOpen = openKey === s.key;
+        const copiedKey = `${pid}:${s.key}`;
+        const copied = Boolean(copiedByKey?.[copiedKey]);
+
+        return (
+          <div key={s.key} style={{
+            border: "1px solid #eee",
+            borderRadius: 10,
+            marginBottom: 10,
+            overflow: "hidden",
+            background: "#fff",
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              padding: "10px 12px",
+              background: "#fafafa",
+              borderBottom: isOpen ? "1px solid #eee" : "none",
+            }}>
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenFixSectionByPageId((prev) => ({
+                    ...prev,
+                    [pid]: prev?.[pid] === s.key ? "" : s.key,
+                  }))
+                }
+                style={{
+                  appearance: "none",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  padding: 0,
+                  textAlign: "left",
+                  fontWeight: 800,
+                  fontSize: 13,
+                  flex: 1,
+                }}
+                aria-expanded={isOpen}
+              >
+                {s.title}
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: "6px 10px", fontSize: 12, whiteSpace: "nowrap" }}
+                onClick={() => copyToClipboard(s.copyText, pid, s.key)}
+                title="Copy to clipboard"
+              >
+                {copied ? "Copied ✓" : "Copy"}
+              </button>
+            </div>
+
+            {isOpen ? (
+              <div style={{ padding: 12 }}>
+                {s.body}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+})() : (
+  <div style={{ opacity: 0.75, fontSize: 13 }}>
+    No fixes saved yet for this page. Click “Generate Fix”.
+  </div>
+)}
+
                     )}
                   </div>
                 ) : null}
