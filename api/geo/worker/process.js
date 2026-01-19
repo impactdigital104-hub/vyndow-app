@@ -664,10 +664,11 @@ export default async function handler(req, res) {
       });
 
 
-analyzed.push({
-  url,
-  geoScore: audit.geoScore,
-});
+      analyzed.push({
+        url,
+        geoScore: audit.geoScore,
+      });
+
 
     }
 
