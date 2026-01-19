@@ -444,6 +444,47 @@ function isAnalyzedStatus(s) {
                 </div>
 
                 <div style={{ marginBottom: 10 }}>
+            {/* SCORE BREAKDOWN (A–H) */}
+<div
+  style={{
+    border: "1px solid #eee",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    background: "#fafafa",
+  }}
+>
+  <div style={{ fontWeight: 700, marginBottom: 8 }}>
+    Score Breakdown (A–H)
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+      gap: 10,
+      fontSize: 13,
+    }}
+  >
+    {p.breakdown &&
+      Object.entries(p.breakdown).map(([key, val]) => (
+        <div
+          key={key}
+          style={{
+            border: "1px solid #ddd",
+            borderRadius: 6,
+            padding: 8,
+            background: "#fff",
+          }}
+        >
+          <div style={{ fontWeight: 700 }}>Category {key}</div>
+          <div>Score: {val.subScore ?? 0} / 5</div>
+          <div>Points: {val.points ?? 0}</div>
+          <div>Weight: {val.weight ?? 0}</div>
+        </div>
+      ))}
+  </div>
+</div>
                   <div style={{ fontWeight: 800, marginBottom: 6 }}>Issues Found</div>
                   {Array.isArray(p.issues) && p.issues.length > 0 ? (
                     <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 18 }}>
@@ -472,6 +513,8 @@ function isAnalyzedStatus(s) {
 
                     </ul>
                   ) : (
+                   
+
                     <div style={{ opacity: 0.75 }}>No issues found.</div>
                   )}
                 </div>
