@@ -688,6 +688,67 @@ function isAnalyzedStatus(s) {
 
   const sections = [
     {
+  key: "implementationMap",
+  title: "Implementation Steps (where to paste what)",
+  copyText: JSON.stringify(fixes.implementationMap || [], null, 2),
+  body: (
+    <div>
+      {Array.isArray(fixes.implementationMap) && fixes.implementationMap.length ? (
+        <ol style={{ marginTop: 0, marginBottom: 0, paddingLeft: 18 }}>
+          {fixes.implementationMap.map((s, i) => (
+            <li key={i} style={{ marginBottom: 10 }}>
+              <div style={{ fontWeight: 800 }}>{s?.title || `Step ${i + 1}`}</div>
+              {s?.whereToPaste ? (
+                <div style={{ marginTop: 4 }}>
+                  <b>Where:</b> {s.whereToPaste}
+                </div>
+              ) : null}
+              {s?.copyKey ? (
+                <div style={{ marginTop: 4 }}>
+                  <b>Copy this block:</b>{" "}
+                  <code style={{ fontSize: 12 }}>{s.copyKey}</code>
+                </div>
+              ) : null}
+              {s?.notes ? (
+                <div style={{ marginTop: 4, opacity: 0.9 }}>
+                  <b>Note:</b> {s.notes}
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <div style={{ opacity: 0.75 }}>No implementation steps available.</div>
+      )}
+      {renderPlaceholderNote(JSON.stringify(fixes.implementationMap || []))}
+    </div>
+  ),
+},
+{
+  key: "combinedPatchPack",
+  title: "Combined Patch Pack (Copy All)",
+  copyText: String(fixes.combinedPatchPack || ""),
+  body: (
+    <div>
+      <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 10, lineHeight: 1.45 }}>
+        Copy and paste this as a single bundle. If your page already has JSON-LD, merge instead of duplicating.
+      </div>
+      <pre style={{
+        margin: 0,
+        padding: 12,
+        border: "1px solid #eee",
+        borderRadius: 8,
+        overflowX: "auto",
+        fontSize: 12,
+        lineHeight: 1.45,
+        background: "white",
+      }}>{String(fixes.combinedPatchPack || "")}</pre>
+      {renderPlaceholderNote(fixes.combinedPatchPack)}
+    </div>
+  ),
+},
+
+    {
       key: "tldr",
       title: "TL;DR (quick actions)",
       copyText: String(fixes.tldr || ""),
@@ -767,6 +828,25 @@ function isAnalyzedStatus(s) {
       )
     },
     {
+  key: "faqJsonLdScript",
+  title: "FAQ JSON-LD Script Tag (ready to paste)",
+  copyText: String(fixes.faqJsonLdScript || ""),
+  body: (
+    <div>
+      <pre style={{
+        margin: 0,
+        padding: 12,
+        border: "1px solid #eee",
+        borderRadius: 8,
+        overflowX: "auto",
+        fontSize: 12,
+        lineHeight: 1.45,
+        background: "white",
+      }}>{String(fixes.faqJsonLdScript || "")}</pre>
+      {renderPlaceholderNote(fixes.faqJsonLdScript)}
+    </div>
+  )
+},
       key: "faqJsonLd",
       title: "FAQ JSON-LD (paste into <script type=\"application/ld+json\">)",
       copyText: JSON.stringify(fixes.faqJsonLd || {}, null, 2),
