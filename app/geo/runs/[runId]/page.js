@@ -74,7 +74,7 @@ export default function GeoRunDetailPage() {
   function renderPlaceholderNote(text) {
     return hasPlaceholders(text) ? (
       <div style={{ marginTop: 8, fontSize: 12, color: "#92400e" }}>
-        Note: Replace placeholders like <code>{{"{{ADD_DATE}}"}}</code> before publishing.
+        Note: Replace placeholders like <code>{"{{ADD_DATE}}"}</code> before publishing.
       </div>
     ) : null;
   }
