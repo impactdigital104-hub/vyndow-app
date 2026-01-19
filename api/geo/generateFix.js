@@ -107,14 +107,15 @@ Rules:
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.2,
-    }),
+body: JSON.stringify({
+  model: "gpt-4o",
+  messages: [
+    { role: "system", content: system },
+    { role: "user", content: user },
+  ],
+  temperature: 0.2,
+  response_format: { type: "json_object" },
+}),
   });
 
   const data = await resp.json().catch(() => ({}));
@@ -126,13 +127,29 @@ Rules:
   }
 
   const text = data?.choices?.[0]?.message?.content || "";
+
+  function extractJsonObject(s) {
+    const str = String(s || "").trim();
+
+    // If wrapped in ```json ... ```
+    const fenced = str.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (fenced && fenced[1]) return fenced[1].trim();
+
+    // Try to locate first {...} block
+    const firstBrace = str.indexOf("{");
+    const lastBrace = str.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      return str.slice(firstBrace, lastBrace + 1);
+    }
+    return str;
+  }
+
   let parsed;
   try {
     parsed = JSON.parse(text);
   } catch (e) {
-    // Sometimes models wrap JSON with whitespace; last try: trim
     try {
-      parsed = JSON.parse(String(text).trim());
+      parsed = JSON.parse(extractJsonObject(text));
     } catch (e2) {
       throw new Error("MODEL_RETURNED_NON_JSON");
     }
