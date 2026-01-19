@@ -87,18 +87,39 @@ Generate paste-ready improvement blocks for this page to improve GEO score.
 Return JSON with EXACT keys:
 {
   "tldr": string,
+  "implementationMap": array,
+  "combinedPatchPack": string,
   "updatedReviewedSnippet": string,
   "entityBlock": string,
   "faqHtml": string,
-  "faqJsonLd": object
+  "faqJsonLd": object,
+  "faqJsonLdScript": string
 }
 
+
 Rules:
-- updatedReviewedSnippet should be a small HTML snippet containing "Updated on" and/or "Reviewed on" with placeholders if needed.
-- entityBlock should be a short "Entities covered" block (HTML or plain text) listing important entities with placeholders if uncertain.
-- faqHtml should contain 4 to 6 FAQs in HTML (<section> or <div> is fine).
-- faqJsonLd must be valid FAQPage JSON-LD as an object (not a string).
-- Keep tldr to 2-4 bullets.
+- Output must be READY TO PUBLISH (copy/paste), not advice.
+- Do NOT invent facts. If a fact is unknown, use placeholders like {{ADD_DURATION}}, {{ADD_PRICE}}, {{ADD_DATE}}.
+- updatedReviewedSnippet: short HTML snippet (1-2 lines) suitable to place directly below the page title.
+  - If updatedSignalFound is false, include "Updated on: {{ADD_DATE}}".
+- entityBlock: HTML block (not plain text). Use a small heading + bullet list.
+- faqHtml: HTML section with 4–6 FAQs. Keep questions specific to this page’s topic.
+- faqJsonLd: valid FAQPage JSON object (not a string).
+- faqJsonLdScript: MUST be a full <script type="application/ld+json">...</script> string containing the faqJsonLd JSON.
+- implementationMap: array of 4–6 steps. Each step MUST be an object:
+  { "step": number, "title": string, "whereToPaste": string, "copyKey": string, "notes": string }
+- copyKey must be one of:
+  "updatedReviewedSnippet" | "entityBlock" | "faqHtml" | "faqJsonLdScript" | "combinedPatchPack"
+- combinedPatchPack: a SINGLE paste-ready bundle that contains, in this order:
+  1) updatedReviewedSnippet
+  2) entityBlock
+  3) faqHtml
+  4) faqJsonLdScript
+  Wrap it with:
+  <!-- VYNDOW GEO PATCH PACK START -->
+  <!-- VYNDOW GEO PATCH PACK END -->
+- Keep tldr to 2-4 bullets, each starting with "- ".
+- No markdown, no code fences, JSON only.
   `.trim();
 
   const resp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -158,14 +179,26 @@ body: JSON.stringify({
   // Minimal shape validation
   const required = [
     "tldr",
+    "implementationMap",
+    "combinedPatchPack",
     "updatedReviewedSnippet",
     "entityBlock",
     "faqHtml",
     "faqJsonLd",
+    "faqJsonLdScript",
   ];
+
   for (const k of required) {
     if (!(k in parsed)) throw new Error(`MISSING_KEY_${k}`);
   }
+
+  if (!Array.isArray(parsed.implementationMap)) {
+    throw new Error("BAD_IMPLEMENTATION_MAP");
+  }
+  if (typeof parsed.combinedPatchPack !== "string") {
+    throw new Error("BAD_PATCH_PACK");
+  }
+
 
   return parsed;
 }
