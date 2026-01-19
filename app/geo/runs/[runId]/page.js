@@ -457,6 +457,27 @@ function isAnalyzedStatus(s) {
   <div style={{ fontWeight: 700, marginBottom: 8 }}>
     Score Breakdown (A–H)
   </div>
+      {/* GEO Category Legend */}
+<div
+  style={{
+    fontSize: 12,
+    color: "#555",
+    marginBottom: 12,
+    lineHeight: 1.6,
+  }}
+>
+  <strong>A</strong> = Content Quality & Relevance&nbsp;&nbsp;|&nbsp;&nbsp;
+  <strong>B</strong> = Freshness & Update Signals&nbsp;&nbsp;|&nbsp;&nbsp;
+  <strong>C</strong> = E-E-A-T (Experience, Expertise, Authority, Trust)
+  <br />
+  <strong>D</strong> = On-Page Structure & Semantics&nbsp;&nbsp;|&nbsp;&nbsp;
+  <strong>E</strong> = Structured Data / Schema&nbsp;&nbsp;|&nbsp;&nbsp;
+  <strong>F</strong> = Intent & Decision Readiness
+  <br />
+  <strong>G</strong> = Internal & External Linking&nbsp;&nbsp;|&nbsp;&nbsp;
+  <strong>H</strong> = Technical Accessibility & Indexability
+</div>
+
 
   <div
     style={{
