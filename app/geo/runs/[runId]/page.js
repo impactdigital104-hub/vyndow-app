@@ -447,9 +447,29 @@ function isAnalyzedStatus(s) {
                   <div style={{ fontWeight: 800, marginBottom: 6 }}>Issues Found</div>
                   {Array.isArray(p.issues) && p.issues.length > 0 ? (
                     <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 18 }}>
-                      {p.issues.map((it, idx) => (
-                        <li key={idx} style={{ marginBottom: 4 }}>{it}</li>
-                      ))}
+{p.issues.map((it, idx) => (
+  <li key={idx} style={{ marginBottom: 10 }}>
+    <div style={{ fontWeight: 700 }}>
+      [{it?.category || "—"}] {it?.title || "Issue"}{" "}
+      <span style={{ opacity: 0.75 }}>
+        ({it?.severity || "—"})
+      </span>
+    </div>
+
+    {it?.why ? (
+      <div style={{ marginTop: 4 }}>
+        <b>Why:</b> {it.why}
+      </div>
+    ) : null}
+
+    {it?.fix ? (
+      <div style={{ marginTop: 4 }}>
+        <b>Fix:</b> {it.fix}
+      </div>
+    ) : null}
+  </li>
+))}
+
                     </ul>
                   ) : (
                     <div style={{ opacity: 0.75 }}>No issues found.</div>
@@ -460,9 +480,26 @@ function isAnalyzedStatus(s) {
                   <div style={{ fontWeight: 800, marginBottom: 6 }}>Suggestions</div>
                   {Array.isArray(p.suggestions) && p.suggestions.length > 0 ? (
                     <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 18 }}>
-                      {p.suggestions.map((it, idx) => (
-                        <li key={idx} style={{ marginBottom: 4 }}>{it}</li>
-                      ))}
+{p.suggestions.map((it, idx) => (
+  <li key={idx} style={{ marginBottom: 10 }}>
+    <div style={{ fontWeight: 700 }}>
+      [{it?.category || "—"}] {it?.title || "Suggestion"}
+    </div>
+
+    {it?.description ? (
+      <div style={{ marginTop: 4 }}>
+        {it.description}
+      </div>
+    ) : null}
+
+    {it?.impact ? (
+      <div style={{ marginTop: 4, opacity: 0.85 }}>
+        <b>Impact:</b> {it.impact}
+      </div>
+    ) : null}
+  </li>
+))}
+
                     </ul>
                   ) : (
                     <div style={{ opacity: 0.75 }}>No suggestions available.</div>
