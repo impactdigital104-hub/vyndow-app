@@ -71,13 +71,33 @@ export default function GeoRunDetailPage() {
     return /\{\{[^}]+\}\}/.test(String(str || ""));
   }
 
-  function renderPlaceholderNote(text) {
-    return hasPlaceholders(text) ? (
-      <div style={{ marginTop: 8, fontSize: 12, color: "#92400e" }}>
-        Note: Replace placeholders like <code>{"{{ADD_DATE}}"}</code> before publishing.
-      </div>
-    ) : null;
+function extractPlaceholders(str) {
+  const s = String(str || "");
+  const found = new Set();
+  const re = /\{\{([^}]+)\}\}/g;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    if (m[1]) found.add(m[1].trim());
   }
+  return Array.from(found);
+}
+
+function renderPlaceholderNote(text) {
+  const ph = extractPlaceholders(text);
+  if (!ph.length) return null;
+
+  return (
+    <div style={{ marginTop: 8, fontSize: 12, color: "#92400e" }}>
+      <b>Inputs needed before publishing:</b>{" "}
+      {ph.map((p, i) => (
+        <span key={p}>
+          <code>{`{{${p}}}`}</code>{i < ph.length - 1 ? ", " : ""}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 
   function parseTldrToBullets(tldr) {
     const raw = String(tldr || "");
@@ -276,7 +296,8 @@ if (data.page) {
   // auto-open audit + fix output once generated
   setExpandedAuditByPageId((prev) => ({ ...prev, [pid]: true }));
   setExpandedFixByPageId((prev) => ({ ...prev, [pid]: true }));
-    setOpenFixSectionByPageId((prev) => ({ ...prev, [pid]: "tldr" }));
+    setOpenFixSectionByPageId((prev) => ({ ...prev, [pid]: "combinedPatchPack" }));
+
 
 }
 
@@ -686,6 +707,34 @@ function isAnalyzedStatus(s) {
   const fixes = p.fixes || {};
   const openKey = openFixSectionByPageId?.[pid] || "";
 
+ const impactByKey = {
+  combinedPatchPack: { level: "High", note: "Fastest path: one copy-paste bundle that improves machine readability + trust signals." },
+  implementationMap: { level: "High", note: "Tells exactly where each block goes so a non-technical user can implement safely." },
+  tldr: { level: "Medium", note: "Quick summary of what changed and why." },
+  updatedReviewedSnippet: { level: "High", note: "Adds recency signal. Improves trust for answer engines." },
+  entityBlock: { level: "Medium", note: "Clarifies entities + basic E-E-A-T/contact cues." },
+  faqHtml: { level: "High", note: "Adds answerable content to match user intents." },
+  faqJsonLdScript: { level: "High", note: "Structured FAQ for extraction by answer engines." },
+  faqJsonLd: { level: "Medium", note: "Raw JSON for developers to merge with existing schema." },
+};
+
+function renderImpactBadge(key) {
+  const meta = impactByKey[key];
+  if (!meta) return null;
+
+  const color = meta.level === "High" ? "#065f46" : meta.level === "Medium" ? "#1f2937" : "#6b7280";
+  const bg = meta.level === "High" ? "#ecfdf5" : meta.level === "Medium" ? "#f3f4f6" : "#f9fafb";
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <span style={{ display: "inline-block", fontSize: 12, fontWeight: 800, padding: "4px 8px", borderRadius: 999, background: bg, color }}>
+        Impact: {meta.level}
+      </span>
+      <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9 }}>{meta.note}</div>
+    </div>
+  );
+}
+
   const sections = [
     {
   key: "implementationMap",
@@ -693,6 +742,7 @@ function isAnalyzedStatus(s) {
   copyText: JSON.stringify(fixes.implementationMap || [], null, 2),
   body: (
     <div>
+          {renderImpactBadge("implementationMap")}
       {Array.isArray(fixes.implementationMap) && fixes.implementationMap.length ? (
         <ol style={{ marginTop: 0, marginBottom: 0, paddingLeft: 18 }}>
           {fixes.implementationMap.map((s, i) => (
@@ -730,6 +780,7 @@ function isAnalyzedStatus(s) {
   copyText: String(fixes.combinedPatchPack || ""),
   body: (
     <div>
+        {renderImpactBadge("combinedPatchPack")}
       <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 10, lineHeight: 1.45 }}>
         Copy and paste this as a single bundle. If your page already has JSON-LD, merge instead of duplicating.
       </div>
@@ -754,6 +805,7 @@ function isAnalyzedStatus(s) {
       copyText: String(fixes.tldr || ""),
       body: (
         <div>
+              {renderImpactBadge("tldr")}
           {parseTldrToBullets(fixes.tldr).length ? (
             <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 18 }}>
               {parseTldrToBullets(fixes.tldr).map((b, i) => (
@@ -773,6 +825,7 @@ function isAnalyzedStatus(s) {
       copyText: String(fixes.updatedReviewedSnippet || ""),
       body: (
         <div>
+              {renderImpactBadge("updatedReviewedSnippet")}
           <pre style={{
             margin: 0,
             padding: 12,
@@ -793,6 +846,7 @@ function isAnalyzedStatus(s) {
       copyText: String(fixes.entityBlock || ""),
       body: (
         <div>
+              {renderImpactBadge("entityBlock")}
           <pre style={{
             margin: 0,
             padding: 12,
@@ -813,6 +867,7 @@ function isAnalyzedStatus(s) {
       copyText: String(fixes.faqHtml || ""),
       body: (
         <div>
+              {renderImpactBadge("faqHtml")}
           <pre style={{
             margin: 0,
             padding: 12,
@@ -833,6 +888,7 @@ function isAnalyzedStatus(s) {
   copyText: String(fixes.faqJsonLdScript || ""),
   body: (
     <div>
+          {renderImpactBadge("faqJsonLdScript")}
       <pre style={{
         margin: 0,
         padding: 12,
@@ -853,6 +909,7 @@ function isAnalyzedStatus(s) {
       copyText: JSON.stringify(fixes.faqJsonLd || {}, null, 2),
       body: (
         <div>
+              {renderImpactBadge("faqJsonLd")}
           <pre style={{
             margin: 0,
             padding: 12,
