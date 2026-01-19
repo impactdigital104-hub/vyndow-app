@@ -80,6 +80,8 @@ const pages = pagesSnap.docs.map((d) => {
     geoScore: typeof p.geoScore === "number" ? p.geoScore : null,
     issues: Array.isArray(p.issues) ? p.issues : [],
     suggestions: Array.isArray(p.suggestions) ? p.suggestions : [],
+    breakdown: p.breakdown || null,
+grade: p.grade || null,
 
     createdAt: p.createdAt || null,
     updatedAt: p.updatedAt || null,
