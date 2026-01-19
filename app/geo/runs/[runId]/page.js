@@ -847,6 +847,7 @@ function isAnalyzedStatus(s) {
     </div>
   )
 },
+     {
       key: "faqJsonLd",
       title: "FAQ JSON-LD (paste into <script type=\"application/ld+json\">)",
       copyText: JSON.stringify(fixes.faqJsonLd || {}, null, 2),
