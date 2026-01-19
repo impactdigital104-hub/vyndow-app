@@ -863,7 +863,6 @@ function isAnalyzedStatus(s) {
   </div>
 )}
 
-                    )}
                   </div>
                 ) : null}
               </td>
