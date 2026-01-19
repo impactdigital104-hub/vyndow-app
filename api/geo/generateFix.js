@@ -203,6 +203,139 @@ body: JSON.stringify({
   return parsed;
 }
 
+/* ---------------- POST-PROCESS FIXES (C-1) ---------------- */
+
+function safeHostnameFromUrl(url) {
+  try {
+    const u = new URL(String(url || ""));
+    return (u.hostname || "").replace(/^www\./i, "");
+  } catch {
+    return "";
+  }
+}
+
+function titleCaseWords(s) {
+  return String(s || "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+// Very lightweight “brand” inference from hostname (good enough for v1)
+function inferBrandFromHost(host) {
+  const parts = String(host || "").split(".").filter(Boolean);
+  if (parts.length <= 1) return titleCaseWords(host);
+  // handle common 2-part TLD patterns like co.uk
+  const last = parts[parts.length - 1];
+  const prev = parts[parts.length - 2];
+  const commonSecondLevel = ["co", "com", "org", "net", "gov", "ac"];
+  let coreParts;
+
+  if (last.length === 2 && commonSecondLevel.includes(prev) && parts.length >= 3) {
+    coreParts = parts.slice(-3, -1); // e.g., example.co.uk -> ["example","co"] -> we’ll drop "co" below
+  } else {
+    coreParts = parts.slice(-2, -1); // default: use second last label as brand
+  }
+
+  // If we got ["example","co"], remove "co"
+  coreParts = coreParts.filter((p) => !commonSecondLevel.includes(p.toLowerCase()));
+
+  // For subdomain-heavy: in.skillup.online -> prefer skillup + online
+  if (parts.length >= 3 && coreParts.length === 1) {
+    const secondLast = parts[parts.length - 2];
+    const thirdLast = parts[parts.length - 3];
+    if (thirdLast && thirdLast.toLowerCase() !== "www" && thirdLast.length <= 4) {
+      // ignore tiny geo subdomains like "in", "us"
+      return titleCaseWords(secondLast);
+    }
+    return titleCaseWords(`${secondLast}`);
+  }
+
+  return titleCaseWords(coreParts.join(" "));
+}
+
+function replacePlaceholdersInString(str, replacements) {
+  let out = String(str || "");
+  for (const [k, v] of Object.entries(replacements || {})) {
+    out = out.replaceAll(`{{${k}}}`, String(v));
+  }
+  return out;
+}
+
+function deepReplace(obj, replacements) {
+  if (obj == null) return obj;
+  if (typeof obj === "string") return replacePlaceholdersInString(obj, replacements);
+  if (Array.isArray(obj)) return obj.map((x) => deepReplace(x, replacements));
+  if (typeof obj === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) out[k] = deepReplace(v, replacements);
+    return out;
+  }
+  return obj;
+}
+
+function removePlaceholderListItems(html) {
+  const s = String(html || "");
+  // Remove list items containing phone/address placeholders (we don’t want users stuck)
+  return s
+    .replace(/<li>[^<]*\{\{ADD_PHONE\}\}[^<]*<\/li>\s*/gi, "")
+    .replace(/<li>[^<]*\{\{ADD_ADDRESS\}\}[^<]*<\/li>\s*/gi, "");
+}
+
+function rebuildFaqJsonLdScript(faqJsonLd) {
+  const json = JSON.stringify(faqJsonLd || {}, null, 2);
+  return `<script type="application/ld+json">\n${json}\n</script>`;
+}
+
+function rebuildCombinedPatchPack(fixes) {
+  const parts = [];
+  parts.push("<!-- VYNDOW GEO PATCH PACK START -->");
+  parts.push(String(fixes.updatedReviewedSnippet || "").trim());
+  parts.push(String(fixes.entityBlock || "").trim());
+  parts.push(String(fixes.faqHtml || "").trim());
+  parts.push(String(fixes.faqJsonLdScript || "").trim());
+  parts.push("<!-- VYNDOW GEO PATCH PACK END -->");
+  return parts.filter(Boolean).join("\n");
+}
+
+function postProcessFixes({ fixes, url }) {
+  const host = safeHostnameFromUrl(url);
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const brand = inferBrandFromHost(host);
+  const email = host ? `info@${host}` : "info@example.com";
+
+  // We auto-fill the “safe defaults” to reduce user effort.
+  const replacements = {
+    ADD_DATE: today,
+    ADD_AUTHOR: brand || "Editorial Team",
+    ADD_EMAIL: email,
+    // Give safe generic values instead of placeholders (still true and publishable)
+    ADD_PRICE: "See website for latest pricing.",
+    ADD_DURATION: "See course page for the latest duration.",
+  };
+
+  const out = { ...(fixes || {}) };
+
+  // Replace placeholders in the main string blocks
+  out.updatedReviewedSnippet = replacePlaceholdersInString(out.updatedReviewedSnippet, replacements);
+  out.entityBlock = removePlaceholderListItems(replacePlaceholdersInString(out.entityBlock, replacements));
+  out.faqHtml = replacePlaceholdersInString(out.faqHtml, replacements);
+  out.tldr = replacePlaceholdersInString(out.tldr, replacements);
+
+  // Replace placeholders in JSON-LD object, then rebuild script from object for consistency
+  out.faqJsonLd = deepReplace(out.faqJsonLd || {}, replacements);
+  out.faqJsonLdScript = rebuildFaqJsonLdScript(out.faqJsonLd);
+
+  // Rebuild combined patch pack so it’s always “ready to publish”
+  out.combinedPatchPack = rebuildCombinedPatchPack(out);
+
+  return out;
+}
+
 /* ---------------- HANDLER ---------------- */
 
 export default async function handler(req, res) {
@@ -269,7 +402,9 @@ export default async function handler(req, res) {
     };
 
     // Generate fixes
-    const fixes = await callOpenAIForFixes({ url, signals });
+    let fixes = await callOpenAIForFixes({ url, signals });
+fixes = postProcessFixes({ fixes, url });
+
 
     // Save fixes to Firestore
     await pageRef.set(
