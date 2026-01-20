@@ -487,8 +487,7 @@ export default function GeoPage() {
                   </div>
                 </div>
               ) : null}
-            </div>
-
+             </GeoCard>
             <GeoCard title="Preview & Validation">
                               {/* Phase 5C: Optional AI Questions (single-URL only) */}
               <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "#faf5ff" }}>
