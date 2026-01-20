@@ -7,6 +7,8 @@ import { collection, getDocs, orderBy, query } from "firebase/firestore";
 
 import VyndowShell from "../../VyndowShell";
 import { auth, db } from "../../firebaseClient";
+import { GeoCard, GeoPill } from "../../components/GeoUI";
+
 
 export default function GeoRunsListPage() {
   const router = useRouter();
@@ -210,65 +212,90 @@ export default function GeoRunsListPage() {
           </div>
         </div>
 
-        <header style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+        <div className="geo-header">
           <div>
-            <h1 style={{ marginBottom: 6 }}>GEO Runs</h1>
-            <p style={{ marginTop: 0, opacity: 0.9 }}>
-              Your recent audit runs for the selected website.
+            <h1 className="geo-title">GEO Runs</h1>
+            <p className="geo-subtitle">
+              Your recent audit runs for the selected website. Open a run to view scores, issues, and AI answer readiness.
             </p>
           </div>
 
-          <button className="btn btn-primary" onClick={() => router.push("/geo")}>
-            + New Run
-          </button>
-        </header>
+          <div className="geo-actions">
+            <button className="btn btn-primary" onClick={() => router.push("/geo")}>
+              + New Run
+            </button>
+          </div>
+        </div>
 
-        <section className="inputs-section">
-          <div className="output-card" style={{ width: "100%" }}>
+
+        <div className="geo-section">
+          <GeoCard title="Recent runs">
             {runsLoading ? (
               <div style={{ padding: 14 }}>Loading runs…</div>
             ) : runsError ? (
               <div style={{ padding: 14, color: "#b91c1c" }}>{runsError}</div>
             ) : rows.length === 0 ? (
-              <div style={{ padding: 14, opacity: 0.75 }}>No runs yet for this website.</div>
+              <div style={{ padding: 14 }}>
+                <div className="geo-muted" style={{ fontSize: 14 }}>
+                  No audit runs yet for this website.
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <button className="btn btn-primary" onClick={() => router.push("/geo")}>
+                    + Create your first run
+                  </button>
+                </div>
+              </div>
             ) : (
               <div style={{ width: "100%", overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <table className="geo-table">
                   <thead>
-                    <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                      <th style={{ padding: "10px 8px" }}>Date</th>
-                      <th style={{ padding: "10px 8px" }}>Run ID</th>
-                      <th style={{ padding: "10px 8px" }}>Pages</th>
-                      <th style={{ padding: "10px 8px" }}>Status</th>
+                    <tr>
+                      <th style={{ width: 170 }}>Date</th>
+                      <th>Run ID</th>
+                      <th style={{ width: 90 }}>Pages</th>
+                      <th style={{ width: 140 }}>Status</th>
                     </tr>
                   </thead>
+
                   <tbody>
-{rows.map((r) => (
-  <tr
-    key={r.id}
-    style={{ borderBottom: "1px solid #f3f4f6", cursor: "pointer" }}
-    onClick={() => router.push(`/geo/runs/${r.id}?websiteId=${selectedWebsite}`)}
-    title="Open run details"
-  >
-    <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }}>
-      {r.createdAt?.toDate ? r.createdAt.toDate().toLocaleString() : "—"}
-    </td>
+                    {rows.map((r) => (
+                      <tr
+                        key={r.id}
+                        style={{ cursor: "pointer" }}
+                        onClick={() => router.push(`/geo/runs/${r.id}?websiteId=${selectedWebsite}`)}
+                        title="Open run details"
+                      >
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          {r.createdAt?.toDate ? r.createdAt.toDate().toLocaleString() : "—"}
+                        </td>
 
-    <td style={{ padding: "10px 8px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
-      {r.id}
-    </td>
+                        <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                          {r.id}
+                        </td>
 
-    <td style={{ padding: "10px 8px" }}>{r.pagesCount}</td>
-    <td style={{ padding: "10px 8px" }}>{r.status}</td>
-  </tr>
-))}
+                        <td>{r.pagesCount}</td>
 
+                        <td>
+                          <GeoPill
+                            variant={
+                              r.status === "analyzed"
+                                ? "analyzed"
+                                : r.status === "error"
+                                ? "error"
+                                : "processing"
+                            }
+                          >
+                            {r.status || "processing"}
+                          </GeoPill>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             )}
-          </div>
-        </section>
+          </GeoCard>
+        </div>
       </main>
     </VyndowShell>
   );
