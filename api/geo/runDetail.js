@@ -41,15 +41,26 @@ async function resolveWebsiteContext({ uid, websiteId }) {
 
 export default async function handler(req, res) {
   try {
-    if (req.method !== "POST") {
+    // Allow GET (query params) + POST (body). Runs page is calling GET.
+    if (req.method === "OPTIONS") {
+      return res.status(200).end();
+    }
+
+    if (req.method !== "POST" && req.method !== "GET") {
       return res.status(405).json({ ok: false, error: "Method not allowed" });
     }
 
     const uid = await getUidFromRequest(req);
-    const { websiteId, runId } = req.body || {};
+
+    const websiteId =
+      req.method === "GET" ? req.query.websiteId : (req.body || {}).websiteId;
+
+    const runId =
+      req.method === "GET" ? req.query.runId : (req.body || {}).runId;
 
     if (!websiteId) return res.status(400).json({ ok: false, error: "Missing websiteId" });
     if (!runId) return res.status(400).json({ ok: false, error: "Missing runId" });
+
 
     const { ownerUid } = await resolveWebsiteContext({ uid, websiteId });
 
@@ -69,7 +80,6 @@ export default async function handler(req, res) {
     }
 
 const pagesSnap = await runRef.collection("pages").orderBy("createdAt", "asc").get();
-const pagesSnap = await runRef.collection("pages").orderBy("createdAt", "asc").get();
 const pages = pagesSnap.docs.map((d) => {
   const p = d.data() || {};
   return {
@@ -77,7 +87,7 @@ const pages = pagesSnap.docs.map((d) => {
     url: p.url || "",
     status: p.status || "unknown",
 
-    // ✅ These are the missing audit fields (needed for View Audit + GEO Score column)
+    // ✅ Audit fields (needed for View Audit + GEO Score column)
     geoScore: typeof p.geoScore === "number" ? p.geoScore : null,
     issues: Array.isArray(p.issues) ? p.issues : [],
     suggestions: Array.isArray(p.suggestions) ? p.suggestions : [],
@@ -93,6 +103,7 @@ const pages = pagesSnap.docs.map((d) => {
     updatedAt: p.updatedAt || null,
   };
 });
+
 
 
 
