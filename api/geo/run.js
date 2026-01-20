@@ -132,6 +132,26 @@ function sanitizeUrls(rawUrls) {
 
   return { valid, invalid };
 }
+function sanitizeQuestions(rawQuestions) {
+  const arr = Array.isArray(rawQuestions) ? rawQuestions : [];
+
+  const cleaned = arr
+    .map((q) => String(q || "").trim())
+    .filter(Boolean);
+
+  // de-dupe while preserving order (case-insensitive)
+  const seen = new Set();
+  const unique = [];
+  for (const q of cleaned) {
+    const key = q.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(q);
+    }
+  }
+
+  return unique;
+}
 
 export default async function handler(req, res) {
   try {
@@ -141,7 +161,7 @@ export default async function handler(req, res) {
 
     const uid = await getUidFromRequest(req);
 
-    const { websiteId, urls } = req.body || {};
+ const { websiteId, urls, aiQuestions } = req.body || {};
     if (!websiteId) {
       return res.status(400).json({ ok: false, error: "Missing websiteId" });
     }
@@ -157,6 +177,11 @@ export default async function handler(req, res) {
     if (valid.length === 0) {
       return res.status(400).json({ ok: false, error: "No valid URLs provided." });
     }
+// Phase 5C: questions are allowed only for single-URL runs (to avoid ambiguity)
+let safeQuestions = [];
+if (valid.length === 1) {
+  safeQuestions = sanitizeQuestions(aiQuestions).slice(0, 5);
+}
 
     const { ownerUid, websiteData } = await resolveWebsiteContext({ uid, websiteId });
 
@@ -250,6 +275,10 @@ export default async function handler(req, res) {
           month: monthKey,
           pagesCount: pagesToReserve,
           status: "queued",
+                    aiQuestions: safeQuestions,
+          aiQuestionsCreatedAt: safeQuestions.length
+            ? admin.firestore.FieldValue.serverTimestamp()
+            : null,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
