@@ -528,6 +528,100 @@ function computeGeoAudit({ pageUrl, signals }) {
   return { geoScore, grade, breakdown, issues, suggestions, evidence };
 }
 
+/* ---------------- OPENAI: AI Answer Readiness (Phase 5C) ---------------- */
+
+async function callOpenAIForAnswerReadiness({ url, fullText, questions }) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    const err = new Error("OPENAI_API_KEY is missing.");
+    err.code = "OPENAI_KEY_MISSING";
+    throw err;
+  }
+
+  const safeQuestions = Array.isArray(questions) ? questions.slice(0, 5) : [];
+  const content = String(fullText || "").slice(0, 12000); // keep small & safe
+
+  const system = `
+You are Vyndow GEO "AI Answer Readiness" evaluator.
+You must evaluate whether the provided web page content can answer the user's questions.
+Use ONLY the provided content. Do NOT use external knowledge.
+Return ONLY valid JSON (no markdown, no commentary).
+Language: English.
+  `.trim();
+
+  const user = `
+URL: ${url}
+
+CONTENT (use ONLY this; if not enough, say so):
+${content}
+
+QUESTIONS (max 5):
+${safeQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")}
+
+TASK:
+For each question, judge answerability using ONLY the content above.
+
+Return JSON with EXACT shape:
+{
+  "results": [
+    {
+      "question": string,
+      "strength": "Strong" | "Medium" | "Weak",
+      "answerExcerpt": string,
+      "missingReason": string,
+      "sourceHint": string
+    }
+  ]
+}
+
+Rules:
+- If the content clearly answers the question with specific details, strength = "Strong".
+- If it partially answers but key details are missing, strength = "Medium".
+- If it does not answer or would require guessing, strength = "Weak".
+- answerExcerpt: 1–2 short sentences (<= 280 chars). If Weak, write "Not answerable from this page."
+- missingReason: empty string for Strong, else a short reason (<= 160 chars).
+- sourceHint: where the content seems to come from (e.g., "Intro", "FAQ", "Pricing", "Section headings", "Not found").
+- No hallucinations.
+  `.trim();
+
+  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const msg =
+      data?.error?.message ||
+      `OpenAI error (status ${resp.status}) evaluating answer readiness`;
+    throw new Error(msg);
+  }
+
+  const text = data?.choices?.[0]?.message?.content || "";
+  const parsed = JSON.parse(text);
+  const results = Array.isArray(parsed?.results) ? parsed.results : [];
+
+  // sanitize output a bit
+  return results.slice(0, 5).map((r) => ({
+    question: String(r?.question || "").slice(0, 240),
+    strength: r?.strength === "Strong" || r?.strength === "Medium" ? r.strength : "Weak",
+    answerExcerpt: String(r?.answerExcerpt || "").slice(0, 280),
+    missingReason: String(r?.missingReason || "").slice(0, 160),
+    sourceHint: String(r?.sourceHint || "").slice(0, 120),
+  }));
+}
 
 /* ---------------- FETCH ---------------- */
 
@@ -573,6 +667,9 @@ export default async function handler(req, res) {
 
     const runDoc = runsSnap.docs[0];
     const runId = runDoc.id;
+        const runData = runDoc.data() || {};
+    const runAiQuestions = Array.isArray(runData.aiQuestions) ? runData.aiQuestions.slice(0, 5) : [];
+
 
     await runDoc.ref.update({
       status: "processing",
@@ -644,6 +741,22 @@ export default async function handler(req, res) {
       };
 
       const audit = computeGeoAudit({ pageUrl: url, signals });
+            // Phase 5C: AI Answer Readiness (only if run has questions)
+      let aiAnswerReadiness = [];
+      let aiAnswerReadinessError = null;
+
+      if (runAiQuestions.length > 0) {
+        try {
+          aiAnswerReadiness = await callOpenAIForAnswerReadiness({
+            url,
+            fullText: signals.fullText || "",
+            questions: runAiQuestions,
+          });
+        } catch (err) {
+          aiAnswerReadinessError = err?.message ? String(err.message).slice(0, 300) : "AI readiness failed";
+        }
+      }
+
 
 
       await p.ref.update({
@@ -659,6 +772,12 @@ export default async function handler(req, res) {
         issues: audit.issues,
         suggestions: audit.suggestions,
         evidence: audit.evidence,
+        // Phase 5C outputs
+        aiAnswerReadiness: aiAnswerReadiness,
+        aiAnswerReadinessEvaluatedAt: runAiQuestions.length
+          ? admin.firestore.FieldValue.serverTimestamp()
+          : null,
+        aiAnswerReadinessError: aiAnswerReadinessError,
 
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
