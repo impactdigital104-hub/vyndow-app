@@ -91,17 +91,22 @@ grade: p.grade || null,
 
     return res.status(200).json({
       ok: true,
-      run: {
-        runId,
-        ownerUid: run.ownerUid,
-        websiteId: run.websiteId,
-        createdByUid: run.createdByUid || null,
-        month: run.month || null,
-        pagesCount: Number(run.pagesCount || 0),
-        status: run.status || "unknown",
-        createdAt: run.createdAt || null,
-        updatedAt: run.updatedAt || null,
-      },
+run: {
+  runId,
+  ownerUid: run.ownerUid,
+  websiteId: run.websiteId,
+  createdByUid: run.createdByUid || null,
+  month: run.month || null,
+  pagesCount: Number(run.pagesCount || 0),
+  status: run.status || "unknown",
+
+  // Phase 5C
+  aiQuestions: Array.isArray(run.aiQuestions) ? run.aiQuestions : [],
+  aiQuestionsCreatedAt: run.aiQuestionsCreatedAt || null,
+
+  createdAt: run.createdAt || null,
+  updatedAt: run.updatedAt || null,
+},
       pages,
     });
   } catch (e) {
