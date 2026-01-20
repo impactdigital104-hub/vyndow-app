@@ -280,7 +280,6 @@ export default function GeoRunsListPage() {
                 <table className="geo-table">
                   <thead>
                     <tr>
-                      <th style={{ width: 170 }}>Date</th>
                       <th>Run ID</th>
                       <th style={{ width: 90 }}>Pages</th>
                       <th style={{ width: 140 }}>Status</th>
@@ -295,9 +294,6 @@ export default function GeoRunsListPage() {
                         onClick={() => router.push(`/geo/runs/${r.id}?websiteId=${selectedWebsite}`)}
                         title="Open run details"
                       >
-                       <td style={{ whiteSpace: "nowrap" }}>
-  {formatRunDate(r.createdAt || r.created || r.created_on || r.createdAtMs)}
-</td>
 
 
                         <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
