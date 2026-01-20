@@ -734,6 +734,32 @@ function renderImpactBadge(key) {
     </div>
   );
 }
+  function estimateUpliftRange(page) {
+    const breakdown = page?.breakdown || {};
+    // Points per category are already computed by Phase 4 worker.
+    const pts = (k) => Number(breakdown?.[k]?.points || 0);
+    const max = { A: 18, B: 12, C: 16, D: 12, E: 14, F: 14, G: 8, H: 6 };
+
+    // Combined Patch Pack primarily improves: B (freshness), E (schema), A (answerability via FAQ),
+    // plus a bit of C (entity clarity).
+    const impacted = ["B", "E", "A", "C"];
+
+    // Remaining gap in impacted categories
+    let gap = 0;
+    for (const k of impacted) {
+      gap += Math.max(0, (max[k] || 0) - pts(k));
+    }
+
+    // Directional band: we assume user implements correctly, but we stay conservative.
+    const low = Math.max(0, Math.round(gap * 0.35));
+    const high = Math.max(low, Math.round(gap * 0.65));
+
+    // Cap the band so it never looks crazy (and never implies certainty)
+    const cappedLow = Math.min(low, 18);
+    const cappedHigh = Math.min(high, 28);
+
+    return { low: cappedLow, high: cappedHigh };
+  }
 
   const sections = [
     {
@@ -781,6 +807,29 @@ function renderImpactBadge(key) {
   body: (
     <div>
         {renderImpactBadge("combinedPatchPack")}
+              {(() => {
+        const band = estimateUpliftRange(p);
+        return (
+          <div style={{
+            marginBottom: 10,
+            padding: "10px 12px",
+            border: "1px solid #fde68a",
+            background: "#fffbeb",
+            borderRadius: 10,
+            fontSize: 12,
+            lineHeight: 1.45
+          }}>
+            <div style={{ fontWeight: 900 }}>
+              Estimated GEO readiness uplift: +{band.low} to +{band.high} points
+            </div>
+            <div style={{ marginTop: 4, opacity: 0.9 }}>
+              Directional estimate based on likely gains from freshness signals, structured data, and FAQ answerability.
+              Not a re-scan and not a guarantee.
+            </div>
+          </div>
+        );
+      })()}
+                   
       <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 10, lineHeight: 1.45 }}>
         Copy and paste this as a single bundle. If your page already has JSON-LD, merge instead of duplicating.
       </div>
