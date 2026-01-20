@@ -9,6 +9,8 @@ import VyndowShell from "../VyndowShell";
 import { auth, db } from "../firebaseClient";
 
 import { GEO_RUNS_COLLECTION, GEO_RUN_PAGES_SUBCOLLECTION } from "./geoModel";
+import { GeoCard } from "../components/GeoUI";
+
 
 export default function GeoPage() {
   const router = useRouter();
@@ -386,18 +388,30 @@ export default function GeoPage() {
           </div>
         </div>
 
-        <header>
-          <h1 style={{ marginBottom: 6 }}>Vyndow GEO — AI Readiness Audit</h1>
-          <p style={{ marginTop: 0, opacity: 0.9 }}>
-            Paste one or more URLs below. Phase 2.2 now creates runs and reserves credits server-side.
-          </p>
-        </header>
+        <div className="geo-page">
+          <div className="geo-header">
+            <div>
+              <h1 className="geo-title">Vyndow GEO — AI Readiness Audit</h1>
+              <p className="geo-subtitle">
+                Audit one or more URLs for AI answer readiness, credibility signals, and machine-readable structure.
+                Runs reserve credits server-side and remain available in your Runs list.
+              </p>
+            </div>
 
-        <section className="inputs-section">
-          <h2 style={{ marginTop: 0 }}>Step 1: Enter URLs</h2>
+            <div className="geo-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => router.push("/geo/runs")}
+              >
+                ← View Runs
+              </button>
+            </div>
+          </div>
 
-          <div className="inputs-grid">
-            <div className="inputs-card">
+          <div className="geo-grid-2">
+            <GeoCard title="Step 1 — Enter URLs">
+
               <div className="field-group">
                 <label htmlFor="geoUrls">URLs (one per line)</label>
                 <textarea
@@ -475,8 +489,7 @@ export default function GeoPage() {
               ) : null}
             </div>
 
-            <div className="output-card">
-              <h3 style={{ marginTop: 0 }}>Preview</h3>
+            <GeoCard title="Preview & Validation">
                               {/* Phase 5C: Optional AI Questions (single-URL only) */}
               <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "#faf5ff" }}>
                 <div style={{ fontWeight: 700, marginBottom: 6, color: "#6D28D9" }}>
@@ -542,29 +555,35 @@ export default function GeoPage() {
                 ) : null}
               </div>
 
-              <hr style={{ margin: "16px 0", border: 0, borderTop: "1px solid #eee" }} />
+              <div style={{ marginTop: 14 }}>
+                <details>
+                  <summary style={{ cursor: "pointer", fontWeight: 900, color: "#6D28D9" }}>
+                    Developer details (optional)
+                  </summary>
 
-              <h3 style={{ marginTop: 0 }}>Firestore Model (Frozen)</h3>
-              <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.9 }}>
-                <div>
-                  <b>Runs:</b> {GEO_RUNS_COLLECTION}/{"{runId}"}
-                </div>
-                <div>
-                  <b>Pages:</b> {GEO_RUNS_COLLECTION}/{"{runId}"}/{GEO_RUN_PAGES_SUBCOLLECTION}/{"{pageId}"}
-                </div>
-
-                {ensureInfo?.ownerUid && ensureInfo?.websiteId ? (
-                  <div style={{ marginTop: 10 }}>
-                    <b>GEO module ensured at:</b>
-                    <div style={{ wordBreak: "break-word" }}>
-                      users/{ensureInfo.ownerUid}/websites/{ensureInfo.websiteId}/modules/geo
+                  <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.6, opacity: 0.9 }}>
+                    <div>
+                      <b>Runs:</b> {GEO_RUNS_COLLECTION}/{"{runId}"}
                     </div>
+                    <div>
+                      <b>Pages:</b> {GEO_RUNS_COLLECTION}/{"{runId}"}/{GEO_RUN_PAGES_SUBCOLLECTION}/{"{pageId}"}
+                    </div>
+
+                    {ensureInfo?.ownerUid && ensureInfo?.websiteId ? (
+                      <div style={{ marginTop: 10 }}>
+                        <b>GEO module ensured at:</b>
+                        <div style={{ wordBreak: "break-word" }}>
+                          users/{ensureInfo.ownerUid}/websites/{ensureInfo.websiteId}/modules/geo
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
+                </details>
               </div>
-            </div>
+
+            </GeoCard>
           </div>
-        </section>
+        </div>
       </main>
     </VyndowShell>
   );
