@@ -325,6 +325,49 @@ function isAnalyzedStatus(s) {
   const x = normalizeStatus(s);
   return x === "analyzed" || x === "analysed";
 }
+function getRunDisplayStatus(pagesArr) {
+  const arr = Array.isArray(pagesArr) ? pagesArr : [];
+  if (!arr.length) return "processing";
+
+  const statuses = arr.map((p) => normalizeStatus(p?.status));
+  const hasError = statuses.includes("error");
+  const unfinished = statuses.some((s) =>
+    ["queued", "fetching", "processing"].includes(s)
+  );
+
+  if (hasError) return "error";
+  if (unfinished) return "processing";
+  return "complete";
+}
+
+function renderRunStatusPill(status) {
+  const s = normalizeStatus(status);
+
+  const style =
+    s === "complete"
+      ? { background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0" }
+      : s === "error"
+      ? { background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca" }
+      : { background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a" };
+
+  const label = s === "complete" ? "Complete" : s === "error" ? "Error" : "Processing";
+
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "3px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 900,
+        ...style,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 function renderStrengthPill(strength) {
   const s = String(strength || "").toLowerCase();
   const label = s === "strong" ? "Strong" : s === "medium" ? "Medium" : "Weak";
@@ -430,7 +473,9 @@ function renderStrengthPill(strength) {
                 >
                   <div>
                     <div style={{ fontSize: 12, opacity: 0.7 }}>Status</div>
-                    <div style={{ fontWeight: 700 }}>{run.status || "—"}</div>
+                    <div style={{ fontWeight: 700 }}>
+  {renderRunStatusPill(getRunDisplayStatus(sortedPages))}
+</div>
                   </div>
 
                   <div>
@@ -445,14 +490,7 @@ function renderStrengthPill(strength) {
                     <div style={{ fontWeight: 700 }}>{run.month || "—"}</div>
                   </div>
 
-                  <div>
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>Created</div>
-                    <div style={{ fontWeight: 700 }}>
-                      {run.createdAt?.toDate
-                        ? run.createdAt.toDate().toLocaleString()
-                        : "—"}
-                    </div>
-                  </div>
+
                 </div>
 
                 <div style={{ fontWeight: 800, marginBottom: 8 }}>
@@ -483,8 +521,10 @@ function renderStrengthPill(strength) {
       const pid = p?.id || p?.pageId;
       const statusText = normalizeStatus(p.status) || "—";
 
-      return (
-        <>
+return (
+  <div key={pid || p.url} style={{ display: "contents" }}>
+</div>
+
           {/* Row 1: Summary */}
           <tr
             key={pid || p.url}
