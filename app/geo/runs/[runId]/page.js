@@ -829,6 +829,52 @@ function renderImpactBadge(key) {
           </div>
         );
       })()}
+              <div style={{
+        marginBottom: 14,
+        padding: "12px 14px",
+        border: "1px solid #e5e7eb",
+        background: "#f9fafb",
+        borderRadius: 10,
+        fontSize: 13,
+        lineHeight: 1.5
+      }}>
+        <div style={{ fontWeight: 900, marginBottom: 6 }}>
+          What will change if you apply this fix
+        </div>
+{(() => {
+  const bullets = [];
+
+  const hasUpdated = String(fixes?.updatedReviewedSnippet || "").trim().length > 0;
+  const hasFaqHtml = String(fixes?.faqHtml || "").trim().length > 0;
+  const hasFaqJson = String(fixes?.faqJsonLdScript || "").trim().length > 0;
+  const hasEntities = String(fixes?.entityBlock || "").trim().length > 0;
+
+  if (hasUpdated) {
+    bullets.push("Your page will clearly indicate when it was last updated.");
+  }
+
+  if (hasFaqHtml || hasFaqJson) {
+    bullets.push("Search engines will detect structured FAQ-style answers instead of plain paragraphs.");
+  }
+
+  if (hasEntities) {
+    bullets.push("Important entities (brand, product, location, topic) will become explicit and machine-readable.");
+  }
+
+  // Always true when any patch pack exists (safe, non-technical benefit)
+  bullets.push("The content becomes easier for AI systems to extract and summarize accurately.");
+
+  return (
+    <ul style={{ paddingLeft: 18, margin: 0 }}>
+      {bullets.map((t, i) => (
+        <li key={i}>{t}</li>
+      ))}
+    </ul>
+  );
+})()}
+
+      </div>
+
                    
       <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 10, lineHeight: 1.45 }}>
         Copy and paste this as a single bundle. If your page already has JSON-LD, merge instead of duplicating.
