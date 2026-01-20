@@ -169,6 +169,36 @@ export default function GeoRunsListPage() {
   }, [uid, selectedWebsite]);
 
   const rows = useMemo(() => runs, [runs]);
+    function formatRunDate(value) {
+    if (!value) return "—";
+
+    // Firestore Timestamp (client)
+    if (typeof value?.toDate === "function") {
+      try { return value.toDate().toLocaleString(); } catch {}
+    }
+
+    // Firestore Timestamp-like object { seconds, nanoseconds }
+    if (typeof value?.seconds === "number") {
+      try { return new Date(value.seconds * 1000).toLocaleString(); } catch {}
+    }
+
+    // Milliseconds number
+    if (typeof value === "number") {
+      try { return new Date(value).toLocaleString(); } catch {}
+    }
+
+    // ISO string
+    if (typeof value === "string") {
+      const t = Date.parse(value);
+      if (!Number.isNaN(t)) {
+        try { return new Date(t).toLocaleString(); } catch {}
+      }
+      return value;
+    }
+
+    return "—";
+  }
+
 
   if (!authReady) {
     return <div style={{ padding: 24, fontFamily: "system-ui" }}>Checking login…</div>;
@@ -265,9 +295,10 @@ export default function GeoRunsListPage() {
                         onClick={() => router.push(`/geo/runs/${r.id}?websiteId=${selectedWebsite}`)}
                         title="Open run details"
                       >
-                        <td style={{ whiteSpace: "nowrap" }}>
-                          {r.createdAt?.toDate ? r.createdAt.toDate().toLocaleString() : "—"}
-                        </td>
+                       <td style={{ whiteSpace: "nowrap" }}>
+  {formatRunDate(r.createdAt || r.created || r.created_on || r.createdAtMs)}
+</td>
+
 
                         <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
                           {r.id}
@@ -285,7 +316,11 @@ export default function GeoRunsListPage() {
                                 : "processing"
                             }
                           >
-                            {r.status || "processing"}
+                           {r.status === "queued"
+  ? "Queued — Click to Process"
+  : r.status === "processing" || r.status === "analyzed"
+  ? "View Results"
+  : (r.status || "processing")}
                           </GeoPill>
                         </td>
                       </tr>
