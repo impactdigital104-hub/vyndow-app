@@ -69,6 +69,7 @@ export default async function handler(req, res) {
     }
 
 const pagesSnap = await runRef.collection("pages").orderBy("createdAt", "asc").get();
+const pagesSnap = await runRef.collection("pages").orderBy("createdAt", "asc").get();
 const pages = pagesSnap.docs.map((d) => {
   const p = d.data() || {};
   return {
@@ -81,12 +82,18 @@ const pages = pagesSnap.docs.map((d) => {
     issues: Array.isArray(p.issues) ? p.issues : [],
     suggestions: Array.isArray(p.suggestions) ? p.suggestions : [],
     breakdown: p.breakdown || null,
-grade: p.grade || null,
+    grade: p.grade || null,
+
+    // Phase 5C (AI Answer Readiness)
+    aiAnswerReadiness: Array.isArray(p.aiAnswerReadiness) ? p.aiAnswerReadiness : [],
+    aiAnswerReadinessEvaluatedAt: p.aiAnswerReadinessEvaluatedAt || null,
+    aiAnswerReadinessError: p.aiAnswerReadinessError || null,
 
     createdAt: p.createdAt || null,
     updatedAt: p.updatedAt || null,
   };
 });
+
 
 
     return res.status(200).json({
