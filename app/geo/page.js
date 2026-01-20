@@ -259,7 +259,14 @@ export default function GeoPage() {
         ? "Small Business Plan"
         : "Free Plan";
 
+        // If a run was just created, show fresh usage instantly in the pill
+    if (createdRun?.usedAfter != null && createdRun?.baseLimit != null) {
+      const extra = typeof createdRun.extraRemaining === "number" ? createdRun.extraRemaining : 0;
+      return `${createdRun.usedAfter}/${createdRun.baseLimit} used · Extra remaining: ${extra} · ${planLabel}`;
+    }
+
     return `${pagesPerMonth} pages / month · ${planLabel}`;
+
   }
 
   // -----------------------------
@@ -398,15 +405,7 @@ export default function GeoPage() {
               </p>
             </div>
 
-            <div className="geo-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => router.push("/geo/runs")}
-              >
-                ← View Runs
-              </button>
-            </div>
+
           </div>
 
           <div className="geo-grid-2">
@@ -461,32 +460,58 @@ export default function GeoPage() {
                 <div
                   style={{
                     marginTop: 12,
-                    padding: 12,
-                    borderRadius: 12,
-                    background: "#f0f9ff",
+                    padding: 14,
+                    borderRadius: 14,
+                    background: "#ecfeff",
+                    border: "1px solid #a5f3fc",
                     fontSize: 13,
                     lineHeight: 1.6,
                   }}
                 >
-                  <div style={{ fontWeight: 700 }}>Run created ✅</div>
-                  <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <div style={{ fontWeight: 900 }}>Run created ✅</div>
+                    <div style={{ opacity: 0.75 }}>
+                      {createdRun.pagesReserved} page(s) reserved
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 8 }}>
                     <b>Run ID:</b> {createdRun.runId}
                   </div>
-                  <div>
-                    <b>Pages reserved:</b> {createdRun.pagesReserved}
+
+                  <div style={{ marginTop: 6 }}>
+                    <b>Usage after:</b> {createdRun.usedAfter}/{createdRun.baseLimit}
+                    {typeof createdRun.extraRemaining === "number" ? (
+                      <>
+                        {" "}
+                        · Extra remaining: <b>{createdRun.extraRemaining}</b>
+                      </>
+                    ) : null}
                   </div>
-                  <div>
-                    <b>Month:</b> {createdRun.monthKey}
-                  </div>
-                  <div>
-                    <b>Usage after:</b> {createdRun.usedAfter}/{createdRun.baseLimit} (extra remaining:{" "}
-                    {createdRun.extraRemaining})
-                  </div>
-                  <div style={{ opacity: 0.7, marginTop: 6 }}>
-                    Next Phase 2.3 will show Runs List and Run Detail pages.
+
+                  <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => router.push("/geo/runs")}
+                    >
+                      Go to Runs
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        // Keep the user on the page to create another run
+                        setCreatedRun(null);
+                      }}
+                    >
+                      Create another run
+                    </button>
                   </div>
                 </div>
               ) : null}
+
              </GeoCard>
             <GeoCard title="Preview & Validation">
                               {/* Phase 5C: Optional AI Questions (single-URL only) */}
@@ -554,31 +579,6 @@ export default function GeoPage() {
                 ) : null}
               </div>
 
-              <div style={{ marginTop: 14 }}>
-                <details>
-                  <summary style={{ cursor: "pointer", fontWeight: 900, color: "#6D28D9" }}>
-                    Developer details (optional)
-                  </summary>
-
-                  <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.6, opacity: 0.9 }}>
-                    <div>
-                      <b>Runs:</b> {GEO_RUNS_COLLECTION}/{"{runId}"}
-                    </div>
-                    <div>
-                      <b>Pages:</b> {GEO_RUNS_COLLECTION}/{"{runId}"}/{GEO_RUN_PAGES_SUBCOLLECTION}/{"{pageId}"}
-                    </div>
-
-                    {ensureInfo?.ownerUid && ensureInfo?.websiteId ? (
-                      <div style={{ marginTop: 10 }}>
-                        <b>GEO module ensured at:</b>
-                        <div style={{ wordBreak: "break-word" }}>
-                          users/{ensureInfo.ownerUid}/websites/{ensureInfo.websiteId}/modules/geo
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                </details>
-              </div>
 
             </GeoCard>
           </div>
