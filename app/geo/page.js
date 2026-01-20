@@ -31,6 +31,9 @@ export default function GeoPage() {
 
   // URL input
   const [urlListRaw, setUrlListRaw] = useState("");
+  // Optional: AI questions (Phase 5C)
+  // One question per line. Max 5 questions.
+  const [aiQuestionsRaw, setAiQuestionsRaw] = useState("");
 
   // Run creation state
   const [creatingRun, setCreatingRun] = useState(false);
@@ -197,14 +200,44 @@ export default function GeoPage() {
       creditsToConsume: valid.length,
     };
   }, [urlListRaw]);
+    // AI Questions parsing (max 5)
+  const aiParsed = useMemo(() => {
+    const lines = (aiQuestionsRaw || "")
+      .split("\n")
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+    // de-dupe while preserving order
+    const seen = new Set();
+    const unique = [];
+    for (const q of lines) {
+      const key = q.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(q);
+      }
+    }
+
+    return {
+      questions: unique,
+      count: unique.length,
+      tooMany: unique.length > 5,
+    };
+  }, [aiQuestionsRaw]);
+
+  const aiQuestionsEnabled = parsed.valid.length === 1;
+
 
   const canCreateRun =
-    !creatingRun &&
-    !!selectedWebsite &&
-    !geoModuleLoading &&
-    !geoModuleError &&
-    parsed.creditsToConsume > 0 &&
-    parsed.invalid.length === 0;
+  !creatingRun &&
+  !!selectedWebsite &&
+  !geoModuleLoading &&
+  !geoModuleError &&
+  parsed.creditsToConsume > 0 &&
+  parsed.invalid.length === 0 &&
+  // Phase 5C: if AI questions are enabled (single URL), enforce max 5 questions
+  (!aiQuestionsEnabled || !aiParsed.tooMany);
+
 
   // -----------------------------
   // Usage pill text
@@ -247,6 +280,11 @@ export default function GeoPage() {
         body: JSON.stringify({
           websiteId: selectedWebsite,
           urls: parsed.valid,
+          // Phase 5C: allow questions only when exactly one URL is being audited
+          aiQuestions:
+            aiQuestionsEnabled && !aiParsed.tooMany && aiParsed.questions.length
+              ? aiParsed.questions.slice(0, 5)
+              : [],
         }),
       });
 
@@ -439,6 +477,41 @@ export default function GeoPage() {
 
             <div className="output-card">
               <h3 style={{ marginTop: 0 }}>Preview</h3>
+                              {/* Phase 5C: Optional AI Questions (single-URL only) */}
+              <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "#faf5ff" }}>
+                <div style={{ fontWeight: 700, marginBottom: 6, color: "#6D28D9" }}>
+                  Optional: AI Questions (Max 5)
+                </div>
+                <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 8 }}>
+                  These questions are evaluated using only the content on the audited page.
+                  {aiQuestionsEnabled ? null : (
+                    <span> (Available when auditing exactly one URL.)</span>
+                  )}
+                </div>
+
+                <textarea
+                  rows={5}
+                  placeholder={
+                    aiQuestionsEnabled
+                      ? "Example:\nWhat services do you offer?\nHow do pricing plans work?\nWhat is your refund policy?\nHow can I contact support?\nWhere are you located?"
+                      : "Enter exactly one valid URL on the left to enable questions."
+                  }
+                  value={aiQuestionsRaw}
+                  onChange={(e) => setAiQuestionsRaw(e.target.value)}
+                  disabled={!aiQuestionsEnabled}
+                  style={{ width: "100%" }}
+                />
+
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 12 }}>
+                  <div style={{ opacity: 0.8 }}>{aiParsed.count} / 5 questions</div>
+                  {aiParsed.tooMany ? (
+                    <div style={{ color: "#b91c1c", fontWeight: 700 }}>
+                      Please reduce to 5 questions.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
 
               <div style={{ fontSize: 14, lineHeight: 1.6 }}>
                 <div>
