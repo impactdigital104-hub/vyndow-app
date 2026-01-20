@@ -325,6 +325,33 @@ function isAnalyzedStatus(s) {
   const x = normalizeStatus(s);
   return x === "analyzed" || x === "analysed";
 }
+function renderStrengthPill(strength) {
+  const s = String(strength || "").toLowerCase();
+  const label = s === "strong" ? "Strong" : s === "medium" ? "Medium" : "Weak";
+
+  const style =
+    s === "strong"
+      ? { background: "#ecfdf5", color: "#065f46" }
+      : s === "medium"
+      ? { background: "#fffbeb", color: "#92400e" }
+      : { background: "#fef2f2", color: "#991b1b" };
+
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "3px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 800,
+        ...style,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 // -----------------------------------------------------
 
 
@@ -649,6 +676,82 @@ function isAnalyzedStatus(s) {
                     <div style={{ opacity: 0.75 }}>No suggestions available.</div>
                   )}
                 </div>
+
+                {/* Phase 5C: AI Answer Readiness */}
+                {Array.isArray(run?.aiQuestions) && run.aiQuestions.length ? (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontWeight: 900, marginBottom: 6 }}>
+                      AI Answer Readiness (Max 5)
+                    </div>
+
+                    <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 10, lineHeight: 1.45 }}>
+                      This simulates how confidently an AI can answer these questions using only the content on this page.
+                      (Single-URL runs only.)
+                    </div>
+
+                    {p?.aiAnswerReadinessError ? (
+                      <div style={{ color: "#b91c1c", fontSize: 12, marginBottom: 10 }}>
+                        AI readiness error: {String(p.aiAnswerReadinessError)}
+                      </div>
+                    ) : null}
+
+                    <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 10 }}>
+                      Evaluated:{" "}
+                      {p?.aiAnswerReadinessEvaluatedAt?.toDate
+                        ? p.aiAnswerReadinessEvaluatedAt.toDate().toLocaleString()
+                        : p?.aiAnswerReadinessEvaluatedAt
+                        ? "Yes"
+                        : "—"}
+                    </div>
+
+                    {Array.isArray(p?.aiAnswerReadiness) && p.aiAnswerReadiness.length ? (
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {p.aiAnswerReadiness.map((r, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              border: "1px solid #eee",
+                              borderRadius: 10,
+                              padding: 12,
+                              background: "#fff",
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                              <div style={{ fontWeight: 900, lineHeight: 1.35 }}>
+                                Q{idx + 1}. {r?.question || "—"}
+                              </div>
+                              {renderStrengthPill(r?.strength)}
+                            </div>
+
+                            <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.45 }}>
+                              <b>Answer excerpt:</b>{" "}
+                              <span style={{ opacity: 0.95 }}>
+                                {r?.answerExcerpt || "—"}
+                              </span>
+                            </div>
+
+                            {r?.missingReason ? (
+                              <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.45 }}>
+                                <b>What’s missing:</b>{" "}
+                                <span style={{ opacity: 0.9 }}>{r.missingReason}</span>
+                              </div>
+                            ) : null}
+
+                            {r?.sourceHint ? (
+                              <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
+                                <b>Source hint:</b> {r.sourceHint}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ opacity: 0.75, fontSize: 13 }}>
+                        No AI readiness results yet. (It will appear once analysis completes.)
+                      </div>
+                    )}
+                  </div>
+                ) : null}
 
                 {/* Generate Fix is ONLY here (inside the audit report) */}
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
