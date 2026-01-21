@@ -346,9 +346,9 @@ export default function GeoPage() {
           const bad = (data?.invalid || []).slice(0, 3).join(" | ");
           throw new Error(`Invalid URLs detected. Example: ${bad}`);
         }
+throw new Error(data?.error || "Failed to create GEO run.");
 
-        throw new Error(data?.error || "Failed to create GEO run.");
-      }
+ 
 
       setCreatedRun({
         runId: data.runId,
