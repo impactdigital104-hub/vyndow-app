@@ -6,6 +6,77 @@ import { onAuthStateChanged } from "firebase/auth";
 
 import VyndowShell from "../../../VyndowShell";
 import { auth } from "../../../firebaseClient";
+// ---------- GEO UI styles (Phase 6: visual polish) ----------
+const GEO_UI = {
+  card: {
+    border: "1px solid #ececf6",
+    borderRadius: 14,
+    background: "linear-gradient(180deg, #fbfaff 0%, #ffffff 70%)",
+    boxShadow: "0 1px 10px rgba(17, 24, 39, 0.05)",
+  },
+  sectionTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    fontWeight: 900,
+    color: "#2d1b69",
+    marginBottom: 10,
+    fontSize: 14,
+  },
+  sectionChip: {
+    fontSize: 12,
+    fontWeight: 800,
+    padding: "4px 10px",
+    borderRadius: 999,
+    background: "#f5f3ff",
+    border: "1px solid #e9d5ff",
+    color: "#4c1d95",
+  },
+  headerWrap: {
+    ...({
+      border: "1px solid #ececf6",
+      borderRadius: 14,
+      padding: 14,
+      background: "linear-gradient(135deg, #f5f3ff 0%, #ffffff 60%)",
+      boxShadow: "0 1px 12px rgba(17, 24, 39, 0.05)",
+    }),
+  },
+  statPill: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "6px 10px",
+    borderRadius: 999,
+    border: "1px solid #ececf6",
+    background: "#ffffff",
+    fontSize: 12,
+    fontWeight: 800,
+    color: "#111827",
+  },
+  statLabel: { fontSize: 11, opacity: 0.7, fontWeight: 800 },
+  breakdownGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+    gap: 12,
+    fontSize: 13,
+  },
+  breakdownCard: {
+    border: "1px solid #e9d5ff",
+    borderRadius: 12,
+    padding: 10,
+    background: "linear-gradient(180deg, #fbf7ff 0%, #ffffff 70%)",
+  },
+  list: { marginTop: 0, marginBottom: 0, paddingLeft: 0, listStyle: "none" },
+  listItem: {
+    border: "1px solid #ececf6",
+    borderRadius: 12,
+    padding: 12,
+    background: "#ffffff",
+    marginBottom: 10,
+  },
+  muted: { opacity: 0.75 },
+};
+// ------------------------------------------------------------
 
 export default function GeoRunDetailPage() {
   const router = useRouter();
@@ -573,35 +644,34 @@ return (
           {pid && expandedAuditByPageId?.[pid] ? (
             <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
              <td colSpan={4} style={{ padding: "8px 8px", background: "#fafafa" }}>
-                <div style={{ fontWeight: 900, marginBottom: 6, fontSize: 14 }}>
-                  Audit Report
-                </div>
+<div style={GEO_UI.headerWrap}>
+  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+    <div style={GEO_UI.sectionTitle}>
+      <span style={GEO_UI.sectionChip}>Audit Report</span>
+      <span style={{ fontWeight: 900, color: "#111827" }}>GEO summary & diagnostics</span>
+    </div>
 
-                <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 10 }}>
-                  <div>
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>GEO Score</div>
-                    <div style={{ fontSize: 18, fontWeight: 800 }}>
-                      {typeof p.geoScore === "number" ? p.geoScore : "—"}
-                    </div>
-                  </div>
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+      <div style={GEO_UI.statPill}>
+        <span style={GEO_UI.statLabel}>GEO Score</span>
+        <span style={{ fontSize: 14 }}>
+          {typeof p.geoScore === "number" ? p.geoScore : "—"}
+        </span>
+      </div>
 
-                  <div>
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>Status</div>
-                    <div style={{ fontWeight: 700 }}>{statusText}</div>
-                  </div>
-                </div>
+      <div style={GEO_UI.statPill}>
+        <span style={GEO_UI.statLabel}>Status</span>
+        <span>{statusText}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 
                 <div style={{ marginBottom: 10 }}>
             {/* SCORE BREAKDOWN (A–H) */}
-<div
-  style={{
-    border: "1px solid #eee",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    background: "#fafafa",
-  }}
->
+<div style={{ ...GEO_UI.card, padding: 14, marginBottom: 16 }}>
+
   <div style={{ fontWeight: 700, marginBottom: 8 }}>
     Score Breakdown (A–H)
   </div>
@@ -637,15 +707,7 @@ return (
   >
     {p.breakdown &&
       Object.entries(p.breakdown).map(([key, val]) => (
-        <div
-          key={key}
-          style={{
-            border: "1px solid #ddd",
-            borderRadius: 6,
-            padding: 8,
-            background: "#fff",
-          }}
-        >
+       <div key={key} style={GEO_UI.breakdownCard}>
           <div style={{ fontWeight: 700 }}>Category {key}</div>
           <div>Score: {val.subScore ?? 0} / 5</div>
           <div>Points: {val.points ?? 0}</div>
@@ -654,11 +716,15 @@ return (
       ))}
   </div>
 </div>
-                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Issues Found</div>
+             <div style={GEO_UI.sectionTitle}>
+  <span style={GEO_UI.sectionChip}>Issues Found</span>
+  <span style={GEO_UI.muted}>What blocks AI from answering confidently</span>
+</div>
+
                   {Array.isArray(p.issues) && p.issues.length > 0 ? (
-                    <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 18 }}>
+                 <ul style={GEO_UI.list}>
 {p.issues.map((it, idx) => (
-  <li key={idx} style={{ marginBottom: 10 }}>
+ <li key={idx} style={GEO_UI.listItem}>
     <div style={{ fontWeight: 700 }}>
       [{it?.category || "—"}] {it?.title || "Issue"}{" "}
       <span style={{ opacity: 0.75 }}>
@@ -689,11 +755,14 @@ return (
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Suggestions</div>
+              <div style={GEO_UI.sectionTitle}>
+  <span style={GEO_UI.sectionChip}>Suggestions</span>
+  <span style={GEO_UI.muted}>Fast improvements that lift your score</span>
+</div>
                   {Array.isArray(p.suggestions) && p.suggestions.length > 0 ? (
-                    <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 18 }}>
+                    <ul style={GEO_UI.list}>
 {p.suggestions.map((it, idx) => (
-  <li key={idx} style={{ marginBottom: 10 }}>
+<li key={idx} style={GEO_UI.listItem}>
     <div style={{ fontWeight: 700 }}>
       [{it?.category || "—"}] {it?.title || "Suggestion"}
     </div>
