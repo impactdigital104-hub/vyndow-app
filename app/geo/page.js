@@ -41,6 +41,10 @@ export default function GeoPage() {
   const [creatingRun, setCreatingRun] = useState(false);
   const [createError, setCreateError] = useState("");
   const [createdRun, setCreatedRun] = useState(null);
+    // Phase 7: quota UX (no feature gating)
+  const [geoQuotaNotice, setGeoQuotaNotice] = useState(null); // { message, details }
+  const [geoQuotaHardStop, setGeoQuotaHardStop] = useState(false); // true if remaining === 0
+
 
   // -----------------------------
   // Auth gate (same as SEO)
@@ -113,6 +117,18 @@ export default function GeoPage() {
       localStorage.setItem("vyndow_selectedWebsiteId", selectedWebsite);
     } catch {}
   }, [selectedWebsite]);
+    // Clear any prior quota notice when switching website
+  useEffect(() => {
+    setGeoQuotaNotice(null);
+    setGeoQuotaHardStop(false);
+  }, [selectedWebsite]);
+
+  // Clear quota notice when user edits URLs (so they can try again with fewer URLs)
+  useEffect(() => {
+    setGeoQuotaNotice(null);
+    setGeoQuotaHardStop(false);
+  }, [urlListRaw]);
+
 
   // -----------------------------
   // Ensure GEO module doc exists + load values
@@ -237,8 +253,9 @@ export default function GeoPage() {
   !geoModuleError &&
   parsed.creditsToConsume > 0 &&
   parsed.invalid.length === 0 &&
-  // Phase 5C: if AI questions are enabled (single URL), enforce max 5 questions
-  (!aiQuestionsEnabled || !aiParsed.tooMany);
+       (!aiQuestionsEnabled || !aiParsed.tooMany) &&
+  !geoQuotaHardStop;
+
 
 
   // -----------------------------
@@ -299,14 +316,21 @@ export default function GeoPage() {
 
       const data = await resp.json().catch(() => ({}));
 
-      if (!resp.ok || !data?.ok) {
-        // Quota exceeded payload
-        if (data?.error === "QUOTA_EXCEEDED") {
+        // Phase 7: standardized quota payload
+        if (data?.code === "GEO_LIMIT_REACHED" || data?.error === "QUOTA_EXCEEDED") {
           const d = data?.details || {};
-          throw new Error(
-            `Quota exceeded. Used ${d.used}/${d.limit} pages. Requested ${d.requested}. Extra remaining: ${d.extraRemaining ?? 0}.`
-          );
+          const msg = data?.message || "You’ve reached your monthly GEO URL limit.";
+
+          setGeoQuotaNotice({ message: msg, details: d });
+
+          // Hard stop only if remaining is 0 (fully exhausted)
+          const remaining = Number(d.remaining ?? 0);
+          setGeoQuotaHardStop(remaining <= 0);
+
+          // Do not throw a scary error; show the calm notice instead
+          return;
         }
+
 
         // Domain mismatch payload
         if (data?.error === "URL_DOMAIN_MISMATCH") {
@@ -392,6 +416,55 @@ export default function GeoPage() {
           <div className="project-bar-right">
             <div className="project-bar-usage-label">GEO Usage</div>
             <div className="project-bar-usage-pill">{buildGeoUsageSummary()}</div>
+                            {geoQuotaHardStop ? (
+              <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => router.push("/pricing")}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 999,
+                    border: "1px solid #e5e7eb",
+                    background: "#fff",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Upgrade Plan
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => router.push("/pricing")}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 999,
+                    border: "1px solid #e5e7eb",
+                    background: "#fff",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Buy More URLs
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => router.push("/websites")}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 999,
+                    border: "1px solid #e5e7eb",
+                    background: "#f9fafb",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Add Website
+                </button>
+              </div>
+            ) : null}
+
           </div>
         </div>
 
@@ -455,6 +528,34 @@ export default function GeoPage() {
                   {createError}
                 </div>
               ) : null}
+              {geoQuotaNotice ? (
+                <div
+                  className="error-box"
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    marginTop: 12,
+                  }}
+                >
+                  <strong>Monthly limit reached (or this run exceeds remaining).</strong>
+                  <br />
+                  {geoQuotaNotice.message}
+                  {geoQuotaNotice?.details ? (
+                    <>
+                      <br />
+                      <span style={{ fontSize: "0.9rem" }}>
+                        Used: <b>{geoQuotaNotice.details.used ?? 0}</b> /
+                        <b> {geoQuotaNotice.details.limit ?? 0}</b> · Remaining:{" "}
+                        <b>{geoQuotaNotice.details.remaining ?? 0}</b>
+                      </span>
+                    </>
+                  ) : null}
+                  <br />
+                  <span style={{ fontSize: "0.85rem" }}>
+                    Tip: Upgrade your plan or buy more URL credits. You can also add another website.
+                  </span>
+                </div>
+              ) : null}
+
 
               {createdRun ? (
                 <div
