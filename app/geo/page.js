@@ -275,7 +275,13 @@ export default function GeoPage() {
         : plan === "small_business"
         ? "Small Business Plan"
         : "Free Plan";
-
+// If quota notice is showing, reflect usage instantly in the pill
+if (geoQuotaNotice?.details?.used != null && geoQuotaNotice?.details?.limit != null) {
+  const used = geoQuotaNotice.details.used;
+  const limit = geoQuotaNotice.details.limit;
+  const extra = typeof geoQuotaNotice.details.extraRemaining === "number" ? geoQuotaNotice.details.extraRemaining : 0;
+  return `${used}/${limit} used · Extra remaining: ${extra} · ${planLabel}`;
+}
         // If a run was just created, show fresh usage instantly in the pill
     if (createdRun?.usedAfter != null && createdRun?.baseLimit != null) {
       const extra = typeof createdRun.extraRemaining === "number" ? createdRun.extraRemaining : 0;
@@ -314,22 +320,27 @@ export default function GeoPage() {
         }),
       });
 
-      const data = await resp.json().catch(() => ({}));
+ const data = await resp.json().catch(() => ({}));
 
-        // Phase 7: standardized quota payload
-        if (data?.code === "GEO_LIMIT_REACHED" || data?.error === "QUOTA_EXCEEDED") {
-          const d = data?.details || {};
-          const msg = data?.message || "You’ve reached your monthly GEO URL limit.";
+// Phase 7: standardized quota payload (show notice + buttons, NOT red error)
+if (data?.code === "GEO_LIMIT_REACHED" || data?.error === "QUOTA_EXCEEDED") {
+  const d = data?.details || {};
+  const msg = data?.message || "You’ve reached your monthly GEO URL limit.";
 
-          setGeoQuotaNotice({ message: msg, details: d });
+  // Clear red error if any
+  setCreateError("");
 
-          // Hard stop only if remaining is 0 (fully exhausted)
-          const remaining = Number(d.remaining ?? 0);
-          setGeoQuotaHardStop(remaining <= 0);
+  // Show calm notice
+  setGeoQuotaNotice({ message: msg, details: d });
 
-          // Do not throw a scary error; show the calm notice instead
-          return;
-        }
+  // Hard stop only if remaining is 0 (fully exhausted)
+  const remaining = Number(d.remaining ?? 0);
+  setGeoQuotaHardStop(remaining <= 0);
+
+  // IMPORTANT: stop here; do not proceed
+  return;
+}
+
 
 
         // Domain mismatch payload
@@ -552,6 +563,32 @@ throw new Error(data?.error || "Failed to create GEO run.");
                   <br />
                   <span style={{ fontSize: "0.85rem" }}>
                     Tip: Upgrade your plan or buy more URL credits. You can also add another website.
+                          <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={() => router.push("/pricing")}
+      >
+        Upgrade Plan
+      </button>
+
+      <button
+        type="button"
+        className="btn btn-secondary"
+        onClick={() => router.push("/pricing")}
+      >
+        Buy More URLs
+      </button>
+
+      <button
+        type="button"
+        className="btn btn-secondary"
+        onClick={() => router.push("/websites")}
+      >
+        Add Website
+      </button>
+    </div>
+
                   </span>
                 </div>
               ) : null}
