@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, doc, getDoc } from "firebase/firestore";
+
 
 import VyndowShell from "../VyndowShell";
 import { auth, db } from "../firebaseClient";
@@ -13,6 +14,13 @@ import { GeoCard } from "../components/GeoUI";
 
 
 export default function GeoPage() {
+  function getMonthKeyClient() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
   const router = useRouter();
 
   // Auth
@@ -30,6 +38,13 @@ export default function GeoPage() {
   const [geoModuleLoading, setGeoModuleLoading] = useState(false);
   const [geoModuleError, setGeoModuleError] = useState("");
   const [ensureInfo, setEnsureInfo] = useState(null);
+  function getEffectiveContext(websiteId) {
+  // ensureInfo is set by /api/geo/ensure and may point to the owner context
+  const effectiveUid = ensureInfo?.ownerUid || uid;
+  const effectiveWebsiteId = ensureInfo?.websiteId || websiteId;
+  return { effectiveUid, effectiveWebsiteId };
+}
+
 
   // URL input
   const [urlListRaw, setUrlListRaw] = useState("");
@@ -44,6 +59,9 @@ export default function GeoPage() {
     // Phase 7: quota UX (no feature gating)
   const [geoQuotaNotice, setGeoQuotaNotice] = useState(null); // { message, details }
   const [geoQuotaHardStop, setGeoQuotaHardStop] = useState(false); // true if remaining === 0
+  const [geoUsedThisMonth, setGeoUsedThisMonth] = useState(0);
+const [geoUsageLoading, setGeoUsageLoading] = useState(false);
+
 
 
   // -----------------------------
@@ -118,10 +136,25 @@ export default function GeoPage() {
     } catch {}
   }, [selectedWebsite]);
     // Clear any prior quota notice when switching website
-  useEffect(() => {
-    setGeoQuotaNotice(null);
-    setGeoQuotaHardStop(false);
-  }, [selectedWebsite]);
+useEffect(() => {
+  setGeoQuotaNotice(null);
+  setGeoQuotaHardStop(false);
+
+  // Load usage (used pages this month) so the pill always shows X/Y
+  (async () => {
+    try {
+      setGeoUsageLoading(true);
+      const used = await refreshGeoUsage({ db, uid, selectedWebsite, getEffectiveContext });
+      setGeoUsedThisMonth(used);
+    } catch (e) {
+      console.error("Failed to load GEO usage:", e);
+      setGeoUsedThisMonth(0);
+    } finally {
+      setGeoUsageLoading(false);
+    }
+  })();
+}, [selectedWebsite, db, uid]);
+
 
   // Clear quota notice when user edits URLs (so they can try again with fewer URLs)
   useEffect(() => {
@@ -261,6 +294,28 @@ export default function GeoPage() {
   // -----------------------------
   // Usage pill text
   // -----------------------------
+  async function refreshGeoUsage({ db, uid, selectedWebsite, getEffectiveContext }) {
+  if (!db || !uid || !selectedWebsite) return;
+
+  const monthKey = getMonthKeyClient();
+  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsite);
+
+  const usageRef = doc(
+    db,
+    "users",
+    effectiveUid,
+    "websites",
+    effectiveWebsiteId,
+    "geoUsage",
+    monthKey
+  );
+
+  const snap = await getDoc(usageRef);
+  const used = snap.exists() ? (snap.data()?.usedPagesThisMonth ?? 0) : 0;
+
+  return Number(used) || 0;
+}
+
   function buildGeoUsageSummary() {
     if (geoModuleLoading) return "Loading usage…";
     if (geoModuleError) return "Usage unavailable";
@@ -288,7 +343,13 @@ if (geoQuotaNotice?.details?.used != null && geoQuotaNotice?.details?.limit != n
       return `${createdRun.usedAfter}/${createdRun.baseLimit} used · Extra remaining: ${extra} · ${planLabel}`;
     }
 
-    return `${pagesPerMonth} pages / month · ${planLabel}`;
+    if (geoUsageLoading) return `Loading… · ${planLabel}`;
+
+const used = Number(geoUsedThisMonth ?? 0);
+const total = Number(pagesPerMonth ?? 0);
+
+return `${used} / ${total} used · ${planLabel}`;
+
 
   }
 
@@ -357,7 +418,6 @@ if (data?.code === "GEO_LIMIT_REACHED" || data?.error === "QUOTA_EXCEEDED") {
           const bad = (data?.invalid || []).slice(0, 3).join(" | ");
           throw new Error(`Invalid URLs detected. Example: ${bad}`);
         }
-throw new Error(data?.error || "Failed to create GEO run.");
 
  
 
@@ -561,35 +621,36 @@ throw new Error(data?.error || "Failed to create GEO run.");
                     </>
                   ) : null}
                   <br />
-                  <span style={{ fontSize: "0.85rem" }}>
-                    Tip: Upgrade your plan or buy more URL credits. You can also add another website.
-                          <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={() => router.push("/pricing")}
-      >
-        Upgrade Plan
-      </button>
+<div style={{ fontSize: "0.85rem" }}>
+  Tip: Upgrade your plan or buy more URL credits. You can also add another website.
+</div>
 
-      <button
-        type="button"
-        className="btn btn-secondary"
-        onClick={() => router.push("/pricing")}
-      >
-        Buy More URLs
-      </button>
+<div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+  <button
+    type="button"
+    className="btn btn-primary"
+    onClick={() => router.push("/pricing")}
+  >
+    Upgrade Plan
+  </button>
 
-      <button
-        type="button"
-        className="btn btn-secondary"
-        onClick={() => router.push("/websites")}
-      >
-        Add Website
-      </button>
-    </div>
+  <button
+    type="button"
+    className="btn btn-secondary"
+    onClick={() => router.push("/pricing")}
+  >
+    Buy More URLs
+  </button>
 
-                  </span>
+  <button
+    type="button"
+    className="btn btn-secondary"
+    onClick={() => router.push("/websites")}
+  >
+    Add Website
+  </button>
+</div>
+
                 </div>
               ) : null}
 
