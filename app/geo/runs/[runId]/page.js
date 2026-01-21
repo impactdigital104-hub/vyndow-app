@@ -566,8 +566,6 @@ return (
               </button>
             </td>
           </tr>
-</Fragment>
-
 
           {/* Row 2: Expanded Audit Report + Generate Fix */}
           {pid && expandedAuditByPageId?.[pid] ? (
@@ -1245,6 +1243,7 @@ function renderImpactBadge(key) {
               </td>
             </tr>
           ) : null}
+            </Fragment>
         </>
       );
     })}
