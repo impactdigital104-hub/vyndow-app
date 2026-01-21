@@ -1244,7 +1244,6 @@ function renderImpactBadge(key) {
             </tr>
           ) : null}
             </Fragment>
-        </>
       );
     })}
   </tbody>
