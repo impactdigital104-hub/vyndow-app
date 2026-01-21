@@ -636,7 +636,7 @@ if (data?.code === "GEO_LIMIT_REACHED" || data?.error === "QUOTA_EXCEEDED") {
 
   <button
     type="button"
-    className="btn btn-secondary"
+   className="btn btn-outline-primary"
     onClick={() => router.push("/pricing")}
   >
     Buy More URLs
@@ -644,7 +644,7 @@ if (data?.code === "GEO_LIMIT_REACHED" || data?.error === "QUOTA_EXCEEDED") {
 
   <button
     type="button"
-    className="btn btn-secondary"
+   className="btn btn-outline-primary"
     onClick={() => router.push("/websites")}
   >
     Add Website
