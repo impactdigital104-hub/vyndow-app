@@ -937,7 +937,17 @@ return (
 
                 {expandedFixByPageId?.[pid] ? (
                   <div style={{ marginTop: 12 }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Fix Output</div>
+                    <div
+  style={{
+    fontWeight: 900,
+    marginBottom: 10,
+    color: "#2d1b69",
+    letterSpacing: "0.2px",
+  }}
+>
+  Fix Output
+</div>
+
 
             <div
   style={{
@@ -1288,15 +1298,21 @@ function renderImpactBadge(key) {
   }}
 >
 
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 10,
-              padding: "10px 12px",
-              background: "#fafafa",
-              borderBottom: isOpen ? "1px solid #eee" : "none",
-            }}>
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "12px 14px",
+    background: isOpen
+      ? "linear-gradient(90deg, #f5f3ff 0%, #ffffff 70%)"
+      : "#f8fafc",
+    borderBottom: "1px solid #e9d5ff",
+    borderLeft: isOpen ? "4px solid #7c3aed" : "4px solid transparent",
+  }}
+>
+
               <button
                 type="button"
                 onClick={() =>
@@ -1315,6 +1331,9 @@ function renderImpactBadge(key) {
                   fontWeight: 800,
                   fontSize: 13,
                   flex: 1,
+                  color: "#2d1b69",
+lineHeight: 1.25,
+
                 }}
                 aria-expanded={isOpen}
               >
@@ -1324,7 +1343,17 @@ function renderImpactBadge(key) {
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ padding: "6px 10px", fontSize: 12, whiteSpace: "nowrap" }}
+               style={{
+  padding: "6px 14px",
+  fontSize: 12,
+  whiteSpace: "nowrap",
+  borderRadius: 999,
+  background: copied ? "#ecfdf5" : "#ffffff",
+  border: copied ? "1px solid #a7f3d0" : "1px dashed #e9d5ff",
+  color: copied ? "#065f46" : "#6d28d9",
+  fontWeight: 800,
+}}
+
                 onClick={() => copyToClipboard(s.copyText, pid, s.key)}
                 title="Copy to clipboard"
               >
