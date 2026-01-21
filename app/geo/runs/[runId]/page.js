@@ -672,7 +672,7 @@ return (
             {/* SCORE BREAKDOWN (A–H) */}
 <div style={{ ...GEO_UI.card, padding: 14, marginBottom: 16 }}>
 
-  <div style={{ fontWeight: 700, marginBottom: 8 }}>
+  <div style={{ fontWeight: 900, marginBottom: 10, color: "#2d1b69" }}>
     Score Breakdown (A–H)
   </div>
       {/* GEO Category Legend */}
@@ -707,7 +707,25 @@ return (
   >
     {p.breakdown &&
       Object.entries(p.breakdown).map(([key, val]) => (
-       <div key={key} style={GEO_UI.breakdownCard}>
+      <div
+  key={key}
+  style={{
+    ...GEO_UI.breakdownCard,
+    background:
+      (val.subScore ?? 0) >= 4
+        ? "linear-gradient(180deg, #ecfdf5 0%, #ffffff 70%)"
+        : (val.subScore ?? 0) >= 2
+        ? "linear-gradient(180deg, #fffbeb 0%, #ffffff 70%)"
+        : "linear-gradient(180deg, #fef2f2 0%, #ffffff 70%)",
+    borderColor:
+      (val.subScore ?? 0) >= 4
+        ? "#a7f3d0"
+        : (val.subScore ?? 0) >= 2
+        ? "#fde68a"
+        : "#fecaca",
+  }}
+>
+
           <div style={{ fontWeight: 700 }}>Category {key}</div>
           <div>Score: {val.subScore ?? 0} / 5</div>
           <div>Points: {val.points ?? 0}</div>
@@ -724,7 +742,15 @@ return (
                   {Array.isArray(p.issues) && p.issues.length > 0 ? (
                  <ul style={GEO_UI.list}>
 {p.issues.map((it, idx) => (
- <li key={idx} style={GEO_UI.listItem}>
+<li
+  key={idx}
+  style={{
+    ...GEO_UI.listItem,
+    borderLeft: "4px solid #f59e0b",
+    background: "#fffbeb",
+  }}
+>
+
     <div style={{ fontWeight: 700 }}>
       [{it?.category || "—"}] {it?.title || "Issue"}{" "}
       <span style={{ opacity: 0.75 }}>
@@ -762,7 +788,15 @@ return (
                   {Array.isArray(p.suggestions) && p.suggestions.length > 0 ? (
                     <ul style={GEO_UI.list}>
 {p.suggestions.map((it, idx) => (
-<li key={idx} style={GEO_UI.listItem}>
+<li
+  key={idx}
+  style={{
+    ...GEO_UI.listItem,
+    borderLeft: "4px solid #3b82f6",
+    background: "#eff6ff",
+  }}
+>
+
     <div style={{ fontWeight: 700 }}>
       [{it?.category || "—"}] {it?.title || "Suggestion"}
     </div>
@@ -1242,13 +1276,18 @@ function renderImpactBadge(key) {
         const copied = Boolean(copiedByKey?.[copiedKey]);
 
         return (
-          <div key={s.key} style={{
-            border: "1px solid #eee",
-            borderRadius: 10,
-            marginBottom: 10,
-            overflow: "hidden",
-            background: "#fff",
-          }}>
+<div
+  key={s.key}
+  style={{
+    border: "1px solid #ececf6",
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: "hidden",
+    background: "#ffffff",
+    boxShadow: "0 1px 8px rgba(17,24,39,0.05)",
+  }}
+>
+
             <div style={{
               display: "flex",
               alignItems: "center",
