@@ -463,14 +463,15 @@ function renderStrengthPill(strength) {
               </div>
             ) : (
               <div style={{ padding: 14 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 18,
-                    flexWrap: "wrap",
-                    marginBottom: 14,
-                  }}
-                >
+              <div
+  style={{
+    display: "flex",
+    gap: 28,
+    flexWrap: "wrap",
+    marginBottom: 18,
+  }}
+>
+
                   <div>
                     <div style={{ fontSize: 12, opacity: 0.7 }}>Status</div>
                     <div style={{ fontWeight: 700 }}>
@@ -550,8 +551,9 @@ return (
 
             <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }}>
               <button
-                className="btn btn-secondary"
-                style={{ padding: "6px 10px", fontSize: 12 }}
+  className="btn btn-primary"
+  style={{ padding: "6px 12px", fontSize: 12 }}
+
                 type="button"
                 onClick={() => {
                   if (!pid) return;
@@ -570,8 +572,8 @@ return (
           {/* Row 2: Expanded Audit Report + Generate Fix */}
           {pid && expandedAuditByPageId?.[pid] ? (
             <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
-              <td colSpan={4} style={{ padding: "12px 8px", background: "#fafafa" }}>
-                <div style={{ fontWeight: 800, marginBottom: 10 }}>
+             <td colSpan={4} style={{ padding: "8px 8px", background: "#fafafa" }}>
+                <div style={{ fontWeight: 900, marginBottom: 6, fontSize: 14 }}>
                   Audit Report
                 </div>
 
