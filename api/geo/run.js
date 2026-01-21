@@ -319,18 +319,34 @@ if (valid.length === 1) {
     // Friendly JSON error shape
     const code = e?.code || e?.message || "UNKNOWN_ERROR";
 
-    if (code === "QUOTA_EXCEEDED") {
-      return res.status(403).json({
-        ok: false,
-        error: "QUOTA_EXCEEDED",
-        details: {
-          used: e.used,
-          limit: e.limit,
-          requested: e.requested,
-          extraRemaining: e.extraRemaining,
-        },
-      });
-    }
+if (code === "QUOTA_EXCEEDED") {
+  const used = Number(e.used ?? 0);
+  const limit = Number(e.limit ?? 0);
+  const requested = Number(e.requested ?? 0);
+  const extraRemaining = Number(e.extraRemaining ?? 0);
+  const remaining = Math.max(0, limit - used);
+
+  const message =
+    remaining <= 0
+      ? "You’ve reached your monthly GEO URL limit for this website."
+      : `This run needs ${requested} URL(s), but you only have ${remaining} remaining this month. Reduce the URLs or upgrade/add URL credits.`;
+
+  return res.status(403).json({
+    ok: false,
+    code: "GEO_LIMIT_REACHED",
+    message,
+    // keep old field for backward compatibility
+    error: "QUOTA_EXCEEDED",
+    details: {
+      used,
+      limit,
+      requested,
+      remaining,
+      extraRemaining,
+    },
+  });
+}
+
 
     return res.status(400).json({
       ok: false,
