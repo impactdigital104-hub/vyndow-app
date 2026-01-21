@@ -1145,6 +1145,11 @@ function renderImpactBadge(key) {
         fontSize: 12,
         lineHeight: 1.45,
         background: "white",
+          borderLeft: "4px solid #7c3aed",
+background: "#ffffff",
+borderRadius: 10,
+boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
+padding: 14,
       }}>{String(fixes.combinedPatchPack || "")}</pre>
       {renderPlaceholderNote(fixes.combinedPatchPack)}
     </div>
@@ -1187,6 +1192,11 @@ function renderImpactBadge(key) {
             fontSize: 12,
             lineHeight: 1.45,
             background: "white",
+            borderLeft: "4px solid #7c3aed",
+background: "#ffffff",
+borderRadius: 10,
+boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
+padding: 14,
           }}>{String(fixes.updatedReviewedSnippet || "")}</pre>
           {renderPlaceholderNote(fixes.updatedReviewedSnippet)}
         </div>
@@ -1208,6 +1218,11 @@ function renderImpactBadge(key) {
             fontSize: 12,
             lineHeight: 1.45,
             background: "white",
+            borderLeft: "4px solid #7c3aed",
+background: "#ffffff",
+borderRadius: 10,
+boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
+padding: 14,
           }}>{String(fixes.entityBlock || "")}</pre>
           {renderPlaceholderNote(fixes.entityBlock)}
         </div>
@@ -1229,6 +1244,11 @@ function renderImpactBadge(key) {
             fontSize: 12,
             lineHeight: 1.45,
             background: "white",
+            borderLeft: "4px solid #7c3aed",
+background: "#ffffff",
+borderRadius: 10,
+boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
+padding: 14,
           }}>{String(fixes.faqHtml || "")}</pre>
           {renderPlaceholderNote(fixes.faqHtml)}
         </div>
@@ -1250,6 +1270,11 @@ function renderImpactBadge(key) {
         fontSize: 12,
         lineHeight: 1.45,
         background: "white",
+        borderLeft: "4px solid #7c3aed",
+background: "#ffffff",
+borderRadius: 10,
+boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
+padding: 14,
       }}>{String(fixes.faqJsonLdScript || "")}</pre>
       {renderPlaceholderNote(fixes.faqJsonLdScript)}
     </div>
@@ -1271,6 +1296,11 @@ function renderImpactBadge(key) {
             fontSize: 12,
             lineHeight: 1.45,
             background: "white",
+            borderLeft: "4px solid #7c3aed",
+background: "#ffffff",
+borderRadius: 10,
+boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
+padding: 14,
           }}>{JSON.stringify(fixes.faqJsonLd || {}, null, 2)}</pre>
           {renderPlaceholderNote(JSON.stringify(fixes.faqJsonLd || {}))}
         </div>
