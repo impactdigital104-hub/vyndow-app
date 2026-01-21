@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -522,8 +522,7 @@ function renderStrengthPill(strength) {
       const statusText = normalizeStatus(p.status) || "—";
 
 return (
-  <div key={pid || p.url} style={{ display: "contents" }}>
-</div>
+  <Fragment key={pid || p.url}>
 
           {/* Row 1: Summary */}
           <tr
@@ -567,6 +566,8 @@ return (
               </button>
             </td>
           </tr>
+</Fragment>
+
 
           {/* Row 2: Expanded Audit Report + Generate Fix */}
           {pid && expandedAuditByPageId?.[pid] ? (
