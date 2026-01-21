@@ -16,14 +16,16 @@ export function normalizePlan(plan) {
 export function geoPlanDefaults(planRaw) {
   const plan = normalizePlan(planRaw);
 
+  // Phase 7 locked limits
   if (plan === "enterprise") {
-    return { plan, pagesPerMonth: 500 };
+    return { plan, pagesPerMonth: 50 };
   }
   if (plan === "small_business") {
-    return { plan, pagesPerMonth: 100 };
+    return { plan, pagesPerMonth: 20 };
   }
- return { plan: "free", pagesPerMonth: 5 };
+  return { plan: "free", pagesPerMonth: 5 };
 }
+
 
 /**
  * Ensure workspace GEO module exists at:
