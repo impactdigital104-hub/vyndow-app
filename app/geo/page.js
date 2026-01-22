@@ -61,6 +61,24 @@ export default function GeoPage() {
   const [geoQuotaHardStop, setGeoQuotaHardStop] = useState(false); // true if remaining === 0
   const [geoUsedThisMonth, setGeoUsedThisMonth] = useState(0);
 const [geoUsageLoading, setGeoUsageLoading] = useState(false);
+  // If usage is already at or above the monthly limit, hard-stop immediately on page load
+useEffect(() => {
+  if (!geoModule) return;
+
+  const base = Number(geoModule.pagesPerMonth ?? 0);
+  const extra = Number(geoModule.extraGeoCreditsThisMonth ?? 0);
+  const used = Number(geoUsedThisMonth ?? 0);
+
+  // If base is 0, treat as not exhausted (avoid accidental lock)
+  if (base <= 0) {
+    setGeoQuotaHardStop(false);
+    return;
+  }
+
+  const exhausted = used >= (base + extra);
+  setGeoQuotaHardStop(exhausted);
+}, [geoModule, geoUsedThisMonth]);
+
 
 
 
@@ -487,54 +505,34 @@ if (data?.code === "GEO_LIMIT_REACHED" || data?.error === "QUOTA_EXCEEDED") {
           <div className="project-bar-right">
             <div className="project-bar-usage-label">GEO Usage</div>
             <div className="project-bar-usage-pill">{buildGeoUsageSummary()}</div>
-                            {geoQuotaHardStop ? (
-              <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  onClick={() => router.push("/pricing")}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 999,
-                    border: "1px solid #e5e7eb",
-                    background: "#fff",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Upgrade Plan
-                </button>
+{geoQuotaHardStop ? (
+  <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+    <button
+      type="button"
+      className="btn btn-primary"
+      onClick={() => router.push("/pricing")}
+    >
+      Upgrade Plan
+    </button>
 
-                <button
-                  type="button"
-                  onClick={() => router.push("/pricing")}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 999,
-                    border: "1px solid #e5e7eb",
-                    background: "#fff",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Buy More URLs
-                </button>
+    <button
+      type="button"
+      className="btn btn-outline-primary"
+      onClick={() => router.push("/pricing")}
+    >
+      Buy More URLs
+    </button>
 
-                <button
-                  type="button"
-                  onClick={() => router.push("/websites")}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 999,
-                    border: "1px solid #e5e7eb",
-                    background: "#f9fafb",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Add Website
-                </button>
-              </div>
-            ) : null}
+    <button
+      type="button"
+      className="btn btn-outline-primary"
+      onClick={() => router.push("/websites")}
+    >
+      Add Website
+    </button>
+  </div>
+) : null}
+
 
           </div>
         </div>
@@ -623,32 +621,6 @@ if (data?.code === "GEO_LIMIT_REACHED" || data?.error === "QUOTA_EXCEEDED") {
                   <br />
 <div style={{ fontSize: "0.85rem" }}>
   Tip: Upgrade your plan or buy more URL credits. You can also add another website.
-</div>
-
-<div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-  <button
-    type="button"
-    className="btn btn-primary"
-    onClick={() => router.push("/pricing")}
-  >
-    Upgrade Plan
-  </button>
-
-  <button
-    type="button"
-   className="btn btn-outline-primary"
-    onClick={() => router.push("/pricing")}
-  >
-    Buy More URLs
-  </button>
-
-  <button
-    type="button"
-   className="btn btn-outline-primary"
-    onClick={() => router.push("/websites")}
-  >
-    Add Website
-  </button>
 </div>
 
                 </div>
