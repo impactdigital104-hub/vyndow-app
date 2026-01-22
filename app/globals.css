@@ -762,6 +762,18 @@ select {
 
 .btn-primary,
 .btn-secondary,
+.btn-soft-primary {
+  background: rgba(124, 58, 237, 0.12);
+  color: #0f172a;
+  border: 1px solid rgba(124, 58, 237, 0.28);
+  cursor: pointer;
+}
+
+.btn-soft-primary:hover {
+  background: rgba(124, 58, 237, 0.18);
+  border-color: rgba(124, 58, 237, 0.38);
+}
+
 .btn-disabled {
   border-radius: 999px;
   padding: 10px 14px;
