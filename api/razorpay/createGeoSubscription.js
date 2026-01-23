@@ -3,10 +3,11 @@ import admin from "../firebaseAdmin";
 import crypto from "crypto";
 
 function getPlanIdFor(plan) {
- if (plan === "small_business") return process.env.RAZORPAY_PLAN_ID_SMALL_BUSINESS_TEST;
-if (plan === "enterprise") return process.env.RAZORPAY_PLAN_ID_ENTERPRISE_TEST;
+  if (plan === "small_business") return process.env.RAZORPAY_PLAN_ID_GEO_SMALL_BUSINESS_TEST;
+  if (plan === "enterprise") return process.env.RAZORPAY_PLAN_ID_GEO_ENTERPRISE_TEST;
   return null;
 }
+
 
 async function razorpayRequest(path, { method = "GET", bodyObj = null } = {}) {
   const keyId = process.env.RAZORPAY_KEY_ID;
@@ -127,18 +128,19 @@ if (razorpayCustomerId) {
         customer_id: customer.id,
         total_count: 120, // effectively "ongoing" (10 years). Can adjust later.
         customer_notify: 1,
-        notes: { uid, email, vyndowPlan: plan },
+       notes: { uid, email, vyndowPlan: plan, module: "geo" },
       },
     });
 
     // 5) Return subscription details to client to open Razorpay Checkout
-    return res.status(200).json({
-      ok: true,
-      uid,
-      plan,
-      subscriptionId: subscription.id,
-      razorpayKeyId: process.env.RAZORPAY_KEY_ID, // safe to return
-    });
+return res.status(200).json({
+  ok: true,
+  module: "geo",
+  plan,
+  subscriptionId: subscription.id,
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+});
+
   } catch (e) {
     console.error("razorpay/createSubscription error:", e);
     return res.status(500).json({ ok: false, error: e?.message || "Unknown error" });
