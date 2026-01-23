@@ -92,7 +92,10 @@ export default async function handler(req, res) {
     const siteSnap = await db.doc(`users/${ownerUid}/websites/${websiteId}`).get();
     const site = siteSnap.exists ? siteSnap.data() || {} : {};
     const websiteName = site.name || "Website";
-    const websiteUrl = site.domain ? `https://${site.domain}` : (site.url || "—");
+   let websiteUrl = site.domain ? `https://${site.domain}` : (site.url || "—");
+if (websiteUrl.startsWith("https://https://")) websiteUrl = websiteUrl.replace("https://https://", "https://");
+if (websiteUrl.startsWith("http://http://")) websiteUrl = websiteUrl.replace("http://http://", "http://");
+
 
     // Build HTML (currently only cover page)
     const html = buildGeoPdfHtml({
