@@ -318,6 +318,43 @@ function renderPlaceholderNote(text) {
       if (!cancelled) tick();
     }, 4000);
 
+      async function handleExportPdf() {
+    try {
+      if (!runId || !websiteId) {
+        alert("Missing runId or websiteId.");
+        return;
+      }
+
+      const user = auth?.currentUser;
+      if (!user) {
+        alert("You are not logged in.");
+        return;
+      }
+
+      const token = await user.getIdToken();
+
+      const resp = await fetch("/api/geo/exportPdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ runId, websiteId }),
+      });
+
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data?.error || "PDF export failed");
+      }
+
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      alert(e?.message || "PDF export failed");
+    }
+  }
+
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -503,9 +540,24 @@ function renderStrengthPill(strength) {
             </p>
           </div>
 
-          <button className="btn btn-secondary" onClick={() => router.push("/geo/runs")}>
-            ← Back to Runs
-          </button>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+  <button
+    className="btn btn-soft-primary"
+    onClick={handleExportPdf}
+    disabled={!runId || !websiteId}
+    title="Export a client-ready PDF report"
+  >
+    Export PDF
+  </button>
+
+  <button
+    className="btn btn-secondary"
+    onClick={() => router.push("/geo/runs")}
+  >
+    ← Back to Runs
+  </button>
+</div>
+
         </header>
         {(autoWorkerMsg || autoWorkerErr) ? (
           <div style={{ marginTop: 10 }}>
