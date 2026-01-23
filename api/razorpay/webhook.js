@@ -225,6 +225,32 @@ if ((event === "subscription.activated" || event === "subscription.charged") && 
 if ((event === "subscription.cancelled" || event === "subscription.completed") && !addonType) {
   await applyPlanToUserAndWebsites({ uid, plan: "free" });
 }
+// ===== GEO MAIN PLAN SUBSCRIPTIONS (module === "geo") =====
+const moduleName = (notes.module || "").trim();
+
+if ((event === "subscription.activated" || event === "subscription.charged") && moduleName === "geo") {
+  const db = admin.firestore();
+  const geoRef = db.doc(`users/${uid}/modules/geo`);
+  await geoRef.set(
+    {
+      plan: vyndowPlan === "enterprise" ? "enterprise" : "small_business",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+if ((event === "subscription.cancelled" || event === "subscription.completed") && moduleName === "geo") {
+  const db = admin.firestore();
+  const geoRef = db.doc(`users/${uid}/modules/geo`);
+  await geoRef.set(
+    {
+      plan: "free",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
 
 // ===== BLOG CREDIT ADD-ON (one-time payment) =====
 if (event === "payment.captured" && addonType === "extra_blog_credits") {
