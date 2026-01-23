@@ -111,6 +111,7 @@ if (websiteUrl.startsWith("http://http://")) websiteUrl = websiteUrl.replace("ht
     });
 
     // Convert to PDF
+    console.log("PDF PATH CHECK: trying HTML->PDF first, fallback only if HTML->PDF fails");
    const pdfBuffer = await htmlToPdfBuffer(html, {
   title: "AI Readiness Assessment",
   lines: [
