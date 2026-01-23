@@ -134,6 +134,32 @@ async function grantBlogCreditsOnce({ uid, paymentId, qty = 2 }) {
     console.error("Webhook blog credits propagation failed:", e);
   }
 }
+// Idempotent grant: GEO extra URLs (+5) once per paymentId
+async function grantGeoUrlsOnce({ uid, paymentId, qty = 5 }) {
+  const db = admin.firestore();
+  const paymentRef = db.doc(`users/${uid}/razorpayPayments/${paymentId}`);
+  const geoRef = db.doc(`users/${uid}/modules/geo`);
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(paymentRef);
+    if (snap.exists) return;
+
+    tx.set(paymentRef, {
+      type: "extra_geo_urls",
+      qty,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    tx.set(
+      geoRef,
+      {
+        extraGeoCreditsThisMonth: admin.firestore.FieldValue.increment(qty),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+}
 
 // Keeps extraWebsitesPurchased equal to count of ACTIVE add-on subscriptions
 async function syncExtraWebsitesFromActiveAddons({ uid }) {
@@ -206,6 +232,14 @@ if (event === "payment.captured" && addonType === "extra_blog_credits") {
   const qty = parseInt(notes.qty || "2", 10) || 2;
   if (paymentId) {
     await grantBlogCreditsOnce({ uid, paymentId, qty });
+  }
+}
+// ===== GEO EXTRA URL PACK (one-time payment) =====
+if (event === "payment.captured" && addonType === "extra_geo_urls") {
+  const paymentId = payload?.payload?.payment?.entity?.id || "";
+  const qty = parseInt(notes.qty || "5", 10) || 5;
+  if (paymentId) {
+    await grantGeoUrlsOnce({ uid, paymentId, qty });
   }
 }
 
