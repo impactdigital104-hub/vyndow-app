@@ -1,13 +1,12 @@
 // api/_lib/geoPdfGenerator.js
 
-import puppeteer from "puppeteer-core";
-import chromium from "@sparticuz/chromium";
+import { chromium } from "playwright";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
-// Fallback PDF (no browser needed)
+// fallback PDF (no browser needed)
 async function buildFallbackPdfBuffer({ title, lines }) {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
+  const page = pdfDoc.addPage([595.28, 841.89]); // A4
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
   let y = 800;
@@ -35,7 +34,6 @@ async function buildFallbackPdfBuffer({ title, lines }) {
     if (y < 60) break;
   }
 
-  // watermark
   page.drawText("Generated using Vyndow GEO — AI Readiness Assessment", {
     x: 50,
     y: 30,
@@ -49,33 +47,20 @@ async function buildFallbackPdfBuffer({ title, lines }) {
 }
 
 export async function htmlToPdfBuffer(html, fallbackData) {
-  // Try browser-based PDF first
   try {
-    const isVercel = !!process.env.VERCEL;
+    const browser = await chromium.launch();
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle" });
 
-    const browser = await puppeteer.launch({
-      args: isVercel ? chromium.args : ["--no-sandbox", "--disable-setuid-sandbox"],
-      defaultViewport: chromium.defaultViewport,
-      executablePath: isVercel ? await chromium.executablePath() : undefined,
-      headless: true,
+    const pdf = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: { top: "16mm", right: "14mm", bottom: "18mm", left: "14mm" },
     });
 
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: "networkidle0" });
-
-      const pdfBuffer = await page.pdf({
-        format: "A4",
-        printBackground: true,
-        margin: { top: "16mm", right: "14mm", bottom: "18mm", left: "14mm" },
-      });
-
-      return pdfBuffer;
-    } finally {
-      await browser.close();
-    }
+    await browser.close();
+    return pdf;
   } catch (e) {
-    // If browser launch fails on Vercel (like libnss3 missing), use fallback
     return await buildFallbackPdfBuffer(fallbackData || {});
   }
 }
