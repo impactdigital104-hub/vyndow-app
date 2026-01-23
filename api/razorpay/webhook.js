@@ -199,6 +199,17 @@ export default async function handler(req, res) {
 
     const payload = JSON.parse(rawBody.toString("utf8"));
     const event = payload?.event || "";
+    console.log("RP_EVENT:", event);
+console.log("RP_PAYLOAD_KEYS:", Object.keys(payload?.payload || {}));
+console.log("RP_NOTES_RAW:", JSON.stringify({
+  subNotes: payload?.payload?.subscription?.entity?.notes || null,
+  payNotes: payload?.payload?.payment?.entity?.notes || null,
+  invNotes: payload?.payload?.invoice?.entity?.notes || null,
+  subId: payload?.payload?.subscription?.entity?.id || null,
+  payId: payload?.payload?.payment?.entity?.id || null,
+  invId: payload?.payload?.invoice?.entity?.id || null,
+}, null, 2));
+
 
     // Extract uid from notes
     const notes =
