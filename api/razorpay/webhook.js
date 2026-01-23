@@ -208,7 +208,9 @@ export default async function handler(req, res) {
 
     const uid = (notes.uid || "").trim();
     const vyndowPlan = (notes.vyndowPlan || "").trim(); // "small_business" | "enterprise"
-    const addonType = (notes.addonType || "").trim(); // "" | "extra_blog_credits" | "additional_website"
+   const addonType = (notes.addonType || "").trim();
+const moduleName = (notes.module || "").trim();
+
     if (!uid) {
       // If uid is missing, we can't apply entitlements safely.
       return res.status(200).json({ ok: true, skipped: true, reason: "Missing notes.uid" });
@@ -217,16 +219,15 @@ export default async function handler(req, res) {
  // Decide what to do based on event
 
 // ===== MAIN PLAN SUBSCRIPTIONS (no addonType) =====
-if ((event === "subscription.activated" || event === "subscription.charged") && !addonType) {
+if ((event === "subscription.activated" || event === "subscription.charged") && !addonType && moduleName !== "geo") {
   const planToApply = vyndowPlan === "enterprise" ? "enterprise" : "small_business";
   await applyPlanToUserAndWebsites({ uid, plan: planToApply });
 }
 
-if ((event === "subscription.cancelled" || event === "subscription.completed") && !addonType) {
+if ((event === "subscription.cancelled" || event === "subscription.completed") && !addonType && moduleName !== "geo") {
   await applyPlanToUserAndWebsites({ uid, plan: "free" });
 }
 // ===== GEO MAIN PLAN SUBSCRIPTIONS (module === "geo") =====
-const moduleName = (notes.module || "").trim();
 
 if ((event === "subscription.activated" || event === "subscription.charged") && moduleName === "geo") {
   const db = admin.firestore();
@@ -246,6 +247,18 @@ if ((event === "subscription.cancelled" || event === "subscription.completed") &
   await geoRef.set(
     {
       plan: "free",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+// GEO MAIN PLAN (fallback): if Razorpay sends payment.captured first
+if (event === "payment.captured" && moduleName === "geo" && !addonType) {
+  const db = admin.firestore();
+  const geoRef = db.doc(`users/${uid}/modules/geo`);
+  await geoRef.set(
+    {
+      plan: vyndowPlan === "enterprise" ? "enterprise" : "small_business",
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true }
