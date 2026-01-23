@@ -157,6 +157,43 @@ function renderPlaceholderNote(text) {
   const ph = extractPlaceholders(text);
   if (!ph.length) return null;
 
+    async function handleExportPdf() {
+    try {
+      if (!runId || !websiteId) {
+        alert("Missing runId or websiteId.");
+        return;
+      }
+
+      const user = auth?.currentUser;
+      if (!user) {
+        alert("You are not logged in.");
+        return;
+      }
+
+      const token = await user.getIdToken();
+
+      const resp = await fetch("/api/geo/exportPdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ runId, websiteId }),
+      });
+
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data?.error || "PDF export failed");
+      }
+
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      alert(e?.message || "PDF export failed");
+    }
+  }
+
   return (
     <div style={{ marginTop: 8, fontSize: 12, color: "#92400e" }}>
       <b>Inputs needed before publishing:</b>{" "}
@@ -318,42 +355,6 @@ function renderPlaceholderNote(text) {
       if (!cancelled) tick();
     }, 4000);
 
-      async function handleExportPdf() {
-    try {
-      if (!runId || !websiteId) {
-        alert("Missing runId or websiteId.");
-        return;
-      }
-
-      const user = auth?.currentUser;
-      if (!user) {
-        alert("You are not logged in.");
-        return;
-      }
-
-      const token = await user.getIdToken();
-
-      const resp = await fetch("/api/geo/exportPdf", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ runId, websiteId }),
-      });
-
-      if (!resp.ok) {
-        const data = await resp.json().catch(() => ({}));
-        throw new Error(data?.error || "PDF export failed");
-      }
-
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (e) {
-      alert(e?.message || "PDF export failed");
-    }
-  }
 
     return () => {
       cancelled = true;
