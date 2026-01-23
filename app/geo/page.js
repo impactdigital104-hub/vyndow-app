@@ -211,7 +211,7 @@ useEffect(() => {
           throw new Error(data?.error || "Failed to ensure GEO module");
         }
 
-        setGeoModule(data?.module || null);
+   setGeoModule(data?.modules?.geo || null);
         setEnsureInfo({
           ownerUid: data.ownerUid,
           websiteId: data.websiteId,
