@@ -259,8 +259,14 @@ const pdfBuffer = await htmlToPdfBuffer(null, report);
     );
 
     return res.status(200).send(pdfBuffer);
-  } catch (e) {
-    console.error("Export PDF error:", e);
-    return res.status(400).json({ ok: false, error: e?.message || "Export PDF failed" });
-  }
+} catch (e) {
+  console.error("EXPORT PDF FAILED (FULL ERROR):", e?.stack || e);
+
+  // Try to show useful info even if something is undefined
+  const msg =
+    (e && typeof e.message === "string" && e.message) ||
+    "Export PDF failed (unknown error)";
+
+  return res.status(500).json({ ok: false, error: msg });
+}
 }
