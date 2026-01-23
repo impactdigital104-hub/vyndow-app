@@ -101,7 +101,7 @@ if (websiteUrl.startsWith("http://http://")) websiteUrl = websiteUrl.replace("ht
 
 
     // Build HTML (currently only cover page)
-const html = buildGeoPdfHtml({
+const report = {
   websiteName,
   websiteUrl,
   generatedOn: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
@@ -234,12 +234,12 @@ const html = buildGeoPdfHtml({
     about:
       "Vyndow.com is an AI-augmented digital marketing suite built to help teams plan, create, optimize, and improve digital performance. It includes modules such as Vyndow SEO, Vyndow GEO, Vyndow Social, Vyndow ABM, Vyndow Analytics, Vyndow GTM, and Vyndow CMO — designed to make modern marketing faster, clearer, and more measurable.",
   },
-});
+};
 
 
     // Convert to PDF
     console.log("PDF PATH CHECK: trying HTML->PDF first, fallback only if HTML->PDF fails");
-   const pdfBuffer = await htmlToPdfBuffer(html, {
+const pdfBuffer = await htmlToPdfBuffer(null, report);
   title: "AI Readiness Assessment",
   lines: [
     `Website Name: ${websiteName}`,
