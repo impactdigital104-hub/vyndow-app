@@ -199,6 +199,7 @@ export default async function handler(req, res) {
 
     const payload = JSON.parse(rawBody.toString("utf8"));
     const event = payload?.event || "";
+    const payId = payload?.payload?.payment?.entity?.id || "";
     console.log("RP_EVENT:", event);
 console.log("RP_PAYLOAD_KEYS:", Object.keys(payload?.payload || {}));
 console.log("RP_NOTES_RAW:", JSON.stringify({
@@ -275,6 +276,35 @@ if (event === "payment.captured" && moduleName === "geo" && !addonType) {
     { merge: true }
   );
 }
+    // GEO MAIN PLAN (auth): Razorpay sends payment.authorized first in some flows
+if (event === "payment.authorized" && moduleName === "geo" && !addonType) {
+  const db = admin.firestore();
+  const geoRef = db.doc(`users/${uid}/modules/geo`);
+  await geoRef.set(
+    {
+      plan: vyndowPlan === "enterprise" ? "enterprise" : "small_business",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  // record payment for debugging / idempotency
+  if (payId) {
+    await db.doc(`users/${uid}/razorpayPayments/${payId}`).set(
+      {
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        type: "geo_subscription",
+        event,
+        amount: payload?.payload?.payment?.entity?.amount || null,
+        currency: payload?.payload?.payment?.entity?.currency || null,
+        module: moduleName,
+        plan: vyndowPlan,
+      },
+      { merge: true }
+    );
+  }
+}
+
 
 // ===== BLOG CREDIT ADD-ON (one-time payment) =====
 if (event === "payment.captured" && addonType === "extra_blog_credits") {
