@@ -544,7 +544,7 @@ function renderStrengthPill(strength) {
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
   <button
     className="btn btn-soft-primary"
-    onClick={handleExportPdf}
+    onClick={() => alert("PDF export is temporarily disabled while the report format is being finalized.")}
     disabled={!runId || !websiteId}
     title="Export a client-ready PDF report"
   >
