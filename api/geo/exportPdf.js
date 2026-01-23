@@ -108,7 +108,18 @@ export default async function handler(req, res) {
     });
 
     // Convert to PDF
-    const pdfBuffer = await htmlToPdfBuffer(html);
+   const pdfBuffer = await htmlToPdfBuffer(html, {
+  title: "AI Readiness Assessment",
+  lines: [
+    `Website Name: ${websiteName}`,
+    `Website URL: ${websiteUrl}`,
+    `Generated on: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}`,
+    "",
+    "Pages assessed in this run:",
+    ...urls.slice(0, 40),
+  ],
+});
+
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
