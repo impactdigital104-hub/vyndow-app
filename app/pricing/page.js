@@ -302,6 +302,60 @@ export default function PricingPage() {
       "GEO billing buttons are added in Phase 8 Step 1.\n\nNext we will wire Razorpay + APIs + webhook.\n\nFor now, please create GEO plans in Razorpay Test mode and share the plan_ids."
     );
   }
+async function startGeoExtraUrlsCheckout() {
+  try {
+    const ok = await loadRazorpay();
+    if (!ok) {
+      alert("Razorpay checkout failed to load.");
+      return;
+    }
+
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please login again.");
+      router.push("/login");
+      return;
+    }
+
+    const token = await user.getIdToken();
+
+    const resp = await fetch("/api/razorpay/createGeoExtraUrlsOrder", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const json = await resp.json();
+    if (!resp.ok || !json.ok) {
+      alert("Could not start payment.");
+      return;
+    }
+
+    const options = {
+      key: json.razorpayKeyId,
+      order_id: json.orderId,
+      name: "Vyndow GEO",
+      description: "Extra URL Pack (+5)",
+      prefill: { email: user.email || "" },
+      notes: {
+        uid: user.uid,
+        addonType: "extra_geo_urls",
+        qty: "5",
+      },
+      handler: function () {
+        router.push("/geo");
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
 
   // ---------------------------
   // UI helpers
@@ -619,7 +673,7 @@ export default function PricingPage() {
                   price="₹249 (one-time)"
                   description="Adds +5 pages for this month (one-time purchase)"
                   actionLabel="Buy +5 URLs"
-                  onAction={geoNotWiredYet}
+                  onAction={startGeoExtraUrlsCheckout}
                 />
 
                 <AddOnCard
