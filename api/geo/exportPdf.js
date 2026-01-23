@@ -46,6 +46,11 @@ function gradeFromScore(score) {
 }
 
 export default async function handler(req, res) {
+    return res.status(200).json({
+    ok: false,
+    error: "PDF export is temporarily disabled while the report format is being finalized.",
+  });
+
   console.log("EXPORT PDF BODY:", req.body);
 console.log("EXPORT PDF QUERY:", req.query);
 
