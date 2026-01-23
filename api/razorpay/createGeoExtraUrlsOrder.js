@@ -1,46 +1,71 @@
-import Razorpay from "razorpay";
+// api/razorpay/createGeoExtraUrlsOrder.js
 import admin from "../firebaseAdmin";
-import { verifyAuthToken } from "../verifyAuthToken";
+
+async function razorpayRequest(path, { method = "GET", bodyObj = null } = {}) {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) throw new Error("Missing Razorpay API keys in env.");
+
+  const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+
+  const res = await fetch(`https://api.razorpay.com/v1${path}`, {
+    method,
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/json",
+    },
+    body: bodyObj ? JSON.stringify(bodyObj) : undefined,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data?.error?.description || data?.error?.code || "Razorpay API error";
+    throw new Error(msg);
+  }
+  return data;
+}
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(200).json({ ok: false, error: "Use POST" });
-  }
+  if (req.method !== "POST") return res.status(200).json({ ok: true, message: "Use POST." });
 
   try {
-    // 1. Verify user
-    const decoded = await verifyAuthToken(req);
-    const uid = decoded?.uid;
-    if (!uid) {
-      return res.status(401).json({ ok: false, error: "Unauthorized" });
-    }
+    // 1) Verify Firebase ID token
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ ok: false, error: "Missing auth token." });
 
-    // 2. Create Razorpay instance
-    const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
-    });
+    const decoded = await admin.auth().verifyIdToken(token);
+    const uid = decoded.uid;
+    const email = decoded.email || "";
 
-    // 3. Create one-time order for ₹249
-    const order = await razorpay.orders.create({
-      amount: 249 * 100, // paise
-      currency: "INR",
-      payment_capture: 1,
-      notes: {
-        uid,
-        module: "geo",
-        addonType: "extra_geo_urls",
-        qty: "5",
+    // 2) Create Razorpay Order (₹249 => 24900 paise)
+    const amount = 24900;
+    const order = await razorpayRequest("/orders", {
+      method: "POST",
+      bodyObj: {
+        amount,
+        currency: "INR",
+        receipt: `geo_urls_${Date.now()}`,
+        notes: {
+          uid,
+          email,
+          module: "geo",
+          addonType: "extra_geo_urls",
+          qty: "5",
+        },
       },
     });
 
     return res.status(200).json({
       ok: true,
-      orderId: order.id,
       razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
     });
   } catch (e) {
-    console.error("createGeoExtraUrlsOrder error:", e);
-    return res.status(500).json({ ok: false, error: e.message });
+    console.error("razorpay/createGeoExtraUrlsOrder error:", e);
+    return res.status(500).json({ ok: false, error: e?.message || "Unknown error" });
   }
 }
