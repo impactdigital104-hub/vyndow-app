@@ -243,14 +243,27 @@ if ((event === "subscription.cancelled" || event === "subscription.completed") &
 
 if ((event === "subscription.activated" || event === "subscription.charged") && moduleName === "geo") {
   const db = admin.firestore();
-  const geoRef = db.doc(`users/${uid}/modules/geo`);
-  await geoRef.set(
-    {
-      plan: vyndowPlan === "enterprise" ? "enterprise" : "small_business",
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
+const geoRef = db.doc(`users/${uid}/modules/geo`);
+
+const normalizedPlan =
+  vyndowPlan === "enterprise" ? "enterprise" : "small_business";
+
+const pagesPerMonthMap = {
+  free: 5,
+  small_business: 20,
+  enterprise: 50,
+};
+
+await geoRef.set(
+  {
+    moduleId: "geo",
+    plan: normalizedPlan,
+    pagesPerMonth: pagesPerMonthMap[normalizedPlan] ?? 5,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  { merge: true }
+);
+
 }
 
 if ((event === "subscription.cancelled" || event === "subscription.completed") && moduleName === "geo") {
