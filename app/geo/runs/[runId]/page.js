@@ -157,7 +157,33 @@ function renderPlaceholderNote(text) {
   const ph = extractPlaceholders(text);
   if (!ph.length) return null;
 
-    async function handleExportPdf() {
+  
+  return (
+    <div style={{ marginTop: 8, fontSize: 12, color: "#92400e" }}>
+      <b>Inputs needed before publishing:</b>{" "}
+      {ph.map((p, i) => (
+        <span key={p}>
+          <code>{`{{${p}}}`}</code>{i < ph.length - 1 ? ", " : ""}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+
+  function parseTldrToBullets(tldr) {
+    const raw = String(tldr || "");
+    const lines = raw
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => l.replace(/^[-*•]\s*/, ""));
+    return lines.length ? lines : raw ? [raw] : [];
+  }
+
+
+
+  async function handleExportPdf() {
     try {
       if (!runId || !websiteId) {
         alert("Missing runId or websiteId.");
@@ -193,32 +219,6 @@ function renderPlaceholderNote(text) {
       alert(e?.message || "PDF export failed");
     }
   }
-
-  return (
-    <div style={{ marginTop: 8, fontSize: 12, color: "#92400e" }}>
-      <b>Inputs needed before publishing:</b>{" "}
-      {ph.map((p, i) => (
-        <span key={p}>
-          <code>{`{{${p}}}`}</code>{i < ph.length - 1 ? ", " : ""}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-
-  function parseTldrToBullets(tldr) {
-    const raw = String(tldr || "");
-    const lines = raw
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((l) => l.replace(/^[-*•]\s*/, ""));
-    return lines.length ? lines : raw ? [raw] : [];
-  }
-
-
-
 
   // Auth gate
   useEffect(() => {
