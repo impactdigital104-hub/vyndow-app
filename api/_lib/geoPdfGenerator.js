@@ -1,6 +1,7 @@
 // api/_lib/geoPdfGenerator.js
 
-import { chromium } from "playwright";
+import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer-core";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 // fallback PDF (no browser needed)
@@ -48,9 +49,17 @@ async function buildFallbackPdfBuffer({ title, lines }) {
 
 export async function htmlToPdfBuffer(html, fallbackData) {
   try {
-    const browser = await chromium.launch();
+    const executablePath = await chromium.executablePath();
+
+    const browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath,
+      headless: chromium.headless,
+    });
+
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle" });
+    await page.setContent(html, { waitUntil: "networkidle0" });
 
     const pdf = await page.pdf({
       format: "A4",
@@ -61,6 +70,8 @@ export async function htmlToPdfBuffer(html, fallbackData) {
     await browser.close();
     return pdf;
   } catch (e) {
+    // IMPORTANT: if browser fails, we fall back instead of breaking the product
+    console.error("htmlToPdfBuffer failed; using fallback PDF:", e);
     return await buildFallbackPdfBuffer(fallbackData || {});
   }
 }
