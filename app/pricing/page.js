@@ -297,6 +297,59 @@ export default function PricingPage() {
   // ===========================
   // GEO CHECKOUTS (wired next)
   // ===========================
+  async function startGeoSubscriptionCheckout(plan) {
+  try {
+    const ok = await loadRazorpay();
+    if (!ok) {
+      alert("Razorpay checkout failed to load. Please try again.");
+      return;
+    }
+
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please login again.");
+      router.push("/login");
+      return;
+    }
+
+    const token = await user.getIdToken();
+
+    const resp = await fetch("/api/razorpay/createGeoSubscription", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ plan }),
+    });
+
+    const json = await resp.json();
+
+    if (!resp.ok || !json.ok) {
+      alert("Could not start payment: " + (json.error || "Unknown error"));
+      return;
+    }
+
+    const options = {
+      key: json.razorpayKeyId,
+      subscription_id: json.subscriptionId,
+      name: "Vyndow GEO",
+      description: plan === "enterprise" ? "Enterprise Monthly" : "Small Business Monthly",
+      prefill: { email: user.email || "" },
+      notes: { uid: user.uid, vyndowPlan: plan, module: "geo" },
+      handler: function () {
+        alert("Payment received. Activating plan... Please refresh in 10–20 seconds.");
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  } catch (e) {
+    alert("Error: " + (e?.message || String(e)));
+  }
+}
+
   function geoNotWiredYet() {
     alert(
       "GEO billing buttons are added in Phase 8 Step 1.\n\nNext we will wire Razorpay + APIs + webhook.\n\nFor now, please create GEO plans in Razorpay Test mode and share the plan_ids."
@@ -622,7 +675,7 @@ async function startGeoExtraUrlsCheckout() {
                 >
                   <button
                     type="button"
-                    onClick={geoNotWiredYet}
+                   onClick={() => startGeoSubscriptionCheckout("small_business")}
                     style={{
                       padding: "12px 18px",
                       borderRadius: 999,
@@ -647,7 +700,7 @@ async function startGeoExtraUrlsCheckout() {
                 >
                   <button
                     type="button"
-                    onClick={geoNotWiredYet}
+                  onClick={() => startGeoSubscriptionCheckout("enterprise")}
                     style={{
                       padding: "12px 18px",
                       borderRadius: 999,
