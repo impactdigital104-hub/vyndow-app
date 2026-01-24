@@ -297,6 +297,83 @@ export default function PricingPage() {
   // ===========================
   // GEO CHECKOUTS (wired next)
   // ===========================
+    async function startGeoAddWebsiteCheckout() {
+    try {
+      const ok = await loadRazorpay();
+      if (!ok) {
+        alert("Razorpay checkout failed to load. Please try again.");
+        return;
+      }
+
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        alert("Please login again.");
+        router.push("/login");
+        return;
+      }
+
+      // Only paid GEO plans can buy add-website
+      if (currentGeoPlan !== "small_business" && currentGeoPlan !== "enterprise") {
+        alert("Please upgrade to a paid GEO plan before buying an additional website.");
+        return;
+      }
+
+      const token = await user.getIdToken();
+
+      const resp = await fetch("/api/razorpay/createGeoAddWebsiteSubscription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const json = await resp.json().catch(() => ({}));
+
+      if (!resp.ok || !json.ok) {
+        if (json.error === "UPGRADE_REQUIRED") {
+          alert("Please upgrade to a paid GEO plan first.");
+        } else {
+          alert("Could not start payment: " + (json.error || "Unknown error"));
+        }
+        return;
+      }
+
+      const options = {
+        key: json.razorpayKeyId,
+        subscription_id: json.subscriptionId,
+        name: "Vyndow GEO",
+        description:
+          currentGeoPlan === "enterprise"
+            ? "Add Website (GEO Enterprise)"
+            : "Add Website (GEO Small Business)",
+        prefill: { email: user.email || "" },
+
+        // IMPORTANT: webhook routing uses notes.module + notes.addonType
+        notes: {
+          uid: user.uid,
+          email: user.email || "",
+          module: "geo",
+          addonType: "additional_website",
+          qty: "1",
+          basePlan: currentGeoPlan,
+        },
+
+        handler: function () {
+          alert(
+            "Payment received. GEO website capacity will update shortly. Please refresh in 10–20 seconds."
+          );
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (e) {
+      alert("Error: " + (e?.message || String(e)));
+    }
+  }
+
   async function startGeoSubscriptionCheckout(plan) {
   try {
     const ok = await loadRazorpay();
