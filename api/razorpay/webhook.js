@@ -4,7 +4,7 @@ const crypto = require("crypto");
 
 
 // IMPORTANT: We need RAW body for signature verification in Next API routes
-export const config = { api: { bodyParser: false } };
+module.exports.config = { api: { bodyParser: false } };
 
 function getSeoModuleForPlan(plan) {
   if (plan === "free") return { plan, websitesIncluded: 1, blogsPerWebsitePerMonth: 2, usersIncluded: 1 };
