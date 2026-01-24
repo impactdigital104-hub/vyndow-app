@@ -47,13 +47,20 @@ async function resolveWebsiteContext({ uid, websiteId }) {
 
 export default async function handler(req, res) {
   try {
-    if (req.method !== "POST") {
+    // Allow OPTIONS (some setups send it) and allow GET as a safe fallback
+    if (req.method === "OPTIONS") {
+      return res.status(200).json({ ok: true });
+    }
+    if (req.method !== "POST" && req.method !== "GET") {
       return res.status(405).json({ ok: false, error: "Method not allowed" });
     }
 
+
     const uid = await getUidFromRequest(req);
 
-    const { websiteId } = req.body || {};
+    const websiteId =
+      req.method === "GET" ? req.query?.websiteId : (req.body?.websiteId || "");
+
     if (!websiteId) {
       return res.status(400).json({ ok: false, error: "Missing websiteId" });
     }
