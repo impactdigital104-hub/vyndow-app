@@ -279,27 +279,53 @@ if ((event === "subscription.cancelled" || event === "subscription.completed") &
 }
 // GEO MAIN PLAN (fallback): if Razorpay sends payment.captured first
 if (event === "payment.captured" && moduleName === "geo" && !addonType) {
-  const db = admin.firestore();
-  const geoRef = db.doc(`users/${uid}/modules/geo`);
-  await geoRef.set(
-    {
-      plan: vyndowPlan === "enterprise" ? "enterprise" : "small_business",
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
+const db = admin.firestore();
+const geoRef = db.doc(`users/${uid}/modules/geo`);
+
+const normalizedPlan =
+  vyndowPlan === "enterprise" ? "enterprise" : "small_business";
+
+const pagesPerMonthMap = {
+  free: 5,
+  small_business: 20,
+  enterprise: 50,
+};
+
+await geoRef.set(
+  {
+    moduleId: "geo",
+    plan: normalizedPlan,
+    pagesPerMonth: pagesPerMonthMap[normalizedPlan],
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  { merge: true }
+);
+
 }
     // GEO MAIN PLAN (auth): Razorpay sends payment.authorized first in some flows
 if (event === "payment.authorized" && moduleName === "geo" && !addonType) {
-  const db = admin.firestore();
-  const geoRef = db.doc(`users/${uid}/modules/geo`);
-  await geoRef.set(
-    {
-      plan: vyndowPlan === "enterprise" ? "enterprise" : "small_business",
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
+const db = admin.firestore();
+const geoRef = db.doc(`users/${uid}/modules/geo`);
+
+const normalizedPlan =
+  vyndowPlan === "enterprise" ? "enterprise" : "small_business";
+
+const pagesPerMonthMap = {
+  free: 5,
+  small_business: 20,
+  enterprise: 50,
+};
+
+await geoRef.set(
+  {
+    moduleId: "geo",
+    plan: normalizedPlan,
+    pagesPerMonth: pagesPerMonthMap[normalizedPlan],
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  { merge: true }
+);
+
 
   // record payment for debugging / idempotency
   if (payId) {
