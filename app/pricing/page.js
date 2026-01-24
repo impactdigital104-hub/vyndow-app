@@ -817,7 +817,7 @@ async function startGeoExtraUrlsCheckout() {
                   }
                   description="Adds capacity for 1 more website with full monthly GEO quota"
                   actionLabel={currentGeoPlan === "free" ? "Upgrade first" : "Add Website"}
-                  onAction={geoNotWiredYet}
+                  onAction={startGeoAddWebsiteCheckout}
                 />
               </section>
             </div>
