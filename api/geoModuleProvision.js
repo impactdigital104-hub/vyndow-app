@@ -2,7 +2,7 @@
 // Shared helper to keep GEO module config workspace-scoped.
 // Creates users/{ownerUid}/websites/{websiteId}/modules/geo if missing.
 
-export function normalizePlan(plan) {
+function normalizePlan(plan) {
   const p = (plan || "").toLowerCase().trim();
   if (p === "small_business") return "small_business";
   if (p === "small-business") return "small_business";
@@ -13,7 +13,7 @@ export function normalizePlan(plan) {
   return "free";
 }
 
-export function geoPlanDefaults(planRaw) {
+function geoPlanDefaults(planRaw) {
   const plan = normalizePlan(planRaw);
 
   // Phase 7 locked limits
@@ -33,7 +33,8 @@ export function geoPlanDefaults(planRaw) {
  *
  * SAFE to call on every request (idempotent).
  */
-export async function ensureWebsiteGeoModule({ admin, ownerUid, websiteId }) {  // 1) Ensure user-level GEO module exists (SEO-style master)
+async function ensureWebsiteGeoModule({ admin, ownerUid, websiteId }) {
+  // 1) Ensure user-level GEO module exists (SEO-style master)
   const db = admin.firestore();
 
   const userModuleRef = db.doc(`users/${ownerUid}/modules/geo`);
@@ -76,4 +77,12 @@ const payload = {
 
 await websiteModuleRef.set(payload, { merge: true });
 return { ref: websiteModuleRef, data: payload };
+  }
+
+  module.exports = {
+  normalizePlan,
+  geoPlanDefaults,
+  ensureWebsiteGeoModule,
+};
+
 
