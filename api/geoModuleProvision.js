@@ -59,28 +59,21 @@ export async function ensureWebsiteGeoModule({ admin, ownerUid, websiteId }) {  
   const websiteModuleRef = db.doc(
     `users/${ownerUid}/websites/${websiteId}/modules/geo`
   );
-  const websiteModuleSnap = await websiteModuleRef.get();
-  if (websiteModuleSnap.exists) {
-    return { ref: websiteModuleRef, data: websiteModuleSnap.data() || {} };
-  }
+// Always sync website GEO module from user-level master (SEO-style)
+const masterRef = db.doc(`users/${ownerUid}/modules/geo`);
+const masterSnap = await masterRef.get();
+const master = masterSnap.exists ? masterSnap.data() || {} : {};
 
-  // Use user-level GEO module as the master source of truth (SEO-style)
-  const masterRef = db.doc(`users/${ownerUid}/modules/geo`);
-  const masterSnap = await masterRef.get();
-  const master = masterSnap.exists ? masterSnap.data() || {} : {};
+const base = geoPlanDefaults(master.plan);
 
-  const base = geoPlanDefaults(master.plan);
+const payload = {
+  moduleId: "geo",
+  plan: base.plan,
+  pagesPerMonth: Number(master.pagesPerMonth ?? base.pagesPerMonth),
+  extraGeoCreditsThisMonth: Number(master.extraGeoCreditsThisMonth ?? 0),
+  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+};
 
-  const payload = {
-    moduleId: "geo",
-    plan: base.plan,
-    pagesPerMonth: Number(master.pagesPerMonth ?? base.pagesPerMonth),
-    extraGeoCreditsThisMonth: Number(master.extraGeoCreditsThisMonth ?? 0),
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
+await websiteModuleRef.set(payload, { merge: true });
+return { ref: websiteModuleRef, data: payload };
 
-
-  await websiteModuleRef.set(payload, { merge: true });
-  return { ref: websiteModuleRef, data: payload };
-}
