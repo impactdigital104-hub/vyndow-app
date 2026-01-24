@@ -1,6 +1,7 @@
 // api/razorpay/webhook.js
-import admin from "../firebaseAdmin";
-import crypto from "crypto";
+const admin = require("../firebaseAdmin");
+const crypto = require("crypto");
+
 
 // IMPORTANT: We need RAW body for signature verification in Next API routes
 export const config = { api: { bodyParser: false } };
