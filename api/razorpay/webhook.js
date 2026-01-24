@@ -163,6 +163,28 @@ async function grantGeoUrlsOnce({ uid, paymentId, qty = 5 }) {
 
 // Keeps extraWebsitesPurchased equal to count of ACTIVE add-on subscriptions
 async function syncExtraWebsitesFromActiveAddons({ uid }) {
+  // Keeps GEO extraWebsitesPurchased equal to count of ACTIVE GEO add-on subscriptions
+async function syncGeoExtraWebsitesFromActiveAddons({ uid }) {
+  const db = admin.firestore();
+
+  const addonsSnap = await db
+    .collection(`users/${uid}/razorpayAddons`)
+    .where("addonType", "==", "additional_website")
+    .where("status", "==", "active")
+    .where("module", "==", "geo")
+    .get();
+
+  const activeCount = addonsSnap.size;
+
+  await db.doc(`users/${uid}/modules/geo`).set(
+    {
+      extraWebsitesPurchased: activeCount,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
   const db = admin.firestore();
   const addonsSnap = await db
     .collection(`users/${uid}/razorpayAddons`)
@@ -367,32 +389,54 @@ if ((event === "subscription.activated" || event === "subscription.charged") && 
   const subId = payload?.payload?.subscription?.entity?.id || "";
   if (subId) {
     const addonRef = admin.firestore().doc(`users/${uid}/razorpayAddons/${subId}`);
-    await addonRef.set(
-      {
-        addonType: "additional_website",
-        status: "active",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-    await syncExtraWebsitesFromActiveAddons({ uid });
+
+    const payloadToStore = {
+      addonType: "additional_website",
+      status: "active",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    // GEO-only marker (SEO add-ons currently have no module note)
+    if (moduleName === "geo") {
+      payloadToStore.module = "geo";
+    }
+
+    await addonRef.set(payloadToStore, { merge: true });
+
+    if (moduleName === "geo") {
+      await syncGeoExtraWebsitesFromActiveAddons({ uid });
+    } else {
+      await syncExtraWebsitesFromActiveAddons({ uid }); // existing SEO behavior unchanged
+    }
   }
 }
+
 
 if ((event === "subscription.cancelled" || event === "subscription.completed") && addonType === "additional_website") {
   const subId = payload?.payload?.subscription?.entity?.id || "";
   if (subId) {
     const addonRef = admin.firestore().doc(`users/${uid}/razorpayAddons/${subId}`);
-    await addonRef.set(
-      {
-        addonType: "additional_website",
-        status: "inactive",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-    await syncExtraWebsitesFromActiveAddons({ uid });
+
+    const payloadToStore = {
+      addonType: "additional_website",
+      status: "inactive",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (moduleName === "geo") {
+      payloadToStore.module = "geo";
+    }
+
+    await addonRef.set(payloadToStore, { merge: true });
+
+    if (moduleName === "geo") {
+      await syncGeoExtraWebsitesFromActiveAddons({ uid });
+    } else {
+      await syncExtraWebsitesFromActiveAddons({ uid }); // existing SEO behavior unchanged
+    }
   }
+}
+
 }
 
 
