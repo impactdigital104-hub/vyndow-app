@@ -1,5 +1,5 @@
 // api/razorpay/webhook.js
-const admin = require("../firebaseAdmin");
+const admin = require("../firebaseAdmin").default;
 const crypto = require("crypto");
 
 
