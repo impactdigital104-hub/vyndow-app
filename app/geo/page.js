@@ -362,11 +362,12 @@ if (geoQuotaNotice?.details?.used != null && geoQuotaNotice?.details?.limit != n
     }
 
     if (geoUsageLoading) return `Loading… · ${planLabel}`;
-
 const used = Number(geoUsedThisMonth ?? 0);
-const total = Number(pagesPerMonth ?? 0);
+const extra = Number(geoModule?.extraGeoCreditsThisMonth ?? 0);
+const total = Number(pagesPerMonth ?? 0) + extra;
 
 return `${used} / ${total} used · ${planLabel}`;
+
 
 
   }
