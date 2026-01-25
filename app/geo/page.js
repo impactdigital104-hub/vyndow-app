@@ -539,17 +539,27 @@ if (data?.code === "GEO_LIMIT_REACHED" || data?.error === "QUOTA_EXCEEDED") {
         </div>
 
         <div className="geo-page">
-          <div className="geo-header">
-            <div>
-              <h1 className="geo-title">Vyndow GEO — AI Readiness Audit</h1>
-              <p className="geo-subtitle">
-                Audit one or more URLs for AI answer readiness, credibility signals, and machine-readable structure.
-                Runs reserve credits server-side and remain available in your Runs list.
-              </p>
-            </div>
+<div className="geo-header">
+  <div>
+    <h1 className="geo-title">Vyndow GEO — AI Readiness Audit</h1>
+    <p className="geo-subtitle">
+      Audit one or more URLs for AI answer readiness, credibility signals, and machine-readable structure.
+      Runs reserve credits server-side and remain available in your Runs list.
+    </p>
+  </div>
 
+  {/* Always-available Runs button */}
+  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <button
+      type="button"
+      className="btn btn-soft-primary"
+      onClick={() => router.push("/geo/runs")}
+    >
+      View Runs
+    </button>
+  </div>
+</div>
 
-          </div>
 
           <div className="geo-grid-2">
             <GeoCard title="Step 1 — Enter URLs">
