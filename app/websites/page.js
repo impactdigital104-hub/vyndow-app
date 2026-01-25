@@ -353,12 +353,12 @@ async function handleSaveProfile(e) {
             <h1>Websites &amp; Clients</h1>
             <p className="sub">
               Start the process by adding websites and managing them. Your plan controls how many websites you
-              can create. You can buy more websites if you need it
+              can create. You can buy more websites if you need to.
             </p>
           </header>
 
           <section style={{ marginBottom: 18 }}>
-        <h2 style={{ color: "#6D28D9" }}>SEO Plan Limits (for this account)</h2>
+        <h2 style={{ color: "#6D28D9" }}>Website Plan Limits (for this account)</h2>
 
      {loadingUserEntitlements ? (
   <p style={{ color: "#6b7280" }}>Loading plan…</p>
