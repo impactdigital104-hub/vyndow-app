@@ -67,11 +67,23 @@ export default async function handler(req, res) {
     }
 
     // Re-read SEO module for enforcement
-    const seoNowSnap = await seoRef.get();
-    const seo = seoNowSnap.exists ? seoNowSnap.data() : {};
-    const websitesIncluded = seo?.websitesIncluded ?? 1;
-    const extraWebsitesPurchased = seo?.extraWebsitesPurchased ?? 0;
-    const allowedWebsites = websitesIncluded + extraWebsitesPurchased;
+const seoNowSnap = await seoRef.get();
+const seo = seoNowSnap.exists ? seoNowSnap.data() : {};
+const websitesIncluded = seo?.websitesIncluded ?? 1;
+const seoExtraWebsitesPurchased = seo?.extraWebsitesPurchased ?? 0;
+
+// GEO extra websites (account-level capacity)
+const geoRef = db.doc(`users/${uid}/modules/geo`);
+const geoSnap = await geoRef.get();
+const geo = geoSnap.exists ? geoSnap.data() : {};
+const geoExtraWebsitesPurchased = geo?.extraWebsitesPurchased ?? 0;
+
+// ✅ total account-level websites allowed
+const allowedWebsites =
+  websitesIncluded +
+  seoExtraWebsitesPurchased +
+  geoExtraWebsitesPurchased;
+
 
     // 5) Count current websites
     const sitesCol = db.collection(`users/${uid}/websites`);
