@@ -412,6 +412,32 @@ if ((event === "subscription.activated" || event === "subscription.charged") && 
     }
   }
 }
+// ADD WEBSITE ADD-ON fallback: payment.authorized (no subscription object)
+if (event === "payment.authorized" && addonType === "additional_website") {
+  const paymentId = payload?.payload?.payment?.entity?.id || "";
+
+  if (paymentId) {
+    const addonRef = admin.firestore().doc(`users/${uid}/razorpayAddons/${paymentId}`);
+
+    const payloadToStore = {
+      addonType: "additional_website",
+      status: "active",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (moduleName === "geo") {
+      payloadToStore.module = "geo";
+    }
+
+    await addonRef.set(payloadToStore, { merge: true });
+
+    if (moduleName === "geo") {
+      await syncGeoExtraWebsitesFromActiveAddons({ uid });
+    } else {
+      await syncExtraWebsitesFromActiveAddons({ uid });
+    }
+  }
+}
 
 
 if ((event === "subscription.cancelled" || event === "subscription.completed") && addonType === "additional_website") {
