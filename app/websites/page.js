@@ -49,6 +49,7 @@ export default function WebsitesPage() {
   const [seoModule, setSeoModule] = useState(null);
  const [loadingSeoModule, setLoadingSeoModule] = useState(false);
     const [userSeoEntitlements, setUserSeoEntitlements] = useState(null);
+  const [userGeoEntitlements, setUserGeoEntitlements] = useState(null);
   const [loadingUserEntitlements, setLoadingUserEntitlements] = useState(true);
 
 
@@ -118,9 +119,16 @@ useEffect(() => {
     async function loadUserEntitlements() {
       setLoadingUserEntitlements(true);
       try {
-        const ref = doc(db, "users", uid, "modules", "seo");
-        const snap = await getDoc(ref);
-        setUserSeoEntitlements(snap.exists() ? snap.data() : null);
+// SEO entitlements
+const seoRef = doc(db, "users", uid, "modules", "seo");
+const seoSnap = await getDoc(seoRef);
+setUserSeoEntitlements(seoSnap.exists() ? seoSnap.data() : null);
+
+// GEO entitlements (for GEO add-website)
+const geoRef = doc(db, "users", uid, "modules", "geo");
+const geoSnap = await getDoc(geoRef);
+setUserGeoEntitlements(geoSnap.exists() ? geoSnap.data() : null);
+
       } catch (e) {
         console.error("Failed to load user SEO entitlements:", e);
         setUserSeoEntitlements(null);
@@ -168,7 +176,9 @@ useEffect(() => {
 const websitesIncluded = userSeoEntitlements?.websitesIncluded ?? 1;
 const extraWebsitesPurchased = userSeoEntitlements?.extraWebsitesPurchased ?? 0;
 
-const allowedWebsites = websitesIncluded + extraWebsitesPurchased;
+const geoExtraWebsitesPurchased = userGeoEntitlements?.extraWebsitesPurchased ?? 0;
+const allowedWebsites = websitesIncluded + extraWebsitesPurchased + geoExtraWebsitesPurchased;
+
 const currentWebsiteCount = websites.length;
 
 const canAddWebsite =
@@ -360,7 +370,7 @@ async function handleSaveProfile(e) {
                 <div>
                   <b>Websites allowed:</b> {allowedWebsites}{" "}
                   <span style={{ color: "#6b7280" }}>
-                    ({websitesIncluded} included + {extraWebsitesPurchased} add-on)
+             ({websitesIncluded} included + {extraWebsitesPurchased} SEO add-on + {geoExtraWebsitesPurchased} GEO add-on)
                   </span>
                 </div>
                 <div>
