@@ -163,8 +163,27 @@ async function grantGeoUrlsOnce({ uid, paymentId, qty = 5 }) {
 }
 
 // Keeps extraWebsitesPurchased equal to count of ACTIVE add-on subscriptions
+// Keeps extraWebsitesPurchased equal to count of ACTIVE add-on subscriptions (SEO)
 async function syncExtraWebsitesFromActiveAddons({ uid }) {
-  // Keeps GEO extraWebsitesPurchased equal to count of ACTIVE GEO add-on subscriptions
+  const db = admin.firestore();
+  const addonsSnap = await db
+    .collection(`users/${uid}/razorpayAddons`)
+    .where("addonType", "==", "additional_website")
+    .where("status", "==", "active")
+    .get();
+
+  const activeCount = addonsSnap.size;
+
+  await db.doc(`users/${uid}/modules/seo`).set(
+    {
+      extraWebsitesPurchased: activeCount,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+// Keeps GEO extraWebsitesPurchased equal to count of ACTIVE GEO add-on subscriptions
 async function syncGeoExtraWebsitesFromActiveAddons({ uid }) {
   const db = admin.firestore();
 
@@ -186,6 +205,7 @@ async function syncGeoExtraWebsitesFromActiveAddons({ uid }) {
   );
 }
 
+
   const db = admin.firestore();
   const addonsSnap = await db
     .collection(`users/${uid}/razorpayAddons`)
@@ -204,7 +224,7 @@ async function syncGeoExtraWebsitesFromActiveAddons({ uid }) {
   );
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(200).json({ ok: true, message: "Use POST." });
 
   try {
