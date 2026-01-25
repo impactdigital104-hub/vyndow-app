@@ -434,13 +434,10 @@ if ((event === "subscription.cancelled" || event === "subscription.completed") &
     if (moduleName === "geo") {
       await syncGeoExtraWebsitesFromActiveAddons({ uid });
     } else {
-      await syncExtraWebsitesFromActiveAddons({ uid }); // existing SEO behavior unchanged
+      await syncExtraWebsitesFromActiveAddons({ uid });
     }
   }
 }
-
-}
-
 
     // Always return 200 to Razorpay once verified/processed
     return res.status(200).json({ ok: true });
