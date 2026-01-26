@@ -611,8 +611,7 @@ async function startGeoExtraUrlsCheckout() {
           <span className="badge">Billing</span>
           <h1>Billing &amp; Plans</h1>
           <p className="sub">
-            Choose a module below. SEO billing is live. GEO billing will be wired
-            in the next Phase 8 steps.
+            Choose a module below by clicking on the respective tab and select the plan you want. 
           </p>
         </header>
 
@@ -744,7 +743,7 @@ async function startGeoExtraUrlsCheckout() {
 
                 <PlanCard
                   title="Small Business"
-                  price="₹799 / month"
+                  price="₹700 / month"
                   highlight={false}
                   muted={currentGeoPlan === "small_business"}
                   badge="Most Popular"
