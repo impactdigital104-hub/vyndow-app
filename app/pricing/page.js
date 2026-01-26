@@ -743,7 +743,7 @@ async function startGeoExtraUrlsCheckout() {
 
                 <PlanCard
                   title="Small Business"
-                  price="₹700 / month"
+                  price="₹799 / month"
                   highlight={false}
                   muted={currentGeoPlan === "small_business"}
                   badge="Most Popular"
