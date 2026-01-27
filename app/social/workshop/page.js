@@ -1,18 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AuthGate from "../../components/AuthGate";
 import VyndowShell from "../../VyndowShell";
 import { auth, db } from "../../firebaseClient";
-import {
-  doc,
-  getDoc,
-  serverTimestamp,
-  setDoc,
-} from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 
 export default function SocialWorkshopPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 24 }}>Loading workshop…</div>}>
+      <SocialWorkshopInner />
+    </Suspense>
+  );
+}
+
+function SocialWorkshopInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -95,7 +98,6 @@ export default function SocialWorkshopPage() {
   function normalizeUrl(input) {
     const raw = (input || "").trim();
     if (!raw) return "";
-    // If user enters "example.com", we store "https://example.com"
     if (!raw.startsWith("http://") && !raw.startsWith("https://")) {
       return `https://${raw}`;
     }
@@ -113,27 +115,20 @@ export default function SocialWorkshopPage() {
       const ref = doc(db, "users", uid, "websites", websiteId, "modules", "social");
 
       const payload = {
-        // Step 0
         websiteUrl: normalizeUrl(websiteUrl),
         brandName: (brandName || "").trim() || null,
-
-        // Draft/resume control
         currentStep: nextStepNumber,
         phase1Completed: false,
-
-        // Required meta
         version: "v1.1",
         meta: {
           updatedAt: serverTimestamp(),
         },
       };
 
-      // Use merge so we don’t wipe future steps
       await setDoc(
         ref,
         {
           ...payload,
-          // If doc is new, createdAt gets set; if doc exists, this merge will keep old createdAt if already present.
           meta: {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -160,7 +155,6 @@ export default function SocialWorkshopPage() {
 
     setScanning(true);
     try {
-      // STUB scan for v1 (UI exists; real scan later)
       await new Promise((r) => setTimeout(r, 900));
       setScanMsg("Scan stub (v1): Website scan UI is ready. We’ll wire real detection later.");
     } finally {
@@ -172,10 +166,7 @@ export default function SocialWorkshopPage() {
     const url = normalizeUrl(websiteUrl);
     if (!url) return;
 
-    // Save draft after Step 0
     await saveDraft(1);
-
-    // For now, Step 1 screen is not built yet — we move to a placeholder step header
     setCurrentStep(1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -212,17 +203,13 @@ export default function SocialWorkshopPage() {
             <div style={{ marginTop: 18, color: "#b91c1c" }}>{loadError}</div>
           ) : (
             <>
-              {/* STEP HEADER */}
               <div style={{ marginTop: 18, padding: 14, border: "1px solid #e5e7eb", borderRadius: 12 }}>
-                <div style={{ fontWeight: 700 }}>
-                  Step {currentStep} of 6
-                </div>
+                <div style={{ fontWeight: 700 }}>Step {currentStep} of 6</div>
                 <div style={{ marginTop: 6, color: "#374151" }}>
                   {currentStep === 0 ? "Website Start + Scan" : "Next steps will be added one-by-one."}
                 </div>
               </div>
 
-              {/* STEP 0 */}
               {currentStep === 0 && (
                 <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
                   <div style={{ fontWeight: 700, fontSize: 16 }}>Website Start + Scan</div>
@@ -301,17 +288,11 @@ export default function SocialWorkshopPage() {
                     </button>
                   </div>
 
-                  {scanMsg ? (
-                    <div style={{ marginTop: 10, color: "#374151" }}>{scanMsg}</div>
-                  ) : null}
-
-                  {saveError ? (
-                    <div style={{ marginTop: 10, color: "#b91c1c" }}>{saveError}</div>
-                  ) : null}
+                  {scanMsg ? <div style={{ marginTop: 10, color: "#374151" }}>{scanMsg}</div> : null}
+                  {saveError ? <div style={{ marginTop: 10, color: "#b91c1c" }}>{saveError}</div> : null}
                 </div>
               )}
 
-              {/* Placeholder for Step 1+ for now */}
               {currentStep !== 0 && (
                 <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
                   <div style={{ fontWeight: 700, fontSize: 16 }}>Step {currentStep} — Coming next</div>
