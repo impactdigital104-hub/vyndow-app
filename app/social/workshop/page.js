@@ -34,6 +34,11 @@ function SocialWorkshopInner() {
   // Step 0 inputs
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [brandName, setBrandName] = useState("");
+    // Step 1 inputs (Brand Context)
+  const [industry, setIndustry] = useState("");
+  const [businessType, setBusinessType] = useState(""); // b2b|b2c|hybrid
+  const [geography, setGeography] = useState("");
+
 
   // Scan stub UI
   const [scanning, setScanning] = useState(false);
@@ -74,6 +79,10 @@ function SocialWorkshopInner() {
           // Resume fields if present
           setWebsiteUrl(data?.websiteUrl || "");
           setBrandName(data?.brandName || "");
+                    setIndustry(data?.industry || "");
+          setBusinessType(data?.businessType || "");
+          setGeography(data?.geography || "");
+
 
           // Resume step if present
           if (typeof data?.currentStep === "number") {
@@ -117,6 +126,11 @@ function SocialWorkshopInner() {
       const payload = {
         websiteUrl: normalizeUrl(websiteUrl),
         brandName: (brandName || "").trim() || null,
+                // Step 1
+        industry: industry || null,
+        businessType: businessType || null,
+        geography: geography || null,
+
         currentStep: nextStepNumber,
         phase1Completed: false,
         version: "v1.1",
@@ -293,13 +307,97 @@ function SocialWorkshopInner() {
                 </div>
               )}
 
-              {currentStep !== 0 && (
+              {currentStep === 1 && (
                 <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
-                  <div style={{ fontWeight: 700, fontSize: 16 }}>Step {currentStep} — Coming next</div>
-                  <div style={{ marginTop: 8, color: "#374151" }}>
-                    We’ve saved your Step 0 draft. Next we will build Step 1 (Brand Context) UI and autosave.
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>Brand Context</div>
+
+                  <div style={{ marginTop: 14 }}>
+                    <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+                      Industry / Category <span style={{ color: "#b91c1c" }}>*</span>
+                    </label>
+                    <select
+                      value={industry}
+                      onChange={(e) => setIndustry(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #e5e7eb",
+                        background: "white",
+                      }}
+                    >
+                      <option value="">Select an industry</option>
+                      <option value="saas">SaaS / Software</option>
+                      <option value="agency">Agency / Services</option>
+                      <option value="ecommerce">E-commerce</option>
+                      <option value="fintech">Fintech</option>
+                      <option value="health">Healthcare</option>
+                      <option value="education">Education</option>
+                      <option value="manufacturing">Manufacturing</option>
+                      <option value="realestate">Real Estate</option>
+                      <option value="other">Other</option>
+                    </select>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
+                      Helps us match category norms — and intentionally break them where appropriate.
+                    </div>
                   </div>
-                  <div style={{ marginTop: 12 }}>
+
+                  <div style={{ marginTop: 14 }}>
+                    <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+                      Business type <span style={{ color: "#b91c1c" }}>*</span>
+                    </label>
+                    <select
+                      value={businessType}
+                      onChange={(e) => setBusinessType(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #e5e7eb",
+                        background: "white",
+                      }}
+                    >
+                      <option value="">Select</option>
+                      <option value="b2b">B2B</option>
+                      <option value="b2c">B2C</option>
+                      <option value="hybrid">Hybrid</option>
+                    </select>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
+                      Determines depth, tone, and CTA style.
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 14 }}>
+                    <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+                      Geography <span style={{ color: "#b91c1c" }}>*</span>
+                    </label>
+                    <select
+                      value={geography}
+                      onChange={(e) => setGeography(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #e5e7eb",
+                        background: "white",
+                      }}
+                    >
+                      <option value="">Select</option>
+                      <option value="global">Global</option>
+                      <option value="india">India</option>
+                      <option value="uk">UK</option>
+                      <option value="usa">USA</option>
+                      <option value="middle-east">Middle East</option>
+                      <option value="south-east-asia">South East Asia</option>
+                      <option value="europe">Europe</option>
+                      <option value="other">Other</option>
+                    </select>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
+                      Ensures language and cultural tone feel natural.
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <button
                       onClick={() => setCurrentStep(0)}
                       style={{
@@ -309,6 +407,58 @@ function SocialWorkshopInner() {
                         background: "white",
                         cursor: "pointer",
                       }}
+                    >
+                      Back
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        if (!industry || !businessType || !geography) return;
+                        await saveDraft(2);
+                        setCurrentStep(2);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      disabled={!industry || !businessType || !geography || saving}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 10,
+                        border: "1px solid #e5e7eb",
+                        cursor: !industry || !businessType || !geography || saving ? "not-allowed" : "pointer",
+                        background: !industry || !businessType || !geography || saving ? "#f3f4f6" : "white",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {saving ? "Saving…" : "Continue"}
+                    </button>
+                  </div>
+
+                  {saveError ? <div style={{ marginTop: 10, color: "#b91c1c" }}>{saveError}</div> : null}
+                </div>
+              )}
+
+              {currentStep >= 2 && (
+                <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>Step {currentStep} — Coming next</div>
+                  <div style={{ marginTop: 8, color: "#374151" }}>
+                    Step 2 (Platform Focus) is next. We will build it in the next micro-step.
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <button
+                      onClick={() => setCurrentStep(1)}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 10,
+                        border: "1px solid #e5e7eb",
+                        background: "white",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Back to Step 1
+                    </button>
+                  </div>
+                </div>
+              )}
+
                     >
                       Back to Step 0
                     </button>
