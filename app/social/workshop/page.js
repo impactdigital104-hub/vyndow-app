@@ -588,12 +588,6 @@ function SocialWorkshopInner() {
                 </div>
               )}
 
-                    >
-                      Back to Step 1
-                    </button>
-                  </div>
-                </div>
-              )}
 
 
             </>
