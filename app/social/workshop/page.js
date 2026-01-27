@@ -459,12 +459,7 @@ function SocialWorkshopInner() {
                 </div>
               )}
 
-                    >
-                      Back to Step 0
-                    </button>
-                  </div>
-                </div>
-              )}
+
             </>
           )}
         </div>
