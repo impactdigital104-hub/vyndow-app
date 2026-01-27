@@ -38,6 +38,9 @@ function SocialWorkshopInner() {
   const [industry, setIndustry] = useState("");
   const [businessType, setBusinessType] = useState(""); // b2b|b2c|hybrid
   const [geography, setGeography] = useState("");
+    // Step 2 (Platform Focus)
+  const [platformFocus, setPlatformFocus] = useState(""); // linkedin|instagram|both
+
 
 
   // Scan stub UI
@@ -82,6 +85,8 @@ function SocialWorkshopInner() {
                     setIndustry(data?.industry || "");
           setBusinessType(data?.businessType || "");
           setGeography(data?.geography || "");
+                    setPlatformFocus(data?.platformFocus || "");
+
 
 
           // Resume step if present
@@ -130,6 +135,9 @@ function SocialWorkshopInner() {
         industry: industry || null,
         businessType: businessType || null,
         geography: geography || null,
+                // Step 2
+        platformFocus: platformFocus || null,
+
 
         currentStep: nextStepNumber,
         phase1Completed: false,
@@ -436,13 +444,89 @@ function SocialWorkshopInner() {
                 </div>
               )}
 
-              {currentStep >= 2 && (
+              {currentStep === 2 && (
                 <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
-                  <div style={{ fontWeight: 700, fontSize: 16 }}>Step {currentStep} — Coming next</div>
-                  <div style={{ marginTop: 8, color: "#374151" }}>
-                    Step 2 (Platform Focus) is next. We will build it in the next micro-step.
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>Platform Focus</div>
+
+                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
+                    Different platforms need different thinking. This guides tone, formats, and pacing.
                   </div>
-                  <div style={{ marginTop: 12 }}>
+
+                  <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+                    <label
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        padding: 12,
+                        borderRadius: 12,
+                        border: "1px solid #e5e7eb",
+                        cursor: "pointer",
+                        background: platformFocus === "linkedin" ? "#f9fafb" : "white",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="platformFocus"
+                        value="linkedin"
+                        checked={platformFocus === "linkedin"}
+                        onChange={() => setPlatformFocus("linkedin")}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 600 }}>LinkedIn-first</div>
+                      </div>
+                    </label>
+
+                    <label
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        padding: 12,
+                        borderRadius: 12,
+                        border: "1px solid #e5e7eb",
+                        cursor: "pointer",
+                        background: platformFocus === "instagram" ? "#f9fafb" : "white",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="platformFocus"
+                        value="instagram"
+                        checked={platformFocus === "instagram"}
+                        onChange={() => setPlatformFocus("instagram")}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 600 }}>Instagram-first</div>
+                      </div>
+                    </label>
+
+                    <label
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        padding: 12,
+                        borderRadius: 12,
+                        border: "1px solid #e5e7eb",
+                        cursor: "pointer",
+                        background: platformFocus === "both" ? "#f9fafb" : "white",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="platformFocus"
+                        value="both"
+                        checked={platformFocus === "both"}
+                        onChange={() => setPlatformFocus("both")}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 600 }}>Both (balanced)</div>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <button
                       onClick={() => setCurrentStep(1)}
                       style={{
@@ -452,6 +536,58 @@ function SocialWorkshopInner() {
                         background: "white",
                         cursor: "pointer",
                       }}
+                    >
+                      Back
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        if (!platformFocus) return;
+                        await saveDraft(3);
+                        setCurrentStep(3);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      disabled={!platformFocus || saving}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 10,
+                        border: "1px solid #e5e7eb",
+                        cursor: !platformFocus || saving ? "not-allowed" : "pointer",
+                        background: !platformFocus || saving ? "#f3f4f6" : "white",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {saving ? "Saving…" : "Continue"}
+                    </button>
+                  </div>
+
+                  {saveError ? <div style={{ marginTop: 10, color: "#b91c1c" }}>{saveError}</div> : null}
+                </div>
+              )}
+
+              {currentStep >= 3 && (
+                <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>Step {currentStep} — Coming next</div>
+                  <div style={{ marginTop: 8, color: "#374151" }}>
+                    Step 3 (Brand Voice &amp; Personality sliders) is next. We will build it in the next micro-step.
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <button
+                      onClick={() => setCurrentStep(2)}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 10,
+                        border: "1px solid #e5e7eb",
+                        background: "white",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Back to Step 2
+                    </button>
+                  </div>
+                </div>
+              )}
+
                     >
                       Back to Step 1
                     </button>
