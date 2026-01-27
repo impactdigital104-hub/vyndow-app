@@ -47,6 +47,13 @@ function SocialWorkshopInner() {
   const [founderBrand, setFounderBrand] = useState(50);
   const [aspirationalPractical, setAspirationalPractical] = useState(50);
   const [authorityRelatable, setAuthorityRelatable] = useState(50);
+    // Step 4 (Visual Direction)
+  const [colors, setColors] = useState([]); // array of hex strings like "#111111"
+  const [colorInput, setColorInput] = useState("#");
+  const [visualStyle, setVisualStyle] = useState(""); // minimal|editorial|illustration|photo|data
+  const [typography, setTypography] = useState(""); // modern|classic|playful|neutral
+  const [logoFileMeta, setLogoFileMeta] = useState(null); // {name,size,type} (no upload yet)
+
 
   // Hard-stop rule: user must either accept defaults OR move each slider once
   const [acceptedDefaults, setAcceptedDefaults] = useState(false);
@@ -133,6 +140,12 @@ function SocialWorkshopInner() {
               authorityRelatable: true,
             });
           }
+          // Step 4 resume (Visual)
+          const v = data?.visual || {};
+          if (Array.isArray(v.colors)) setColors(v.colors);
+          if (typeof v.visualStyle === "string") setVisualStyle(v.visualStyle);
+          if (typeof v.typography === "string") setTypography(v.typography);
+          if (v.logoAssetRef) setLogoFileMeta(v.logoAssetRef);
 
 
 
@@ -193,6 +206,13 @@ function SocialWorkshopInner() {
           founderBrand,
           aspirationalPractical,
           authorityRelatable,
+        },
+        // Step 4 (Visual)
+        visual: {
+          colors: colors || [],
+          visualStyle: visualStyle || null,
+          typography: typography || null,
+          logoAssetRef: logoFileMeta || null,
         },
 
 
@@ -851,28 +871,142 @@ function SocialWorkshopInner() {
                 </div>
               )}
 
-              {currentStep >= 4 && (
-                <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
-                  <div style={{ fontWeight: 700, fontSize: 16 }}>Step {currentStep} — Coming next</div>
-                  <div style={{ marginTop: 8, color: "#374151" }}>
-                    Step 4 (Visual Direction) is next. We will build it in the next micro-step.
-                  </div>
-                  <div style={{ marginTop: 12 }}>
-                    <button
-                      onClick={() => setCurrentStep(3)}
-                      style={{
-                        padding: "10px 14px",
-                        borderRadius: 10,
-                        border: "1px solid #e5e7eb",
-                        background: "white",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Back to Step 3
-                    </button>
-                  </div>
-                </div>
-              )}
+             {currentStep === 4 && (
+  <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
+    <div style={{ fontWeight: 700, fontSize: 16 }}>Visual Direction</div>
+
+    <div style={{ marginTop: 14 }}>
+      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+        Brand colors <span style={{ color: "#b91c1c" }}>*</span>
+      </label>
+      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+        Used to maintain consistency across visuals.
+      </div>
+
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input
+          value={colorInput}
+          onChange={(e) => setColorInput(e.target.value)}
+          placeholder="#RRGGBB"
+          style={{
+            width: 140,
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid #e5e7eb",
+          }}
+        />
+        <button
+          onClick={() => {
+            const hex = (colorInput || "").trim();
+            const isHex = /^#([0-9A-Fa-f]{6})$/.test(hex);
+            if (!isHex) return alert("Enter a valid hex like #1A1A1A");
+            if (colors.includes(hex)) return;
+            setColors([...colors, hex]);
+            setColorInput("#");
+          }}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "1px solid #e5e7eb",
+            background: "white",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Add color
+        </button>
+      </div>
+
+      {colors.length === 0 && (
+        <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c" }}>
+          Add at least one brand color to continue.
+        </div>
+      )}
+    </div>
+
+    <div style={{ marginTop: 16 }}>
+      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+        Visual style <span style={{ color: "#b91c1c" }}>*</span>
+      </label>
+      <select
+        value={visualStyle}
+        onChange={(e) => setVisualStyle(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+        }}
+      >
+        <option value="">Select</option>
+        <option value="minimal">Minimal</option>
+        <option value="editorial">Editorial</option>
+        <option value="illustration">Illustration</option>
+        <option value="photo">Photo-first</option>
+        <option value="data">Data-led</option>
+      </select>
+    </div>
+
+    <div style={{ marginTop: 16 }}>
+      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+        Typography <span style={{ color: "#b91c1c" }}>*</span>
+      </label>
+      <select
+        value={typography}
+        onChange={(e) => setTypography(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+        }}
+      >
+        <option value="">Select</option>
+        <option value="modern">Modern</option>
+        <option value="classic">Classic</option>
+        <option value="playful">Playful</option>
+        <option value="neutral">Neutral</option>
+      </select>
+    </div>
+
+    <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
+      <button
+        onClick={() => setCurrentStep(3)}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+          cursor: "pointer",
+        }}
+      >
+        Back
+      </button>
+
+      <button
+        onClick={async () => {
+          if (colors.length === 0 || !visualStyle || !typography) return;
+          await saveDraft(5);
+          setCurrentStep(5);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        disabled={colors.length === 0 || !visualStyle || !typography}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: colors.length && visualStyle && typography ? "white" : "#f3f4f6",
+          fontWeight: 600,
+          cursor: colors.length && visualStyle && typography ? "pointer" : "not-allowed",
+        }}
+      >
+        Continue
+      </button>
+    </div>
+  </div>
+)}
+
+
 
 
 
