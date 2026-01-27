@@ -40,6 +40,25 @@ function SocialWorkshopInner() {
   const [geography, setGeography] = useState("");
     // Step 2 (Platform Focus)
   const [platformFocus, setPlatformFocus] = useState(""); // linkedin|instagram|both
+    // Step 3 (Brand Voice & Personality)
+  const [formalConversational, setFormalConversational] = useState(50);
+  const [boldConservative, setBoldConservative] = useState(50);
+  const [educationalOpinionated, setEducationalOpinionated] = useState(50);
+  const [founderBrand, setFounderBrand] = useState(50);
+  const [aspirationalPractical, setAspirationalPractical] = useState(50);
+  const [authorityRelatable, setAuthorityRelatable] = useState(50);
+
+  // Hard-stop rule: user must either accept defaults OR move each slider once
+  const [acceptedDefaults, setAcceptedDefaults] = useState(false);
+  const [touchedSliders, setTouchedSliders] = useState({
+    formalConversational: false,
+    boldConservative: false,
+    educationalOpinionated: false,
+    founderBrand: false,
+    aspirationalPractical: false,
+    authorityRelatable: false,
+  });
+
 
 
 
@@ -86,6 +105,35 @@ function SocialWorkshopInner() {
           setBusinessType(data?.businessType || "");
           setGeography(data?.geography || "");
                     setPlatformFocus(data?.platformFocus || "");
+                    // Step 3 resume (if present)
+          const vs = data?.voiceSliders || {};
+          if (typeof vs.formalConversational === "number") setFormalConversational(vs.formalConversational);
+          if (typeof vs.boldConservative === "number") setBoldConservative(vs.boldConservative);
+          if (typeof vs.educationalOpinionated === "number") setEducationalOpinionated(vs.educationalOpinionated);
+          if (typeof vs.founderBrand === "number") setFounderBrand(vs.founderBrand);
+          if (typeof vs.aspirationalPractical === "number") setAspirationalPractical(vs.aspirationalPractical);
+          if (typeof vs.authorityRelatable === "number") setAuthorityRelatable(vs.authorityRelatable);
+
+          // If Step 3 already has values saved, allow continue without forcing re-click
+          if (
+            typeof vs.formalConversational === "number" &&
+            typeof vs.boldConservative === "number" &&
+            typeof vs.educationalOpinionated === "number" &&
+            typeof vs.founderBrand === "number" &&
+            typeof vs.aspirationalPractical === "number" &&
+            typeof vs.authorityRelatable === "number"
+          ) {
+            setAcceptedDefaults(true);
+            setTouchedSliders({
+              formalConversational: true,
+              boldConservative: true,
+              educationalOpinionated: true,
+              founderBrand: true,
+              aspirationalPractical: true,
+              authorityRelatable: true,
+            });
+          }
+
 
 
 
@@ -137,6 +185,16 @@ function SocialWorkshopInner() {
         geography: geography || null,
                 // Step 2
         platformFocus: platformFocus || null,
+                // Step 3 (voice sliders)
+        voiceSliders: {
+          formalConversational,
+          boldConservative,
+          educationalOpinionated,
+          founderBrand,
+          aspirationalPractical,
+          authorityRelatable,
+        },
+
 
 
         currentStep: nextStepNumber,
@@ -565,15 +623,243 @@ function SocialWorkshopInner() {
                 </div>
               )}
 
-              {currentStep >= 3 && (
+              {currentStep === 3 && (
+                <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>Brand Voice &amp; Personality</div>
+
+                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
+                    All 6 sliders are required. You can either accept recommended defaults or adjust each slider once.
+                  </div>
+
+                  <div style={{ marginTop: 12 }}>
+                    <button
+                      onClick={() => {
+                        setFormalConversational(50);
+                        setBoldConservative(50);
+                        setEducationalOpinionated(50);
+                        setFounderBrand(50);
+                        setAspirationalPractical(50);
+                        setAuthorityRelatable(50);
+                        setAcceptedDefaults(true);
+                        setTouchedSliders({
+                          formalConversational: true,
+                          boldConservative: true,
+                          educationalOpinionated: true,
+                          founderBrand: true,
+                          aspirationalPractical: true,
+                          authorityRelatable: true,
+                        });
+                      }}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 10,
+                        border: "1px solid #e5e7eb",
+                        background: "white",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Use recommended defaults
+                    </button>
+                  </div>
+
+                  {/* Slider helper */}
+                  <div style={{ marginTop: 16, display: "grid", gap: 14 }}>
+                    {/* 1 */}
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
+                        <span>Formal</span>
+                        <span>Conversational</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={formalConversational}
+                        onChange={(e) => {
+                          setFormalConversational(Number(e.target.value));
+                          setTouchedSliders((p) => ({ ...p, formalConversational: true }));
+                        }}
+                        style={{ width: "100%" }}
+                      />
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        Decides sentence length, warmth, and professional distance.
+                      </div>
+                    </div>
+
+                    {/* 2 */}
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
+                        <span>Bold</span>
+                        <span>Conservative</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={boldConservative}
+                        onChange={(e) => {
+                          setBoldConservative(Number(e.target.value));
+                          setTouchedSliders((p) => ({ ...p, boldConservative: true }));
+                        }}
+                        style={{ width: "100%" }}
+                      />
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        Controls how assertive or restrained your messaging should be.
+                      </div>
+                    </div>
+
+                    {/* 3 */}
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
+                        <span>Educational</span>
+                        <span>Opinionated</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={educationalOpinionated}
+                        onChange={(e) => {
+                          setEducationalOpinionated(Number(e.target.value));
+                          setTouchedSliders((p) => ({ ...p, educationalOpinionated: true }));
+                        }}
+                        style={{ width: "100%" }}
+                      />
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        Balances teaching versus taking a clear point of view.
+                      </div>
+                    </div>
+
+                    {/* 4 */}
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
+                        <span>Founder-led</span>
+                        <span>Brand-led</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={founderBrand}
+                        onChange={(e) => {
+                          setFounderBrand(Number(e.target.value));
+                          setTouchedSliders((p) => ({ ...p, founderBrand: true }));
+                        }}
+                        style={{ width: "100%" }}
+                      />
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        Determines whether content speaks as a person or organisation.
+                      </div>
+                    </div>
+
+                    {/* 5 */}
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
+                        <span>Aspirational</span>
+                        <span>Practical</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={aspirationalPractical}
+                        onChange={(e) => {
+                          setAspirationalPractical(Number(e.target.value));
+                          setTouchedSliders((p) => ({ ...p, aspirationalPractical: true }));
+                        }}
+                        style={{ width: "100%" }}
+                      />
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        Shapes whether content inspires future outcomes or focuses on present realities.
+                      </div>
+                    </div>
+
+                    {/* 6 */}
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
+                        <span>Authority</span>
+                        <span>Relatability</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={authorityRelatable}
+                        onChange={(e) => {
+                          setAuthorityRelatable(Number(e.target.value));
+                          setTouchedSliders((p) => ({ ...p, authorityRelatable: true }));
+                        }}
+                        style={{ width: "100%" }}
+                      />
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        Defines whether your voice sounds like an expert guide or a peer sharing experience.
+                      </div>
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const allTouched =
+                      touchedSliders.formalConversational &&
+                      touchedSliders.boldConservative &&
+                      touchedSliders.educationalOpinionated &&
+                      touchedSliders.founderBrand &&
+                      touchedSliders.aspirationalPractical &&
+                      touchedSliders.authorityRelatable;
+
+                    const canProceed = (acceptedDefaults || allTouched) && !saving;
+
+                    return (
+                      <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => setCurrentStep(2)}
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: 10,
+                            border: "1px solid #e5e7eb",
+                            background: "white",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Back
+                        </button>
+
+                        <button
+                          onClick={async () => {
+                            if (!canProceed) return;
+                            await saveDraft(4);
+                            setCurrentStep(4);
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          disabled={!canProceed}
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: 10,
+                            border: "1px solid #e5e7eb",
+                            cursor: canProceed ? "pointer" : "not-allowed",
+                            background: canProceed ? "white" : "#f3f4f6",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {saving ? "Saving…" : "Continue"}
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                  {saveError ? <div style={{ marginTop: 10, color: "#b91c1c" }}>{saveError}</div> : null}
+                </div>
+              )}
+
+              {currentStep >= 4 && (
                 <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
                   <div style={{ fontWeight: 700, fontSize: 16 }}>Step {currentStep} — Coming next</div>
                   <div style={{ marginTop: 8, color: "#374151" }}>
-                    Step 3 (Brand Voice &amp; Personality sliders) is next. We will build it in the next micro-step.
+                    Step 4 (Visual Direction) is next. We will build it in the next micro-step.
                   </div>
                   <div style={{ marginTop: 12 }}>
                     <button
-                      onClick={() => setCurrentStep(2)}
+                      onClick={() => setCurrentStep(3)}
                       style={{
                         padding: "10px 14px",
                         borderRadius: 10,
@@ -582,7 +868,7 @@ function SocialWorkshopInner() {
                         cursor: "pointer",
                       }}
                     >
-                      Back to Step 2
+                      Back to Step 3
                     </button>
                   </div>
                 </div>
