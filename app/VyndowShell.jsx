@@ -140,15 +140,21 @@ export default function VyndowShell({ activeModule, children }) {
             </span>
           </div>
 
-          <div className="sidebar-link is-soon">
-            <span className="sidebar-link-main">Vyndow Social</span>
-            <span className="sidebar-pill sidebar-pill-soon">Soon</span>
-            <span className="sidebar-info">i</span>
-            <span className="sidebar-tip">
-              Strategize, plan, implement and analyze your social media
-              presence.
-            </span>
-          </div>
+<a
+  href="/social"
+  className="sidebar-link is-soon"
+  onClick={closeMobileSidebar}
+  title="Vyndow Social (internal)"
+>
+  <span className="sidebar-link-main">Vyndow Social</span>
+  <span className="sidebar-pill sidebar-pill-soon">Soon</span>
+  <span className="sidebar-info">i</span>
+  <span className="sidebar-tip">
+    Strategize, plan, implement and analyze your social media
+    presence.
+  </span>
+</a>
+
 
           <div className="sidebar-link is-soon">
             <span className="sidebar-link-main">Vyndow Analytics</span>
