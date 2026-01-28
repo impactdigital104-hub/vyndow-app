@@ -45,6 +45,9 @@ function SocialPhase2ThemesInner() {
   const [confirmed, setConfirmed] = useState(false);
 
   const autosaveTimer = useRef(null);
+  const hasAnyThemes =
+  (generated.linkedin?.length || 0) +
+  (generated.instagram?.length || 0) > 0;
   const disableStep1Actions = saving && !hasAnyThemes;
 
   useEffect(() => {
@@ -390,8 +393,7 @@ async function regenerateThemes() {
 
   function canContinueStep2() {
     const platforms = platformList();
-    const hasAnyThemes =
-  (generated.linkedin?.length || 0) + (generated.instagram?.length || 0) > 0;
+   
 
 
 
