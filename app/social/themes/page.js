@@ -731,61 +731,59 @@ async function regenerateThemes() {
     );
   }
 
-  function renderSuccess() {
-    return (
-      <div>
-        <StepHeader title="Phase 2 Complete — Content Strategy Locked" microcopy={null} />
-      <div className="mt-6">
-  <h3 className="font-semibold mb-3">
-    Your selected content themes
-  </h3>
+ function renderSuccess() {
+  return (
+    <div>
+      <StepHeader title="Phase 2 Complete — Content Strategy Locked" microcopy={null} />
 
-  {["linkedin", "instagram"].map((platform) => {
-<div style={{ marginTop: 18 }}>
-  <div style={{ fontWeight: 800, marginBottom: 10 }}>Your selected content themes</div>
+      <div style={{ marginTop: 18 }}>
+        <div style={{ fontWeight: 800, marginBottom: 10 }}>Your selected content themes</div>
 
-  {["linkedin", "instagram"].map((platform) => {
-    const selIds = platform === "linkedin" ? selected.linkedin : selected.instagram;
-    const priMap = platform === "linkedin" ? priorities.linkedin : priorities.instagram;
+        {["linkedin", "instagram"].map((platform) => {
+          const selIds = platform === "linkedin" ? selected.linkedin : selected.instagram;
+          const priMap = platform === "linkedin" ? priorities.linkedin : priorities.instagram;
 
-    if (!selIds || selIds.length === 0) return null;
+          if (!selIds || selIds.length === 0) return null;
 
-    const rows = selIds
-      .map((id) => {
-        const t = themeById(platform, id);
-        if (!t) return null;
-        return { themeId: id, title: t.title, priority: Number(priMap?.[id]) || 999 };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.priority - b.priority);
+          const rows = selIds
+            .map((id) => {
+              const t = themeById(platform, id);
+              if (!t) return null;
+              return { themeId: id, title: t.title, priority: Number(priMap?.[id]) || 999 };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.priority - b.priority);
 
-    return (
-      <div key={platform} style={{ marginBottom: 14 }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>
-          {platform === "linkedin" ? "LinkedIn" : "Instagram"}
+          return (
+            <div key={platform} style={{ marginBottom: 14 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                {platform === "linkedin" ? "LinkedIn" : "Instagram"}
+              </div>
+              <ul style={{ margin: "0 0 0 18px" }}>
+                {rows.map((r) => (
+                  <li key={r.themeId} style={{ marginBottom: 4 }}>
+                    {r.priority}. {r.title}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+
+        <div style={{ color: "#374151", lineHeight: 1.6 }}>
+          Your core themes and priorities are saved for this website.
         </div>
-        <ul style={{ margin: "0 0 0 18px" }}>
-          {rows.map((r) => (
-            <li key={r.themeId} style={{ marginBottom: 4 }}>
-              {r.priority}. {r.title}
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  })}
-</div>
 
-
-        <div style={{ color: "#374151", lineHeight: 1.6 }}>Your core themes and priorities are saved for this website.</div>
         <div style={{ marginTop: 18 }}>
           <a href={workshopUrl} style={{ color: "#111827" }}>
             View Phase 1 Brand Profile
           </a>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
 
   if (loading) {
     return (
