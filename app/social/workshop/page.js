@@ -56,6 +56,13 @@ function SocialWorkshopInner() {
   const [primaryObjective, setPrimaryObjective] = useState("");
   const [secondaryObjective, setSecondaryObjective] = useState("");
   const [riskAppetite, setRiskAppetite] = useState(""); // safe|balanced|bold
+
+
+    // Step 6 (Guardrails) — optional
+  const [topicsToAvoid, setTopicsToAvoid] = useState("");
+  const [toneToAvoid, setToneToAvoid] = useState([]); // array of strings
+  const [visualAvoid, setVisualAvoid] = useState([]); // array of strings
+
   const [logoFileMeta, setLogoFileMeta] = useState(null); // {name,size,type} (no upload yet)
 
 
@@ -159,6 +166,14 @@ function SocialWorkshopInner() {
           if (typeof s.secondaryObjective === "string") setSecondaryObjective(s.secondaryObjective);
           if (typeof s.riskAppetite === "string") setRiskAppetite(s.riskAppetite);
 
+
+                    // Step 6 resume (Guardrails)
+          const g = data?.guardrails || {};
+          if (typeof g.topicsToAvoid === "string") setTopicsToAvoid(g.topicsToAvoid);
+          if (Array.isArray(g.toneToAvoid)) setToneToAvoid(g.toneToAvoid);
+          if (Array.isArray(g.visualAvoid)) setVisualAvoid(g.visualAvoid);
+
+
                     // Suggested colors (from scan) if present
           const suggested = data?.meta?.scanSuggestedColors;
           if (Array.isArray(suggested)) setScanSuggestedColors(suggested);
@@ -236,6 +251,12 @@ function SocialWorkshopInner() {
           primaryObjective: primaryObjective || null,
           secondaryObjective: secondaryObjective || null,
           riskAppetite: riskAppetite || null,
+        },
+        // Step 6 (Guardrails)
+        guardrails: {
+          topicsToAvoid: (topicsToAvoid || "").trim() || null,
+          toneToAvoid: Array.isArray(toneToAvoid) ? toneToAvoid : [],
+          visualAvoid: Array.isArray(visualAvoid) ? visualAvoid : [],
         },
 
 
@@ -1276,6 +1297,149 @@ function SocialWorkshopInner() {
         </div>
       );
     })()}
+
+    {saveError ? <div style={{ marginTop: 10, color: "#b91c1c" }}>{saveError}</div> : null}
+  </div>
+)}
+{currentStep === 6 && (
+  <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
+    <div style={{ fontWeight: 700, fontSize: 16 }}>Guardrails (What NOT to do)</div>
+
+    {/* Topics to avoid (Text box #2 of max 2) */}
+    <div style={{ marginTop: 14 }}>
+      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+        Topics to avoid (optional)
+      </label>
+      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+        We will not generate content around these topics.
+      </div>
+      <input
+        value={topicsToAvoid}
+        onChange={(e) => setTopicsToAvoid(e.target.value)}
+        placeholder="e.g., politics, personal opinions, competitor mentions…"
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+        }}
+      />
+    </div>
+
+    {/* Tone to avoid */}
+    <div style={{ marginTop: 16 }}>
+      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+        Tone to avoid (optional)
+      </label>
+      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+        Helps maintain brand credibility.
+      </div>
+
+      {["Salesy", "Cheeky", "Aggressive", "Overly inspirational"].map((t) => (
+        <label
+          key={t}
+          style={{
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+            padding: 10,
+            borderRadius: 12,
+            border: "1px solid #e5e7eb",
+            marginBottom: 8,
+            cursor: "pointer",
+            background: toneToAvoid.includes(t) ? "#f9fafb" : "white",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={toneToAvoid.includes(t)}
+            onChange={() => {
+              if (toneToAvoid.includes(t)) {
+                setToneToAvoid(toneToAvoid.filter((x) => x !== t));
+              } else {
+                setToneToAvoid([...toneToAvoid, t]);
+              }
+            }}
+          />
+          <div style={{ fontWeight: 600 }}>{t}</div>
+        </label>
+      ))}
+    </div>
+
+    {/* Visual styles to avoid */}
+    <div style={{ marginTop: 16 }}>
+      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+        Visual styles to avoid (optional)
+      </label>
+      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+        Prevents visuals that feel off-brand.
+      </div>
+
+      {["Stocky imagery", "Meme-heavy", "Loud colors", "Dark-moody"].map((v) => (
+        <label
+          key={v}
+          style={{
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+            padding: 10,
+            borderRadius: 12,
+            border: "1px solid #e5e7eb",
+            marginBottom: 8,
+            cursor: "pointer",
+            background: visualAvoid.includes(v) ? "#f9fafb" : "white",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={visualAvoid.includes(v)}
+            onChange={() => {
+              if (visualAvoid.includes(v)) {
+                setVisualAvoid(visualAvoid.filter((x) => x !== v));
+              } else {
+                setVisualAvoid([...visualAvoid, v]);
+              }
+            }}
+          />
+          <div style={{ fontWeight: 600 }}>{v}</div>
+        </label>
+      ))}
+    </div>
+
+    {/* Continue rule: Guardrails optional (allow skip) */}
+    <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <button
+        onClick={() => setCurrentStep(5)}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+          cursor: "pointer",
+        }}
+      >
+        Back
+      </button>
+
+      <button
+        onClick={async () => {
+          await saveDraft(7);
+          setCurrentStep(7);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        disabled={saving}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: saving ? "#f3f4f6" : "white",
+          fontWeight: 600,
+          cursor: saving ? "not-allowed" : "pointer",
+        }}
+      >
+        {saving ? "Saving…" : "Continue"}
+      </button>
+    </div>
 
     {saveError ? <div style={{ marginTop: 10, color: "#b91c1c" }}>{saveError}</div> : null}
   </div>
