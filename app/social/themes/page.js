@@ -504,13 +504,15 @@ async function regenerateThemes() {
     const platforms = platformList();
     return (
       <div>
-        <StepHeader
-          title="Recommended content themes for your brand"
-    <button
-  onClick={async () => {
-const hasSelections =
-  selected.linkedin.length > 0 || selected.instagram.length > 0;
+<StepHeader
+  title="Recommended content themes for your brand"
+  microcopy="These themes are based on your brand strategy. You’ll choose what to focus on next."
+/>
 
+<button
+  onClick={async () => {
+    const hasSelections =
+      selected.linkedin.length > 0 || selected.instagram.length > 0;
 
     if (hasSelections) {
       const ok = window.confirm(
@@ -521,13 +523,21 @@ const hasSelections =
 
     await regenerateThemes();
   }}
-  className="text-sm underline text-gray-600 mb-4"
+  style={{
+    marginBottom: 14,
+    textDecoration: "underline",
+    color: "#4b5563",
+    fontSize: 14,
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    cursor: "pointer",
+    textAlign: "left",
+  }}
 >
   Regenerate themes
 </button>
 
-          microcopy="These themes are based on your brand strategy. You’ll choose what to focus on next."
-        />
 
         {platforms.map((p) => {
           const list = p === "linkedin" ? generated.linkedin : generated.instagram;
@@ -731,28 +741,41 @@ const hasSelections =
   </h3>
 
   {["linkedin", "instagram"].map((platform) => {
-    const items = phase2?.selectedThemes?.[platform];
-    if (!items || items.length === 0) return null;
+<div style={{ marginTop: 18 }}>
+  <div style={{ fontWeight: 800, marginBottom: 10 }}>Your selected content themes</div>
+
+  {["linkedin", "instagram"].map((platform) => {
+    const selIds = platform === "linkedin" ? selected.linkedin : selected.instagram;
+    const priMap = platform === "linkedin" ? priorities.linkedin : priorities.instagram;
+
+    if (!selIds || selIds.length === 0) return null;
+
+    const rows = selIds
+      .map((id) => {
+        const t = themeById(platform, id);
+        if (!t) return null;
+        return { themeId: id, title: t.title, priority: Number(priMap?.[id]) || 999 };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.priority - b.priority);
 
     return (
-      <div key={platform} className="mb-4">
-        <div className="capitalize font-medium mb-2">
-          {platform}
+      <div key={platform} style={{ marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>
+          {platform === "linkedin" ? "LinkedIn" : "Instagram"}
         </div>
-
-        <ul className="list-disc ml-5 text-sm">
-          {items
-            .sort((a, b) => a.priority - b.priority)
-            .map((t) => (
-              <li key={t.themeId}>
-                {t.priority}. {t.title}
-              </li>
-            ))}
+        <ul style={{ margin: "0 0 0 18px" }}>
+          {rows.map((r) => (
+            <li key={r.themeId} style={{ marginBottom: 4 }}>
+              {r.priority}. {r.title}
+            </li>
+          ))}
         </ul>
       </div>
     );
   })}
 </div>
+
 
         <div style={{ color: "#374151", lineHeight: 1.6 }}>Your core themes and priorities are saved for this website.</div>
         <div style={{ marginTop: 18 }}>
