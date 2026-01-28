@@ -291,7 +291,10 @@ function SocialWorkshopInner() {
     } finally {
       setSaving(false);
     }
-      async function finishPhase1() {
+   }
+
+  async function finishPhase1() {
+
     if (!uid) return;
     if (!websiteId) return;
 
@@ -323,8 +326,6 @@ function SocialWorkshopInner() {
     } finally {
       setSaving(false);
     }
-  }
-
   }
 
   async function handleScan() {
