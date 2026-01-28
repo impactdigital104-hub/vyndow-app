@@ -149,8 +149,23 @@ function SocialPhase2ThemesInner() {
           },
           body: JSON.stringify({ websiteId }),
         });
-        const data = await resp.json();
-        if (!resp.ok || !data?.ok) throw new Error(data?.error || "Failed to generate themes.");
+      const rawText = await resp.text();
+let data = null;
+
+try {
+  data = rawText ? JSON.parse(rawText) : null;
+} catch {
+  data = null;
+}
+
+if (!resp.ok || !data?.ok) {
+  const msg =
+    data?.error ||
+    rawText ||
+    `Request failed (HTTP ${resp.status})`;
+  throw new Error(msg);
+}
+
 
         const nextGenerated = {
           linkedin: Array.isArray(data?.generated?.linkedin) ? data.generated.linkedin : [],
