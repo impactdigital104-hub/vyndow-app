@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AuthGate from "../../components/AuthGate";
 import VyndowShell from "../../VyndowShell";
@@ -72,6 +72,9 @@ function SocialWorkshopInner() {
   // Scan stub UI
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState("");
+    const [scanSuggestedColors, setScanSuggestedColors] = useState([]); // hex list from scan (stub)
+  const colorPickerRef = useRef(null);
+
 
   // Save state
   const [saving, setSaving] = useState(false);
@@ -146,6 +149,10 @@ function SocialWorkshopInner() {
           if (typeof v.visualStyle === "string") setVisualStyle(v.visualStyle);
           if (typeof v.typography === "string") setTypography(v.typography);
           if (v.logoAssetRef) setLogoFileMeta(v.logoAssetRef);
+                    // Suggested colors (from scan) if present
+          const suggested = data?.meta?.scanSuggestedColors;
+          if (Array.isArray(suggested)) setScanSuggestedColors(suggested);
+
 
 
 
@@ -220,9 +227,11 @@ function SocialWorkshopInner() {
         currentStep: nextStepNumber,
         phase1Completed: false,
         version: "v1.1",
-        meta: {
+               meta: {
           updatedAt: serverTimestamp(),
+          scanSuggestedColors: scanSuggestedColors || [],
         },
+
       };
 
       await setDoc(
@@ -230,9 +239,11 @@ function SocialWorkshopInner() {
         {
           ...payload,
           meta: {
+            ...(payload.meta || {}),
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           },
+
         },
         { merge: true }
       );
@@ -257,6 +268,9 @@ function SocialWorkshopInner() {
     try {
       await new Promise((r) => setTimeout(r, 900));
       setScanMsg("Scan stub (v1): Website scan UI is ready. We’ll wire real detection later.");
+            // Scan stub (v1): suggested colors (replace later with real detection)
+      setScanSuggestedColors(["#111111", "#FF6A00", "#0EA5E9", "#16A34A", "#7C3AED"]);
+
     } finally {
       setScanning(false);
     }
@@ -883,27 +897,43 @@ function SocialWorkshopInner() {
         Used to maintain consistency across visuals.
       </div>
 
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input
-          value={colorInput}
-          onChange={(e) => setColorInput(e.target.value)}
-          placeholder="#RRGGBB"
-          style={{
-            width: 140,
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid #e5e7eb",
-          }}
-        />
+      {/* Micro-copy (required) */}
+      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6, marginBottom: 10 }}>
+        Choose colors that visually feel like your brand. We’ll handle the technical details.
+      </div>
+
+      {/* Suggested colors from scan (if available) */}
+      {Array.isArray(scanSuggestedColors) && scanSuggestedColors.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+            Suggested from your website scan
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {scanSuggestedColors.map((c) => (
+              <button
+                key={c}
+                onClick={() => {
+                  if (!colors.includes(c)) setColors([...colors, c]);
+                }}
+                title="Add this color"
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  border: "1px solid #e5e7eb",
+                  background: c,
+                  cursor: "pointer",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Primary action: Choose color */}
+      <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <button
-          onClick={() => {
-            const hex = (colorInput || "").trim();
-            const isHex = /^#([0-9A-Fa-f]{6})$/.test(hex);
-            if (!isHex) return alert("Enter a valid hex like #1A1A1A");
-            if (colors.includes(hex)) return;
-            setColors([...colors, hex]);
-            setColorInput("#");
-          }}
+          onClick={() => colorPickerRef.current?.click()}
           style={{
             padding: "10px 14px",
             borderRadius: 10,
@@ -913,9 +943,107 @@ function SocialWorkshopInner() {
             cursor: "pointer",
           }}
         >
-          Add color
+          Choose color
         </button>
+
+        {/* Hidden native picker (PowerPoint-style feel) */}
+        <input
+          ref={colorPickerRef}
+          type="color"
+          value={colorInput}
+          onChange={(e) => {
+            const hex = e.target.value;
+            setColorInput(hex);
+            if (!colors.includes(hex)) setColors([...colors, hex]);
+          }}
+          style={{ width: 1, height: 1, opacity: 0, position: "absolute", pointerEvents: "none" }}
+          aria-hidden="true"
+          tabIndex={-1}
+        />
+
+        {/* Selected colors (removable) */}
+        {colors.length > 0 && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {colors.map((c) => (
+              <div
+                key={c}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 999,
+                  padding: "6px 10px",
+                  background: "white",
+                }}
+              >
+                <div
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 4,
+                    background: c,
+                    border: "1px solid #e5e7eb",
+                  }}
+                />
+             
+                <button
+                  onClick={() => setColors(colors.filter((x) => x !== c))}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    color: "#6b7280",
+                  }}
+                  aria-label={`Remove ${c}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Advanced: allow hex entry (optional) */}
+      <details style={{ marginTop: 10 }}>
+        <summary style={{ cursor: "pointer", fontSize: 12, color: "#6b7280" }}>Advanced</summary>
+        <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            value={colorInput}
+            onChange={(e) => setColorInput(e.target.value)}
+            placeholder="#RRGGBB"
+            style={{
+              width: 140,
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid #e5e7eb",
+            }}
+          />
+          <button
+            onClick={() => {
+              const hex = (colorInput || "").trim();
+              const isHex = /^#([0-9A-Fa-f]{6})$/.test(hex);
+              if (!isHex) return alert("Enter a valid hex like #1A1A1A");
+              if (colors.includes(hex)) return;
+              setColors([...colors, hex]);
+              setColorInput("#");
+            }}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #e5e7eb",
+              background: "white",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Add hex
+          </button>
+        </div>
+      </details>
+
 
       {colors.length === 0 && (
         <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c" }}>
