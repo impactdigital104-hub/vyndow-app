@@ -45,6 +45,7 @@ function SocialPhase2ThemesInner() {
   const [confirmed, setConfirmed] = useState(false);
 
   const autosaveTimer = useRef(null);
+  const disableStep1Actions = saving && !hasAnyThemes;
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (u) => {
@@ -392,7 +393,7 @@ async function regenerateThemes() {
     const hasAnyThemes =
   (generated.linkedin?.length || 0) + (generated.instagram?.length || 0) > 0;
 
-const disableStep1Actions = saving && !hasAnyThemes; // only disable while first generation is still empty
+
 
     if (platforms.length === 0) return false;
     return platforms.every((p) => validatePlatform(p).ok);
