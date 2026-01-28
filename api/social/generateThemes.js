@@ -175,39 +175,85 @@ function buildDomainHints({ signals, phase1 }) {
   return parts.join("\n").slice(0, 1800);
 }
 
-function buildDomainTerms({ signals, phase1 }) {
-  // Terms used for post-validation (domain-anchored detection).
+function buildProblemSpaceTerms({ signals }) {
+  // Terms used for post-validation (problem-space anchoring detection).
+  // IMPORTANT: Do NOT use "industry" labels here. We anchor to buyer pain/job/outcome inferred from homepage copy.
   const terms = new Set();
 
-  // Add signal keywords
-  (signals.keywords || []).forEach((k) => terms.add(String(k).toLowerCase()));
+  const rawLines = []
+    .concat(signals.title ? [signals.title] : [])
+    .concat(signals.meta ? [signals.meta] : [])
+    .concat(Array.isArray(signals.h) ? signals.h : [])
+    .concat(Array.isArray(signals.nav) ? signals.nav : []);
 
-  // Add nav labels split into words
-  (signals.nav || []).forEach((lbl) => {
-    String(lbl)
-      .toLowerCase()
-      .split(/\s+/)
-      .forEach((w) => {
+  const text = rawLines.join(" | ").toLowerCase();
+
+  // Extract outcome/pain words from website messaging (best-effort)
+  const patterns = [
+    /(?:help|helps|helping)\s+[^.]{0,80}/g,
+    /(?:increase|improve|boost|grow|scale)\s+[^.]{0,60}/g,
+    /(?:reduce|cut|lower|eliminate|avoid|prevent)\s+[^.]{0,60}/g,
+    /(?:automate|streamline|simplify|accelerate)\s+[^.]{0,60}/g,
+    /(?:rank|ranking|visibility|traffic|leads|pipeline|conversion|conversions)\s+[^.]{0,40}/g,
+  ];
+
+  for (const re of patterns) {
+    const matches = text.match(re) || [];
+    for (const m of matches) {
+      const cleaned = m
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      cleaned.split(" ").forEach((w) => {
         if (w.length >= 4) terms.add(w);
       });
+    }
+  }
+
+  // Also include top homepage keywords EXCEPT generic industry words
+  const banned = new Set([
+    "saas",
+    "software",
+    "platform",
+    "solution",
+    "solutions",
+    "innovative",
+    "innovation",
+    "technology",
+    "tech",
+  ]);
+
+  (signals.keywords || []).forEach((k) => {
+    const t = String(k).toLowerCase();
+    if (t.length >= 4 && !banned.has(t)) terms.add(t);
   });
 
-  // Add industry tokens
-  const industry = (phase1?.industry || "").toString().toLowerCase();
-  industry.split(/\s+/).forEach((w) => {
-    if (w.length >= 4) terms.add(w);
-  });
-
-  // Keep a compact list
-  return Array.from(terms).filter(Boolean).slice(0, 22);
+  return Array.from(terms).filter(Boolean).slice(0, 26);
 }
 
-function isDomainAnchored(theme, domainTerms) {
+
+function isProblemAnchored(theme, problemTerms) {
   const hay = `${theme?.title || ""} ${theme?.what || ""} ${theme?.whyFit || ""}`.toLowerCase();
-  return domainTerms.some((t) => t && hay.includes(t));
+
+  const hits = problemTerms.filter((t) => t && hay.includes(t)).length;
+
+  // Reject themes that are only generic industry/category with no problem/outcome
+  const genericOnlySignals = [
+    "saas",
+    "innovative saas",
+    "saas innovation",
+    "industry trends",
+    "thought leadership insights",
+  ];
+  const looksGenericOnly = genericOnlySignals.some((g) => hay.includes(g));
+
+  return hits >= 1 && !looksGenericOnly;
 }
 
-async function generateWithEnforcement({ platform, phase1, domainHints, domainTerms, maxAttempts = 2 }) {
+
+async function generateWithEnforcement({ platform, phase1, domainHints, problemTerms, maxAttempts = 2 }) {
+
   // Attempt generation up to maxAttempts to ensure >=2 domain-anchored.
   let lastThemes = [];
   let lastDebug = { anchoredCount: 0 };
@@ -217,7 +263,8 @@ async function generateWithEnforcement({ platform, phase1, domainHints, domainTe
     const text = await callOpenAI({ prompt });
     const themes = normalizeThemes(platform.toLowerCase(), parseJsonStrict(text));
 
-    const anchoredCount = themes.filter((t) => isDomainAnchored(t, domainTerms)).length;
+const anchoredCount = themes.filter((t) => isProblemAnchored(t, problemTerms)).length;
+
     lastThemes = themes;
     lastDebug = { anchoredCount, attempt };
 
@@ -251,8 +298,10 @@ Task: Based on the brand profile below, create 6–8 strategic CONTENT THEMES (s
 Rules:
 - Themes are strategic narratives, NOT post ideas.
 - IMPORTANT MIX RULE (MANDATORY):
-  - At least 2 of the themes MUST be "Domain-Anchored": explicitly tied to the brand’s functional domain/problem space.
-  - Domain is inferred from website signals + Phase 1 context below. Do NOT write generic SaaS-only themes that ignore the domain.
+  - At least 2 of the themes MUST be "Problem-Space Anchored":
+    - Explicitly tied to the buyer’s job-to-be-done, pain point, or desired outcome the brand helps solve.
+    - Do NOT anchor to the industry label (e.g., "SaaS", "cosmetics", "fashion"). Industry is not the domain.
+    - Use the website signals below to infer: the problem being solved + the outcome desired.
   - Remaining themes can be product-in-context and broader category/thought leadership themes, but domain must still be clearly present in the overall set.
 - Each theme must include:
   1) title (short)
@@ -424,17 +473,17 @@ const websiteUrl = safeStr(phase1.websiteUrl);
 const homepageHtml = await fetchHomepageHtml(websiteUrl, 4500);
 const signals = extractHomepageSignals(homepageHtml);
 const domainHints = buildDomainHints({ signals, phase1 });
-const domainTerms = buildDomainTerms({ signals, phase1 });
+const problemTerms = buildProblemSpaceTerms({ signals });
 
 const out = { linkedin: [], instagram: [] };
-const debug = { linkedin: null, instagram: null, domainTerms, usedWebsiteSignals: !!homepageHtml };
+const debug = { linkedin: null, instagram: null, problemTerms, usedWebsiteSignals: !!homepageHtml };
 
 if (wantLinkedIn) {
   const r = await generateWithEnforcement({
     platform: "LinkedIn",
     phase1,
     domainHints,
-    domainTerms,
+    problemTerms,
     maxAttempts: 2,
   });
   out.linkedin = r.themes;
@@ -446,12 +495,13 @@ if (wantInstagram) {
     platform: "Instagram",
     phase1,
     domainHints,
-    domainTerms,
+    problemTerms,
     maxAttempts: 2,
   });
   out.instagram = r.themes;
   debug.instagram = r.debug;
 }
+
 
 
 return res.status(200).json({
