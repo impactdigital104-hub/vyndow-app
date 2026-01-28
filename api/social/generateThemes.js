@@ -253,27 +253,37 @@ function isProblemAnchored(theme, problemTerms) {
 
 
 
-async function generateWithEnforcement({ platform, phase1, domainHints, problemTerms, maxAttempts = 2 }) {
+async function generateWithEnforcement({ platform, phase1, domainHints }) {
+  // PASS 1 — Generate themes
+  const firstPrompt = buildPrompt({ platform, phase1, domainHints });
+  const firstResponse = await callOpenAI({ prompt: firstPrompt });
+  let themes = normalizeThemes(platform.toLowerCase(), parseJsonStrict(firstResponse));
 
-  // Attempt generation up to maxAttempts to ensure >=2 domain-anchored.
-  let lastThemes = [];
-  let lastDebug = { anchoredCount: 0 };
+  // PASS 2 — Validate themes
+  const validation = await validateThemesWithAI({
+    platform,
+    phase1,
+    domainHints,
+    themes
+  });
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const prompt = buildPrompt({ platform, phase1, domainHints }); // buildPrompt will be updated below
-    const text = await callOpenAI({ prompt });
-    const themes = normalizeThemes(platform.toLowerCase(), parseJsonStrict(text));
-
-const anchoredCount = themes.filter((t) => isProblemAnchored(t, problemTerms)).length;
-
-    lastThemes = themes;
-    lastDebug = { anchoredCount, attempt };
-
-    if (anchoredCount >= 2) return { themes, debug: lastDebug };
+  // If at least 2 execution-failure anchors pass, return
+  if (validation.passedExecutionFailureCount >= 2) {
+    return { themes };
   }
 
-  // Fallback: return best we got without failing
-  return { themes: lastThemes, debug: lastDebug };
+  // PASS 3 — One retry with stricter instruction
+  const retryPrompt = buildPrompt({
+    platform,
+    phase1,
+    domainHints,
+    forceExecutionFailure: true
+  });
+
+  const retryResponse = await callOpenAI({ prompt: retryPrompt });
+  themes = normalizeThemes(platform.toLowerCase(), parseJsonStrict(retryResponse));
+
+  return { themes };
 }
 
 function safeStr(v) {
@@ -306,6 +316,18 @@ Rules:
   - They must be specific enough that unrelated products could NOT use the theme unchanged.
   - Do NOT anchor to industry labels (e.g., SaaS, beauty, fashion). Industry is not the domain.
   - Use website signals to infer the broken workflow + desired outcome.
+  IMPORTANT:
+At least 2 themes MUST be Execution Failure Anchors.
+
+Execution Failure Anchor means:
+- A specific point where customer intent exists but execution fails
+- A broken workflow or failed job-to-be-done
+- Concrete breakdowns only (handoffs, rework, approvals, manual steps, tool sprawl)
+- NOT solution-led
+- NOT feature-led
+- NOT generic
+- If a theme could apply unchanged to unrelated products, it FAILS
+
 - Remaining themes: "anchorType": "other"
   - Remaining themes can be product-in-context and broader category/thought leadership themes, but domain must still be clearly present in the overall set.
 - Each theme must include:
@@ -437,6 +459,45 @@ return { themeId, anchorType, title, what, whyFit, examples };
     .filter((t) => t.title && t.what && t.whyFit);
 
   return cleaned.slice(0, 8);
+}
+async function validateThemesWithAI({ platform, phase1, domainHints, themes }) {
+  const prompt = `
+You are a STRICT QUALITY GATE for content themes.
+
+Your job: identify themes that qualify as EXECUTION FAILURE ANCHORS.
+
+A theme PASSES only if ALL are true:
+- Describes a failed job-to-be-done (intent exists, execution fails)
+- Mentions a concrete execution breakdown (handoff, rework, approvals, manual steps, tool sprawl, tracking gaps)
+- NOT solution-led or feature-led
+- NOT generic (cannot apply unchanged to unrelated products)
+- NOT industry/category based
+
+If unsure, FAIL.
+
+Return STRICT JSON only.
+
+Schema:
+{
+  "passedExecutionFailureCount": number,
+  "results": [
+    {
+      "themeId": "string",
+      "passed": true | false
+    }
+  ]
+}
+
+Themes:
+${JSON.stringify(themes, null, 2)}
+`;
+
+  const response = await callOpenAI({
+    prompt,
+    temperature: 0
+  });
+
+  return parseJsonStrict(response);
 }
 
 export default async function handler(req, res) {
