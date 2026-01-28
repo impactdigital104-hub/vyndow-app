@@ -176,79 +176,83 @@ function buildDomainHints({ signals, phase1 }) {
 }
 
 function buildProblemSpaceTerms({ signals }) {
-  // Terms used for post-validation (problem-space anchoring detection).
-  // IMPORTANT: Do NOT use "industry" labels here. We anchor to buyer pain/job/outcome inferred from homepage copy.
+  // We anchor to FAILURE / BREAKAGE / STRUGGLE — not outcomes.
   const terms = new Set();
 
-  const rawLines = []
-    .concat(signals.title ? [signals.title] : [])
-    .concat(signals.meta ? [signals.meta] : [])
-    .concat(Array.isArray(signals.h) ? signals.h : [])
-    .concat(Array.isArray(signals.nav) ? signals.nav : []);
+  const rawText = [
+    signals.title,
+    signals.meta,
+    ...(signals.h || []),
+    ...(signals.nav || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 
-  const text = rawLines.join(" | ").toLowerCase();
-
-  // Extract outcome/pain words from website messaging (best-effort)
-  const patterns = [
-    /(?:help|helps|helping)\s+[^.]{0,80}/g,
-    /(?:increase|improve|boost|grow|scale)\s+[^.]{0,60}/g,
-    /(?:reduce|cut|lower|eliminate|avoid|prevent)\s+[^.]{0,60}/g,
-    /(?:automate|streamline|simplify|accelerate)\s+[^.]{0,60}/g,
-    /(?:rank|ranking|visibility|traffic|leads|pipeline|conversion|conversions)\s+[^.]{0,40}/g,
+  const failurePatterns = [
+    /fail(?:s|ed|ing)?/g,
+    /struggle(?:s|d|ing)?/g,
+    /break(?:s|down|ing)?/g,
+    /doesn’t work|does not work/g,
+    /can’t scale|cannot scale/g,
+    /manual work|manual process/g,
+    /bottleneck/g,
+    /inefficient/g,
+    /rework/g,
+    /audit(?:s)? (?:don’t|do not) convert/g,
+    /low visibility|no visibility/g,
+    /ranking drop|rankings fall/g,
+    /missed opportunities/g,
   ];
 
-  for (const re of patterns) {
-    const matches = text.match(re) || [];
-    for (const m of matches) {
-      const cleaned = m
-        .replace(/[^a-z0-9\s]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-      cleaned.split(" ").forEach((w) => {
+  for (const re of failurePatterns) {
+    const matches = rawText.match(re) || [];
+    matches.forEach((m) => {
+      m.split(" ").forEach((w) => {
         if (w.length >= 4) terms.add(w);
       });
-    }
+    });
   }
 
-  // Also include top homepage keywords EXCEPT generic industry words
-  const banned = new Set([
-    "saas",
-    "software",
-    "platform",
-    "solution",
-    "solutions",
-    "innovative",
-    "innovation",
-    "technology",
-    "tech",
-  ]);
+  // Backup: allow concrete operational nouns (not industry)
+  const allowed = [
+    "seo",
+    "geo",
+    "content",
+    "audit",
+    "execution",
+    "visibility",
+    "ranking",
+    "workflow",
+    "publishing",
+    "search",
+    "llm",
+  ];
 
-  (signals.keywords || []).forEach((k) => {
-    const t = String(k).toLowerCase();
-    if (t.length >= 4 && !banned.has(t)) terms.add(t);
-  });
+  allowed.forEach((w) => terms.add(w));
 
-  return Array.from(terms).filter(Boolean).slice(0, 26);
+  return Array.from(terms);
 }
 
 
+
 function isProblemAnchored(theme, problemTerms) {
-  const hay = `${theme?.title || ""} ${theme?.what || ""} ${theme?.whyFit || ""}`.toLowerCase();
+  const text = `${theme.title} ${theme.what}`.toLowerCase();
 
-  const hits = problemTerms.filter((t) => t && hay.includes(t)).length;
+  const hasFailureSignal = problemTerms.some((t) => text.includes(t));
 
-  // Reject themes that are only generic industry/category with no problem/outcome
-  const genericOnlySignals = [
-    "saas",
-    "innovative saas",
-    "saas innovation",
+  const genericSignals = [
+    "innovation",
+    "thought leadership",
+    "future of",
+    "best practices",
     "industry trends",
-    "thought leadership insights",
+    "marketing success",
   ];
-  const looksGenericOnly = genericOnlySignals.some((g) => hay.includes(g));
 
-  return hits >= 1 && !looksGenericOnly;
+  const isGeneric = genericSignals.some((g) => text.includes(g));
+
+  return hasFailureSignal && !isGeneric;
 }
 
 
@@ -298,7 +302,11 @@ Task: Based on the brand profile below, create 6–8 strategic CONTENT THEMES (s
 Rules:
 - Themes are strategic narratives, NOT post ideas.
 - IMPORTANT MIX RULE (MANDATORY):
-  - At least 2 of the themes MUST be "Problem-Space Anchored":
+  - At least 2 of the themes MUST be FAILURE-ANCHORED:
+  - They must describe something that is broken today.
+  - Focus on execution failures, workflow breakdowns, visibility gaps, or operational struggles.
+  - Do NOT write positive-only outcome themes like "growth", "innovation", or "success".
+  - Phrase themes as problems teams face, not aspirations.
     - Explicitly tied to the buyer’s job-to-be-done, pain point, or desired outcome the brand helps solve.
     - Do NOT anchor to the industry label (e.g., "SaaS", "cosmetics", "fashion"). Industry is not the domain.
     - Use the website signals below to infer: the problem being solved + the outcome desired.
