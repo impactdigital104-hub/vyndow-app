@@ -176,60 +176,54 @@ function buildDomainHints({ signals, phase1 }) {
 }
 
 function buildProblemSpaceTerms({ signals }) {
-  // We anchor to FAILURE / BREAKAGE / STRUGGLE — not outcomes.
-  const terms = new Set();
+  // Category-safe “Execution Failure Signature” vocabulary.
+  // No hardcoded domain keywords (SEO/GEO/etc).
+  const terms = new Set([
+    "broken",
+    "breakdown",
+    "fails",
+    "failing",
+    "failure",
+    "stuck",
+    "blocked",
+    "bottleneck",
+    "manual",
+    "fragmented",
+    "handoff",
+    "rework",
+    "duplicate",
+    "inconsistent",
+    "delayed",
+    "slow",
+    "no visibility",
+    "low visibility",
+    "cannot track",
+    "missed",
+    "missed steps",
+    "dropped",
+    "falls through",
+    "does not work",
+    "doesn't work",
+    "confusing",
+    "messy",
+    "sprawl",
+    "too many tools",
+    "spreadsheet",
+    "copy paste",
+    "copy-paste",
+    "approval delays",
+    "version chaos",
+    "audit doesn't convert",
+    "intent but no execution",
+  ]);
 
-  const rawText = [
-    signals.title,
-    signals.meta,
-    ...(signals.h || []),
-    ...(signals.nav || []),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const failurePatterns = [
-    /fail(?:s|ed|ing)?/g,
-    /struggle(?:s|d|ing)?/g,
-    /break(?:s|down|ing)?/g,
-    /doesn’t work|does not work/g,
-    /can’t scale|cannot scale/g,
-    /manual work|manual process/g,
-    /bottleneck/g,
-    /inefficient/g,
-    /rework/g,
-    /audit(?:s)? (?:don’t|do not) convert/g,
-    /low visibility|no visibility/g,
-    /ranking drop|rankings fall/g,
-    /missed opportunities/g,
-  ];
-
-  for (const re of failurePatterns) {
-    const matches = rawText.match(re) || [];
-    matches.forEach((m) => {
-      m.split(" ").forEach((w) => {
-        if (w.length >= 4) terms.add(w);
-      });
-    });
-  }
-
-  // Backup: allow concrete operational nouns (not industry)
-  const allowed = [
-    "seo",
-    "geo",
-    "content",
-    "audit",
-    "execution",
-    "visibility",
-    "ranking",
-    "workflow",
-    "publishing",
-    "search",
-    "llm",
-  ];
-
-  allowed.forEach((w) => terms.add(w));
+  // Add website-extracted keywords as “context hints” (not industry labels).
+  // This stays generic because keywords come from the brand’s own site.
+  const kws = Array.isArray(signals?.keywords) ? signals.keywords : [];
+  kws.slice(0, 12).forEach((k) => {
+    const w = (k || "").trim().toLowerCase();
+    if (w && w.length >= 4) terms.add(w);
+  });
 
   return Array.from(terms);
 }
@@ -237,9 +231,12 @@ function buildProblemSpaceTerms({ signals }) {
 
 
 function isProblemAnchored(theme, problemTerms) {
-  const text = `${theme.title} ${theme.what}`.toLowerCase();
+  // Primary enforcement: model explicitly tags execution-failure themes.
+  if ((theme.anchorType || "").toLowerCase() === "execution_failure") return true;
 
-  const hasFailureSignal = problemTerms.some((t) => text.includes(t));
+  // Backup heuristic: detect failure vocabulary + website hints (category-safe).
+  const text = `${theme.title} ${theme.what}`.toLowerCase();
+  const hasFailureSignal = problemTerms.some((t) => text.includes(String(t).toLowerCase()));
 
   const genericSignals = [
     "innovation",
@@ -249,11 +246,11 @@ function isProblemAnchored(theme, problemTerms) {
     "industry trends",
     "marketing success",
   ];
-
   const isGeneric = genericSignals.some((g) => text.includes(g));
 
   return hasFailureSignal && !isGeneric;
 }
+
 
 
 async function generateWithEnforcement({ platform, phase1, domainHints, problemTerms, maxAttempts = 2 }) {
@@ -302,14 +299,14 @@ Task: Based on the brand profile below, create 6–8 strategic CONTENT THEMES (s
 Rules:
 - Themes are strategic narratives, NOT post ideas.
 - IMPORTANT MIX RULE (MANDATORY):
-  - At least 2 of the themes MUST be FAILURE-ANCHORED:
-  - They must describe something that is broken today.
-  - Focus on execution failures, workflow breakdowns, visibility gaps, or operational struggles.
-  - Do NOT write positive-only outcome themes like "growth", "innovation", or "success".
-  - Phrase themes as problems teams face, not aspirations.
-    - Explicitly tied to the buyer’s job-to-be-done, pain point, or desired outcome the brand helps solve.
-    - Do NOT anchor to the industry label (e.g., "SaaS", "cosmetics", "fashion"). Industry is not the domain.
-    - Use the website signals below to infer: the problem being solved + the outcome desired.
+- At least 2 themes MUST be anchored to an EXECUTION FAILURE SIGNATURE.
+  - Definition: customer intent exists, but execution repeatedly fails without this product/brand.
+  - These 2 themes must be tagged: "anchorType": "execution_failure"
+  - They must describe a specific broken job-to-be-done or workflow breakdown (not abstract).
+  - They must be specific enough that unrelated products could NOT use the theme unchanged.
+  - Do NOT anchor to industry labels (e.g., SaaS, beauty, fashion). Industry is not the domain.
+  - Use website signals to infer the broken workflow + desired outcome.
+- Remaining themes: "anchorType": "other"
   - Remaining themes can be product-in-context and broader category/thought leadership themes, but domain must still be clearly present in the overall set.
 - Each theme must include:
   1) title (short)
@@ -325,6 +322,7 @@ Return schema:
   "themes": [
     {
       "themeId": "${platform.toLowerCase()}-t1",
+      "anchorType": "execution_failure" | "other",
       "title": "...",
       "what": "...",
       "whyFit": "...",
@@ -332,6 +330,7 @@ Return schema:
     }
   ]
 }
+
 
 Domain inference signals (use these to anchor at least 2 themes to the real operating domain):
 ${domainHints || "(no website signals available — use Phase 1 fields only)"}
@@ -431,7 +430,9 @@ function normalizeThemes(platform, raw) {
       const examples = Array.isArray(t.examples)
         ? t.examples.map((x) => safeStr(x)).filter(Boolean).slice(0, 2)
         : [];
-      return { themeId, title, what, whyFit, examples };
+    const anchorType = safeStr(t.anchorType) || "other";
+return { themeId, anchorType, title, what, whyFit, examples };
+
     })
     .filter((t) => t.title && t.what && t.whyFit);
 
