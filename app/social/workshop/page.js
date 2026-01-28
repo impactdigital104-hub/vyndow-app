@@ -1659,7 +1659,7 @@ function SocialWorkshopInner() {
 
     <div style={{ marginTop: 14 }}>
       <button
-        onClick={() => alert("Phase 2 (Themes) is not implemented yet.")}
+      onClick={() => router.push(`/social/themes?websiteId=${encodeURIComponent(websiteId)}`)}
         style={{
           padding: "10px 14px",
           borderRadius: 10,
@@ -1669,7 +1669,7 @@ function SocialWorkshopInner() {
           cursor: "pointer",
         }}
       >
-        Proceed to Themes (Coming soon)
+       Proceed to Themes
       </button>
     </div>
   </div>
