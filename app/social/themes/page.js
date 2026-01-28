@@ -389,6 +389,11 @@ async function regenerateThemes() {
 
   function canContinueStep2() {
     const platforms = platformList();
+    const hasAnyThemes =
+  (generated.linkedin?.length || 0) + (generated.instagram?.length || 0) > 0;
+
+const disableStep1Actions = saving && !hasAnyThemes; // only disable while first generation is still empty
+
     if (platforms.length === 0) return false;
     return platforms.every((p) => validatePlatform(p).ok);
   }
@@ -510,6 +515,8 @@ async function regenerateThemes() {
 />
 
 <button
+  type="button"
+  disabled={disableStep1Actions}
   onClick={async () => {
     const hasSelections =
       selected.linkedin.length > 0 || selected.instagram.length > 0;
@@ -526,17 +533,20 @@ async function regenerateThemes() {
   style={{
     marginBottom: 14,
     textDecoration: "underline",
-    color: "#4b5563",
+    color: disableStep1Actions ? "#9ca3af" : "#4b5563",
     fontSize: 14,
     background: "transparent",
     border: "none",
     padding: 0,
-    cursor: "pointer",
+    cursor: disableStep1Actions ? "not-allowed" : "pointer",
     textAlign: "left",
+    position: "relative",
+    zIndex: 2,
   }}
 >
   Regenerate themes
 </button>
+
 
 
         {platforms.map((p) => {
@@ -554,7 +564,13 @@ async function regenerateThemes() {
         })}
 
         <div style={{ marginTop: 18, display: "flex", gap: 10, alignItems: "center" }}>
-          <button onClick={() => goToStep(2)} disabled={saving} style={primaryBtnStyle(saving)}>
+         <button
+  type="button"
+  onClick={() => goToStep(2)}
+  disabled={disableStep1Actions}
+  style={primaryBtnStyle(disableStep1Actions)}
+>
+
             Select themes to focus on
           </button>
           <a href={workshopUrl} style={{ color: "#374151", textDecoration: "none" }}>
