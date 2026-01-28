@@ -43,6 +43,9 @@ function SocialPhase2ThemesInner() {
   const [saveError, setSaveError] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [toast, setToast] = useState("");
+const [lastGeneratedAt, setLastGeneratedAt] = useState(null);
+
 
   const autosaveTimer = useRef(null);
   const hasAnyThemes =
@@ -120,6 +123,8 @@ function SocialPhase2ThemesInner() {
 
       setConfirmed(!!p2?.meta?.phase2Completed);
 setPhase2Meta(p2?.meta || { phase2Completed: false });
+        setLastGeneratedAt(p2?.generated?.generatedAt || null);
+
 
       } catch (e) {
         console.error("Phase 2 load error:", e);
@@ -208,6 +213,12 @@ if (!resp.ok || !data?.ok) {
     generateOnce();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, websiteId, phase1Completed, idToken, platformFocus]);
+  useEffect(() => {
+  if (!toast) return;
+  const t = setTimeout(() => setToast(""), 2500);
+  return () => clearTimeout(t);
+}, [toast]);
+
 
   function platformList() {
     if (platformFocus === "both") return ["linkedin", "instagram"];
@@ -245,6 +256,9 @@ async function regenerateThemes() {
 
     // RESET LOCAL STATE
     setGenerated(nextGenerated);
+    setLastGeneratedAt(new Date());
+setToast("Themes refreshed");
+
     setSelected({ linkedin: [], instagram: [] });
     setPriorities({ linkedin: {}, instagram: {} });
     setCurrentStep(1);
@@ -516,10 +530,19 @@ async function regenerateThemes() {
   title="Recommended content themes for your brand"
   microcopy="These themes are based on your brand strategy. You’ll choose what to focus on next."
 />
+    {lastGeneratedAt ? (
+  <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+    Last generated: {new Date(lastGeneratedAt).toLocaleString()}
+  </div>
+) : null}
+
+<div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>
+  Uses your brand inputs to explore alternate framings. Similar themes may appear when strategy is clear.
+</div>
 
 <button
   type="button"
-  disabled={disableStep1Actions}
+disabled={disableStep1Actions || saving}
   onClick={async () => {
     const hasSelections =
       selected.linkedin.length > 0 || selected.instagram.length > 0;
@@ -547,7 +570,7 @@ async function regenerateThemes() {
     zIndex: 2,
   }}
 >
-  Regenerate themes
+  {saving ? "Regenerating themes…" : "Regenerate themes"}
 </button>
 
 
@@ -862,6 +885,12 @@ async function regenerateThemes() {
 
           {loadError ? <div style={{ marginTop: 12, color: "#b91c1c" }}>{loadError}</div> : null}
           {saveError ? <div style={{ marginTop: 12, color: "#b91c1c" }}>{saveError}</div> : null}
+{toast ? (
+  <div style={{ marginTop: 12, color: "#065f46" }}>
+    {toast}
+  </div>
+) : null}
+
 
           {!ready ? (
             <div style={{ marginTop: 18, color: "#374151" }}>Preparing your themes…</div>
