@@ -291,6 +291,40 @@ function SocialWorkshopInner() {
     } finally {
       setSaving(false);
     }
+      async function finishPhase1() {
+    if (!uid) return;
+    if (!websiteId) return;
+
+    setSaving(true);
+    setSaveError("");
+
+    try {
+      const ref = doc(db, "users", uid, "websites", websiteId, "modules", "social");
+
+      await setDoc(
+        ref,
+        {
+          phase1Completed: true,
+          currentStep: 8,
+          meta: {
+            updatedAt: serverTimestamp(),
+            completedAt: serverTimestamp(),
+          },
+        },
+        { merge: true }
+      );
+
+      setCurrentStep(8);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      console.error("Finish Phase 1 error:", e);
+      setSaveError(e?.message || "Failed to finish Phase 1.");
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  }
+
   }
 
   async function handleScan() {
@@ -355,7 +389,8 @@ function SocialWorkshopInner() {
           ) : (
             <>
               <div style={{ marginTop: 18, padding: 14, border: "1px solid #e5e7eb", borderRadius: 12 }}>
-                <div style={{ fontWeight: 700 }}>Step {currentStep} of 6</div>
+              <div style={{ fontWeight: 700 }}>Step {Math.min(currentStep, 7)} of 7</div>
+
                 <div style={{ marginTop: 6, color: "#374151" }}>
                   {currentStep === 0 ? "Website Start + Scan" : "Next steps will be added one-by-one."}
                 </div>
@@ -1442,6 +1477,200 @@ function SocialWorkshopInner() {
     </div>
 
     {saveError ? <div style={{ marginTop: 10, color: "#b91c1c" }}>{saveError}</div> : null}
+  </div>
+)}
+{currentStep === 7 && (
+  <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
+    <div style={{ fontWeight: 700, fontSize: 16 }}>Review &amp; Finish</div>
+    <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
+      Review your choices below. Use Edit if you want to change anything.
+    </div>
+
+    {/* Brand context */}
+    <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <div style={{ fontWeight: 700 }}>Brand context</div>
+        <button
+          onClick={() => setCurrentStep(1)}
+          style={{ border: "1px solid #e5e7eb", background: "white", borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
+        >
+          Edit
+        </button>
+      </div>
+      <div style={{ marginTop: 10, fontSize: 13, color: "#374151", display: "grid", gap: 6 }}>
+        <div><span style={{ color: "#6b7280" }}>Industry:</span> {industry || "—"}</div>
+        <div><span style={{ color: "#6b7280" }}>Business type:</span> {businessType || "—"}</div>
+        <div><span style={{ color: "#6b7280" }}>Geography:</span> {geography || "—"}</div>
+      </div>
+    </div>
+
+    {/* Platform focus */}
+    <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <div style={{ fontWeight: 700 }}>Platform focus</div>
+        <button
+          onClick={() => setCurrentStep(2)}
+          style={{ border: "1px solid #e5e7eb", background: "white", borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
+        >
+          Edit
+        </button>
+      </div>
+      <div style={{ marginTop: 10, fontSize: 13, color: "#374151" }}>
+        <span style={{ color: "#6b7280" }}>Selection:</span> {platformFocus || "—"}
+      </div>
+    </div>
+
+    {/* Voice sliders */}
+    <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <div style={{ fontWeight: 700 }}>Voice &amp; personality</div>
+        <button
+          onClick={() => setCurrentStep(3)}
+          style={{ border: "1px solid #e5e7eb", background: "white", borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
+        >
+          Edit
+        </button>
+      </div>
+
+      <div style={{ marginTop: 10, fontSize: 13, color: "#374151", display: "grid", gap: 6 }}>
+        <div><span style={{ color: "#6b7280" }}>Formal ↔ Conversational:</span> {formalConversational}</div>
+        <div><span style={{ color: "#6b7280" }}>Bold ↔ Conservative:</span> {boldConservative}</div>
+        <div><span style={{ color: "#6b7280" }}>Educational ↔ Opinionated:</span> {educationalOpinionated}</div>
+        <div><span style={{ color: "#6b7280" }}>Founder-led ↔ Brand-led:</span> {founderBrand}</div>
+        <div><span style={{ color: "#6b7280" }}>Aspirational ↔ Practical:</span> {aspirationalPractical}</div>
+        <div><span style={{ color: "#6b7280" }}>Authority ↔ Relatability:</span> {authorityRelatable}</div>
+      </div>
+    </div>
+
+    {/* Visual direction */}
+    <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <div style={{ fontWeight: 700 }}>Visual direction</div>
+        <button
+          onClick={() => setCurrentStep(4)}
+          style={{ border: "1px solid #e5e7eb", background: "white", borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
+        >
+          Edit
+        </button>
+      </div>
+
+      <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+        <div style={{ fontSize: 13, color: "#374151" }}>
+          <span style={{ color: "#6b7280" }}>Colors:</span>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {(colors || []).length === 0 ? (
+            <div style={{ fontSize: 13, color: "#374151" }}>—</div>
+          ) : (
+            colors.map((c) => (
+              <div key={c} title={c} style={{ width: 22, height: 22, borderRadius: 8, background: c, border: "1px solid #e5e7eb" }} />
+            ))
+          )}
+        </div>
+
+        <div style={{ fontSize: 13, color: "#374151" }}>
+          <span style={{ color: "#6b7280" }}>Visual style:</span> {visualStyle || "—"}
+        </div>
+        <div style={{ fontSize: 13, color: "#374151" }}>
+          <span style={{ color: "#6b7280" }}>Typography:</span> {typography || "—"}
+        </div>
+        <div style={{ fontSize: 13, color: "#374151" }}>
+          <span style={{ color: "#6b7280" }}>Logo:</span> {logoFileMeta ? "Present" : "Not uploaded"}
+        </div>
+      </div>
+    </div>
+
+    {/* Strategy */}
+    <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <div style={{ fontWeight: 700 }}>Strategic intent</div>
+        <button
+          onClick={() => setCurrentStep(5)}
+          style={{ border: "1px solid #e5e7eb", background: "white", borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
+        >
+          Edit
+        </button>
+      </div>
+
+      <div style={{ marginTop: 10, fontSize: 13, color: "#374151", display: "grid", gap: 6 }}>
+        <div><span style={{ color: "#6b7280" }}>Primary objective:</span> {primaryObjective || "—"}</div>
+        <div><span style={{ color: "#6b7280" }}>Secondary objective:</span> {secondaryObjective || "—"}</div>
+        <div><span style={{ color: "#6b7280" }}>Risk appetite:</span> {riskAppetite || "—"}</div>
+      </div>
+    </div>
+
+    {/* Guardrails */}
+    <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <div style={{ fontWeight: 700 }}>Guardrails</div>
+        <button
+          onClick={() => setCurrentStep(6)}
+          style={{ border: "1px solid #e5e7eb", background: "white", borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
+        >
+          Edit
+        </button>
+      </div>
+
+      <div style={{ marginTop: 10, fontSize: 13, color: "#374151", display: "grid", gap: 6 }}>
+        <div><span style={{ color: "#6b7280" }}>Topics to avoid:</span> {topicsToAvoid ? topicsToAvoid : "—"}</div>
+        <div><span style={{ color: "#6b7280" }}>Tone to avoid:</span> {(toneToAvoid || []).length ? toneToAvoid.join(", ") : "—"}</div>
+        <div><span style={{ color: "#6b7280" }}>Visual styles to avoid:</span> {(visualAvoid || []).length ? visualAvoid.join(", ") : "—"}</div>
+      </div>
+    </div>
+
+    {/* Navigation controls */}
+    <div style={{ marginTop: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <button
+        onClick={() => setCurrentStep(6)}
+        style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", background: "white", cursor: "pointer" }}
+      >
+        Back
+      </button>
+
+      <button
+        onClick={async () => {
+          if (saving) return;
+          await finishPhase1();
+        }}
+        disabled={saving}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: saving ? "#f3f4f6" : "white",
+          fontWeight: 700,
+          cursor: saving ? "not-allowed" : "pointer",
+        }}
+      >
+        {saving ? "Finishing…" : "Finish Phase 1"}
+      </button>
+    </div>
+
+    {saveError ? <div style={{ marginTop: 10, color: "#b91c1c" }}>{saveError}</div> : null}
+  </div>
+)}
+{currentStep === 8 && (
+  <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
+    <div style={{ fontWeight: 800, fontSize: 18 }}>Phase 1 Complete ✅</div>
+    <div style={{ marginTop: 8, color: "#374151" }}>
+      Your Brand Profile has been saved and marked as completed.
+    </div>
+
+    <div style={{ marginTop: 14 }}>
+      <button
+        onClick={() => alert("Phase 2 (Themes) is not implemented yet.")}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        Proceed to Themes (Coming soon)
+      </button>
+    </div>
   </div>
 )}
 
