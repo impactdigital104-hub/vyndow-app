@@ -2,7 +2,8 @@
 // /api/social/generateThemes.js
 // Phase 2 (Vyndow Social) — generate strategic content themes from Phase 1 Brand Profile
 
-import admin from "../firebaseAdmin";
+import admin from "../firebaseAdmin.js";
+
 
 // Same auth pattern as /api/generate.js and /api/geo/ensure.js
 async function getUidFromRequest(req) {
