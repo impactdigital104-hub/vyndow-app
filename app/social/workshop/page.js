@@ -52,6 +52,10 @@ function SocialWorkshopInner() {
   const [colorInput, setColorInput] = useState("#");
   const [visualStyle, setVisualStyle] = useState(""); // minimal|editorial|illustration|photo|data
   const [typography, setTypography] = useState(""); // modern|classic|playful|neutral
+    // Step 5 (Strategic Intent + Risk Appetite)
+  const [primaryObjective, setPrimaryObjective] = useState("");
+  const [secondaryObjective, setSecondaryObjective] = useState("");
+  const [riskAppetite, setRiskAppetite] = useState(""); // safe|balanced|bold
   const [logoFileMeta, setLogoFileMeta] = useState(null); // {name,size,type} (no upload yet)
 
 
@@ -149,6 +153,12 @@ function SocialWorkshopInner() {
           if (typeof v.visualStyle === "string") setVisualStyle(v.visualStyle);
           if (typeof v.typography === "string") setTypography(v.typography);
           if (v.logoAssetRef) setLogoFileMeta(v.logoAssetRef);
+                    // Step 5 resume (Strategy)
+          const s = data?.strategy || {};
+          if (typeof s.primaryObjective === "string") setPrimaryObjective(s.primaryObjective);
+          if (typeof s.secondaryObjective === "string") setSecondaryObjective(s.secondaryObjective);
+          if (typeof s.riskAppetite === "string") setRiskAppetite(s.riskAppetite);
+
                     // Suggested colors (from scan) if present
           const suggested = data?.meta?.scanSuggestedColors;
           if (Array.isArray(suggested)) setScanSuggestedColors(suggested);
@@ -220,6 +230,12 @@ function SocialWorkshopInner() {
           visualStyle: visualStyle || null,
           typography: typography || null,
           logoAssetRef: logoFileMeta || null,
+        },
+        // Step 5 (Strategy)
+        strategy: {
+          primaryObjective: primaryObjective || null,
+          secondaryObjective: secondaryObjective || null,
+          riskAppetite: riskAppetite || null,
         },
 
 
@@ -1137,6 +1153,133 @@ function SocialWorkshopInner() {
 
 
 
+{currentStep === 5 && (
+  <div style={{ marginTop: 18, padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
+    <div style={{ fontWeight: 700, fontSize: 16 }}>Strategic Intent + Risk Appetite</div>
+
+    {/* Primary objective */}
+    <div style={{ marginTop: 14 }}>
+      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+        Primary objective <span style={{ color: "#b91c1c" }}>*</span>
+      </label>
+      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+        Determines content mix and CTA intensity.
+      </div>
+
+      <select
+        value={primaryObjective}
+        onChange={(e) => setPrimaryObjective(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+        }}
+      >
+        <option value="">Select</option>
+        <option value="brand_awareness">Brand awareness</option>
+        <option value="authority">Authority</option>
+        <option value="lead_generation">Lead generation</option>
+        <option value="hiring">Hiring</option>
+        <option value="product_education">Product education</option>
+      </select>
+    </div>
+
+    {/* Secondary objective */}
+    <div style={{ marginTop: 16 }}>
+      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+        Secondary objective (optional)
+      </label>
+      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+        Used sparingly to balance your plan.
+      </div>
+
+      <select
+        value={secondaryObjective}
+        onChange={(e) => setSecondaryObjective(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+        }}
+      >
+        <option value="">None</option>
+        <option value="brand_awareness">Brand awareness</option>
+        <option value="authority">Authority</option>
+        <option value="lead_generation">Lead generation</option>
+        <option value="hiring">Hiring</option>
+        <option value="product_education">Product education</option>
+      </select>
+    </div>
+
+    {/* Risk appetite */}
+    <div style={{ marginTop: 16 }}>
+      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+        Content risk appetite <span style={{ color: "#b91c1c" }}>*</span>
+      </label>
+      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+        Defines how far content can push beyond category norms.
+      </div>
+
+      <div style={{ display: "grid", gap: 10 }}>
+        <label style={{ display: "flex", gap: 10, alignItems: "center", padding: 12, borderRadius: 12, border: "1px solid #e5e7eb", cursor: "pointer", background: riskAppetite === "safe" ? "#f9fafb" : "white" }}>
+          <input type="radio" name="riskAppetite" checked={riskAppetite === "safe"} onChange={() => setRiskAppetite("safe")} />
+          <div style={{ fontWeight: 600 }}>Safe &amp; conventional</div>
+        </label>
+
+        <label style={{ display: "flex", gap: 10, alignItems: "center", padding: 12, borderRadius: 12, border: "1px solid #e5e7eb", cursor: "pointer", background: riskAppetite === "balanced" ? "#f9fafb" : "white" }}>
+          <input type="radio" name="riskAppetite" checked={riskAppetite === "balanced"} onChange={() => setRiskAppetite("balanced")} />
+          <div style={{ fontWeight: 600 }}>Balanced &amp; distinctive</div>
+        </label>
+
+        <label style={{ display: "flex", gap: 10, alignItems: "center", padding: 12, borderRadius: 12, border: "1px solid #e5e7eb", cursor: "pointer", background: riskAppetite === "bold" ? "#f9fafb" : "white" }}>
+          <input type="radio" name="riskAppetite" checked={riskAppetite === "bold"} onChange={() => setRiskAppetite("bold")} />
+          <div style={{ fontWeight: 600 }}>Bold but credible</div>
+        </label>
+      </div>
+    </div>
+
+    {(() => {
+      const canProceed = !!primaryObjective && !!riskAppetite && !saving;
+
+      return (
+        <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            onClick={() => setCurrentStep(4)}
+            style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", background: "white", cursor: "pointer" }}
+          >
+            Back
+          </button>
+
+          <button
+            onClick={async () => {
+              if (!canProceed) return;
+              await saveDraft(6);
+              setCurrentStep(6);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            disabled={!canProceed}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #e5e7eb",
+              background: canProceed ? "white" : "#f3f4f6",
+              fontWeight: 600,
+              cursor: canProceed ? "pointer" : "not-allowed",
+            }}
+          >
+            {saving ? "Saving…" : "Continue"}
+          </button>
+        </div>
+      );
+    })()}
+
+    {saveError ? <div style={{ marginTop: 10, color: "#b91c1c" }}>{saveError}</div> : null}
+  </div>
+)}
 
             </>
           )}
