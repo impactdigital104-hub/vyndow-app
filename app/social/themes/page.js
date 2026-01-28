@@ -36,6 +36,8 @@ function SocialPhase2ThemesInner() {
   const [generated, setGenerated] = useState({ linkedin: [], instagram: [] });
   const [selected, setSelected] = useState({ linkedin: [], instagram: [] });
   const [priorities, setPriorities] = useState({ linkedin: {}, instagram: {} });
+  const [phase2Meta, setPhase2Meta] = useState({ phase2Completed: false });
+
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -112,7 +114,9 @@ function SocialPhase2ThemesInner() {
           instagram: Object.fromEntries(selInstagram.map((t) => [t.themeId, t.priority])),
         });
 
-        setConfirmed(!!p2?.meta?.phase2Completed);
+      setConfirmed(!!p2?.meta?.phase2Completed);
+setPhase2Meta(p2?.meta || { phase2Completed: false });
+
       } catch (e) {
         console.error("Phase 2 load error:", e);
         setLoadError(e?.message || "Failed to load Phase 2.");
@@ -207,6 +211,64 @@ if (!resp.ok || !data?.ok) {
     if (platformFocus === "instagram") return ["instagram"];
     return [];
   }
+async function regenerateThemes() {
+  if (!uid || !websiteId || !idToken) return;
+
+  setSaving(true);
+  setSaveError("");
+
+  try {
+    const resp = await fetch("/api/social/generateThemes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ websiteId }),
+    });
+
+    const rawText = await resp.text();
+    const data = rawText ? JSON.parse(rawText) : null;
+
+    if (!resp.ok || !data?.ok) {
+      throw new Error(data?.error || "Failed to regenerate themes");
+    }
+
+    const nextGenerated = {
+      linkedin: Array.isArray(data.generated?.linkedin) ? data.generated.linkedin : [],
+      instagram: Array.isArray(data.generated?.instagram) ? data.generated.instagram : [],
+    };
+
+    // RESET LOCAL STATE
+    setGenerated(nextGenerated);
+    setSelected({ linkedin: [], instagram: [] });
+    setPriorities({ linkedin: {}, instagram: {} });
+    setCurrentStep(1);
+    setConfirmed(false);
+
+    // RESET FIRESTORE (PHASE 2 ONLY)
+    const ref = doc(db, "users", uid, "websites", websiteId, "modules", "social");
+    await setDoc(
+      ref,
+      {
+        phase2: {
+          currentStep: 1,
+          generated: { ...nextGenerated, generatedAt: serverTimestamp() },
+          themes: { linkedin: [], instagram: [] },
+          meta: {
+            phase2Completed: false,
+            updatedAt: serverTimestamp(),
+          },
+        },
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    setSaveError(e.message || "Failed to regenerate themes");
+  } finally {
+    setSaving(false);
+  }
+}
 
   function themeById(platform, themeId) {
     const list = platform === "linkedin" ? generated.linkedin : generated.instagram;
@@ -444,6 +506,26 @@ if (!resp.ok || !data?.ok) {
       <div>
         <StepHeader
           title="Recommended content themes for your brand"
+    <button
+  onClick={async () => {
+const hasSelections =
+  selected.linkedin.length > 0 || selected.instagram.length > 0;
+
+
+    if (hasSelections) {
+      const ok = window.confirm(
+        "This will replace the current theme suggestions. Your selected priorities will be reset. Continue?"
+      );
+      if (!ok) return;
+    }
+
+    await regenerateThemes();
+  }}
+  className="text-sm underline text-gray-600 mb-4"
+>
+  Regenerate themes
+</button>
+
           microcopy="These themes are based on your brand strategy. You’ll choose what to focus on next."
         />
 
@@ -643,6 +725,35 @@ if (!resp.ok || !data?.ok) {
     return (
       <div>
         <StepHeader title="Phase 2 Complete — Content Strategy Locked" microcopy={null} />
+      <div className="mt-6">
+  <h3 className="font-semibold mb-3">
+    Your selected content themes
+  </h3>
+
+  {["linkedin", "instagram"].map((platform) => {
+    const items = phase2?.selectedThemes?.[platform];
+    if (!items || items.length === 0) return null;
+
+    return (
+      <div key={platform} className="mb-4">
+        <div className="capitalize font-medium mb-2">
+          {platform}
+        </div>
+
+        <ul className="list-disc ml-5 text-sm">
+          {items
+            .sort((a, b) => a.priority - b.priority)
+            .map((t) => (
+              <li key={t.themeId}>
+                {t.priority}. {t.title}
+              </li>
+            ))}
+        </ul>
+      </div>
+    );
+  })}
+</div>
+
         <div style={{ color: "#374151", lineHeight: 1.6 }}>Your core themes and priorities are saved for this website.</div>
         <div style={{ marginTop: 18 }}>
           <a href={workshopUrl} style={{ color: "#111827" }}>
