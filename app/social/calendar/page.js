@@ -57,7 +57,10 @@ function SocialCalendarInner() {
   const [uid, setUid] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [phase3Completed, setPhase3Completed] = useState(false);
+const [phase3Completed, setPhase3Completed] = useState(false);
+const [markingComplete, setMarkingComplete] = useState(false);
+const [locking, setLocking] = useState(false);
+
 const [markingComplete, setMarkingComplete] = useState(false);
 
 
@@ -256,53 +259,74 @@ if (data?.phase3?.calendars) {
             </div>
           </div>
 
-          <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              disabled={saving}
-              onClick={() => generateInitial(platformFocus, themes)}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: "1px solid #e5e7eb",
-                background: saving ? "#f3f4f6" : "white",
-                cursor: saving ? "not-allowed" : "pointer",
-                fontWeight: 700,
-              }}
-            >
-              {saving ? "Saving…" : "Regenerate calendar"}
-            </button>
+// >>> PHASE 3 BUTTON ROW START
+<div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+  <button
+    disabled={saving || phase3Completed}
+    onClick={() => generateInitial(platformFocus, themes)}
+    style={{
+      padding: "10px 14px",
+      borderRadius: 10,
+      border: "1px solid #e5e7eb",
+      background: saving || phase3Completed ? "#f3f4f6" : "white",
+      cursor: saving || phase3Completed ? "not-allowed" : "pointer",
+      fontWeight: 700,
+    }}
+  >
+    {phase3Completed ? "Regenerate disabled (locked)" : saving ? "Saving…" : "Regenerate calendar"}
+  </button>
 
-          <button
-  disabled={markingComplete}
-  onClick={async () => {
-    try {
-      setMarkingComplete(true);
-      const ref = doc(db, "users", uid, "websites", websiteId, "modules", "social");
-      await updateDoc(ref, {
-        "phase3.phase3Completed": true,
-        "phase3.currentStep": 1,
-        "phase3.meta.updatedAt": serverTimestamp(),
-      });
-      setPhase3Completed(true);
-      alert("Phase 3 marked complete. Phase 4 coming soon.");
-    } catch (e) {
-      console.error("Mark complete error:", e);
-      alert("Could not mark complete. Please try again.");
-    } finally {
-      setMarkingComplete(false);
-    }
-  }}
-  style={{
-    padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid #e5e7eb",
-    background: "white",
-    cursor: markingComplete ? "not-allowed" : "pointer",
-    fontWeight: 700,
-  }}
->
-  {markingComplete ? "Marking…" : phase3Completed ? "Phase 3 completed" : "Continue to Phase 4"}
-</button>
+  <button
+    disabled={phase3Completed || locking}
+    onClick={async () => {
+      try {
+        setLocking(true);
+        const ref = doc(db, "users", uid, "websites", websiteId, "modules", "social");
+        await updateDoc(ref, {
+          "phase3.phase3Completed": true,
+          "phase3.currentStep": 1,
+          "phase3.meta.updatedAt": serverTimestamp(),
+        });
+        setPhase3Completed(true);
+      } catch (e) {
+        console.error("Lock calendar error:", e);
+        alert("Could not lock calendar. Please try again.");
+      } finally {
+        setLocking(false);
+      }
+    }}
+    style={{
+      padding: "10px 14px",
+      borderRadius: 10,
+      border: "1px solid #e5e7eb",
+      background: phase3Completed ? "#f3f4f6" : "white",
+      cursor: phase3Completed || locking ? "not-allowed" : "pointer",
+      fontWeight: 700,
+    }}
+  >
+    {phase3Completed ? "Calendar locked" : locking ? "Locking…" : "Lock calendar"}
+  </button>
+
+  <button
+    disabled={!phase3Completed}
+    onClick={() => {
+      alert("Proceeding to Phase 4 (placeholder).");
+    }}
+    style={{
+      padding: "10px 14px",
+      borderRadius: 10,
+      border: "1px solid #e5e7eb",
+      background: !phase3Completed ? "#f9fafb" : "white",
+      cursor: !phase3Completed ? "not-allowed" : "pointer",
+      fontWeight: 700,
+      opacity: !phase3Completed ? 0.6 : 1,
+    }}
+  >
+    Continue to Phase 4
+  </button>
+</div>
+// <<< PHASE 3 BUTTON ROW END
+
 
           </div>
 
@@ -349,6 +373,7 @@ if (data?.phase3?.calendars) {
     <div>
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <input
+          disabled={phase3Completed}
           type="date"
           value={p.date}
           min={windowStart}
@@ -374,8 +399,10 @@ if (data?.phase3?.calendars) {
       </div>
     </div>
 
-    <select
+<select
+      disabled={phase3Completed}
       value={p.intent}
+
       onChange={(e) => {
         const next = {
           ...calendars,
@@ -391,8 +418,10 @@ if (data?.phase3?.calendars) {
       ))}
     </select>
 
-    <select
+<select
+      disabled={phase3Completed}
       value={p.format}
+
       onChange={(e) => {
         const next = {
           ...calendars,
@@ -408,7 +437,8 @@ if (data?.phase3?.calendars) {
       ))}
     </select>
 
-    <select
+<select
+      disabled={phase3Completed}
       value={p.themeId}
       onChange={(e) => {
         const t = themes[platform].find((x) => x.themeId === e.target.value);
