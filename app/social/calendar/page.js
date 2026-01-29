@@ -325,10 +325,6 @@ if (data?.phase3?.calendars) {
 </div>
 {/* <<< PHASE 3 BUTTON ROW END */}
 
-
-
-          </div>
-
           {Object.entries(calendars).map(([platform, items]) =>
             items.length ? (
               <div key={platform} style={{ marginTop: 24 }}>
