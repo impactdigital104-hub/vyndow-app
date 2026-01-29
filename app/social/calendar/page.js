@@ -7,7 +7,8 @@ import AuthGate from "../../components/AuthGate";
 import VyndowShell from "../../VyndowShell";
 import { auth, db } from "../../firebaseClient";
 
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+
 
 function iso(d) {
   const x = new Date(d);
@@ -56,6 +57,9 @@ function SocialCalendarInner() {
   const [uid, setUid] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [phase3Completed, setPhase3Completed] = useState(false);
+const [markingComplete, setMarkingComplete] = useState(false);
+
 
   const [platformFocus, setPlatformFocus] = useState("");
   const [themes, setThemes] = useState({ linkedin: [], instagram: [] });
@@ -112,13 +116,15 @@ function SocialCalendarInner() {
         setPlatformFocus(focus);
         setThemes(themeSet);
 
-        if (data?.phase3?.calendars) {
-          setWindowStart(data.phase3.windowStart || "");
-          setWindowEnd(data.phase3.windowEnd || "");
-          setCalendars(data.phase3.calendars || { linkedin: [], instagram: [] });
-        } else {
-          generateInitial(focus, themeSet);
-        }
+if (data?.phase3?.calendars) {
+  setWindowStart(data.phase3.windowStart || "");
+  setWindowEnd(data.phase3.windowEnd || "");
+  setCalendars(data.phase3.calendars || { linkedin: [], instagram: [] });
+  setPhase3Completed(!!data?.phase3?.phase3Completed);
+} else {
+  generateInitial(focus, themeSet);
+}
+
 
         setLoading(false);
       } catch (e) {
@@ -194,7 +200,7 @@ function SocialCalendarInner() {
               windowStart: start,
               windowEnd: end,
               calendars: next,
-              phase3Completed: false,
+            phase3Completed: phase3Completed,
               meta: { updatedAt: serverTimestamp() },
             },
           },
@@ -266,19 +272,38 @@ function SocialCalendarInner() {
               {saving ? "Saving…" : "Regenerate calendar"}
             </button>
 
-            <button
-              disabled
-              style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: "1px solid #e5e7eb",
-                background: "#f9fafb",
-                cursor: "not-allowed",
-                fontWeight: 700,
-              }}
-            >
-              Continue to Phase 4
-            </button>
+          <button
+  disabled={markingComplete}
+  onClick={async () => {
+    try {
+      setMarkingComplete(true);
+      const ref = doc(db, "users", uid, "websites", websiteId, "modules", "social");
+      await updateDoc(ref, {
+        "phase3.phase3Completed": true,
+        "phase3.currentStep": 1,
+        "phase3.meta.updatedAt": serverTimestamp(),
+      });
+      setPhase3Completed(true);
+      alert("Phase 3 marked complete. Phase 4 coming soon.");
+    } catch (e) {
+      console.error("Mark complete error:", e);
+      alert("Could not mark complete. Please try again.");
+    } finally {
+      setMarkingComplete(false);
+    }
+  }}
+  style={{
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    background: "white",
+    cursor: markingComplete ? "not-allowed" : "pointer",
+    fontWeight: 700,
+  }}
+>
+  {markingComplete ? "Marking…" : phase3Completed ? "Phase 3 completed" : "Continue to Phase 4"}
+</button>
+
           </div>
 
           {Object.entries(calendars).map(([platform, items]) =>
