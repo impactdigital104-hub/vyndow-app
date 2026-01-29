@@ -3,11 +3,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import AuthGate from "@/components/AuthGate";
-import VyndowShell from "@/components/VyndowShell";
+import AuthGate from "../../components/AuthGate";
+import VyndowShell from "../../VyndowShell";
 
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "../../firebaseClient";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+
 
 function iso(d) {
   const x = new Date(d);
