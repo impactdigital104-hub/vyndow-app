@@ -816,11 +816,30 @@ disabled={disableStep1Actions || saving}
           Your core themes and priorities are saved for this website.
         </div>
 
-        <div style={{ marginTop: 18 }}>
-          <a href={workshopUrl} style={{ color: "#111827" }}>
-            View Phase 1 Brand Profile
-          </a>
-        </div>
+// >>> PHASE 3 CTA START
+<div style={{ marginTop: 18, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+  <a href={workshopUrl} style={{ color: "#111827" }}>
+    View Phase 1 Brand Profile
+  </a>
+
+  <a
+    href={`/social/calendar?websiteId=${encodeURIComponent(websiteId)}`}
+    style={{
+      display: "inline-block",
+      padding: "10px 14px",
+      borderRadius: 10,
+      border: "1px solid #e5e7eb",
+      background: "white",
+      fontWeight: 700,
+      textDecoration: "none",
+      color: "#111827",
+    }}
+  >
+    Build 14-Day Calendar
+  </a>
+</div>
+// <<< PHASE 3 CTA END
+
       </div>
     </div>
   );
