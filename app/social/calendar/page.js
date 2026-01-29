@@ -61,8 +61,6 @@ const [phase3Completed, setPhase3Completed] = useState(false);
 const [markingComplete, setMarkingComplete] = useState(false);
 const [locking, setLocking] = useState(false);
 
-const [markingComplete, setMarkingComplete] = useState(false);
-
 
   const [platformFocus, setPlatformFocus] = useState("");
   const [themes, setThemes] = useState({ linkedin: [], instagram: [] });
@@ -259,7 +257,7 @@ if (data?.phase3?.calendars) {
             </div>
           </div>
 
-// >>> PHASE 3 BUTTON ROW START
+{/* >>> PHASE 3 BUTTON ROW START */}
 <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
   <button
     disabled={saving || phase3Completed}
@@ -325,7 +323,8 @@ if (data?.phase3?.calendars) {
     Continue to Phase 4
   </button>
 </div>
-// <<< PHASE 3 BUTTON ROW END
+{/* <<< PHASE 3 BUTTON ROW END */}
+
 
 
           </div>
