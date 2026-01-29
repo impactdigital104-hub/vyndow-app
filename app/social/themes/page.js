@@ -816,7 +816,7 @@ disabled={disableStep1Actions || saving}
           Your core themes and priorities are saved for this website.
         </div>
 
-// >>> PHASE 3 CTA START
+
 <div style={{ marginTop: 18, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
   <a href={workshopUrl} style={{ color: "#111827" }}>
     View Phase 1 Brand Profile
@@ -838,7 +838,7 @@ disabled={disableStep1Actions || saving}
     Build 14-Day Calendar
   </a>
 </div>
-// <<< PHASE 3 CTA END
+
 
       </div>
     </div>
