@@ -30,9 +30,10 @@ function weekdayLabel(yyyyMmDd) {
 
 const INTENTS = ["Educate", "Explain", "Provoke", "Proof", "Insight"];
 const FORMATS = {
-  linkedin: ["Text", "Carousel", "Document", "Poll"],
-  instagram: ["Reel", "Carousel", "Static", "Story"],
+  linkedin: ["Text", "Carousel", "Document", "Poll", "Image", "Video"],
+  instagram: ["Reel", "Image", "Video", "Carousel", "Static", "Story"],
 };
+
 
 // IMPORTANT: Suspense wrapper (required for useSearchParams in Next App Router)
 export default function SocialCalendarPage() {
@@ -271,108 +272,131 @@ function SocialCalendarInner() {
           {Object.entries(calendars).map(([platform, items]) =>
             items.length ? (
               <div key={platform} style={{ marginTop: 24 }}>
-                <h3 style={{ textTransform: "capitalize" }}>{platform}</h3>
+<h3 style={{ textTransform: "capitalize" }}>{platform}</h3>
 
-                {items.map((p) => (
-                  <div
-                    key={p.id}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "190px 160px 160px 1fr",
-                      gap: 12,
-                      border: "1px solid #e5e7eb",
-                      padding: 12,
-                      marginBottom: 8,
-                      borderRadius: 12,
-                      background: "white",
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <input
-                          type="date"
-                          value={p.date}
-                          min={windowStart}
-                          max={windowEnd}
-                          onChange={(e) => {
-                            const nextDate = e.target.value;
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "190px 160px 160px 1fr",
+    gap: 12,
+    padding: "10px 12px",
+    borderRadius: 12,
+    background: "#f9fafb",
+    border: "1px solid #e5e7eb",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#374151",
+    marginBottom: 10,
+  }}
+>
+  <div>Posting date</div>
+  <div>Post intent</div>
+  <div>Post format</div>
+  <div>Assigned theme</div>
+</div>
 
-                            if (!withinWindow(nextDate, windowStart, windowEnd)) return;
+{items.map((p) => (
+  <div
+    key={p.id}
+    style={{
+      display: "grid",
+      gridTemplateColumns: "190px 160px 160px 1fr",
+      gap: 12,
+      border: "1px solid #e5e7eb",
+      padding: 12,
+      marginBottom: 8,
+      borderRadius: 12,
+      background: "white",
+    }}
+  >
+    <div>
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <input
+          type="date"
+          value={p.date}
+          min={windowStart}
+          max={windowEnd}
+          onChange={(e) => {
+            const nextDate = e.target.value;
+            if (!withinWindow(nextDate, windowStart, windowEnd)) return;
 
-                            const next = {
-                              ...calendars,
-                              [platform]: items.map((x) =>
-                                x.id === p.id ? { ...x, date: nextDate, day: weekdayLabel(nextDate) } : x
-                              ),
-                            };
-                            setCalendars(next);
-                            persist(windowStart, windowEnd, next);
-                          }}
-                          style={{ width: "100%" }}
-                        />
-                      </div>
-                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>{p.day || weekdayLabel(p.date)}</div>
-                    </div>
+            const next = {
+              ...calendars,
+              [platform]: items.map((x) =>
+                x.id === p.id ? { ...x, date: nextDate, day: weekdayLabel(nextDate) } : x
+              ),
+            };
+            setCalendars(next);
+            persist(windowStart, windowEnd, next);
+          }}
+          style={{ width: "100%" }}
+        />
+      </div>
+      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
+        {p.day || weekdayLabel(p.date)}
+      </div>
+    </div>
 
-                    <select
-                      value={p.intent}
-                      onChange={(e) => {
-                        const next = {
-                          ...calendars,
-                          [platform]: items.map((x) => (x.id === p.id ? { ...x, intent: e.target.value } : x)),
-                        };
-                        setCalendars(next);
-                        persist(windowStart, windowEnd, next);
-                      }}
-                      style={{ width: "100%" }}
-                    >
-                      {INTENTS.map((i) => (
-                        <option key={i}>{i}</option>
-                      ))}
-                    </select>
+    <select
+      value={p.intent}
+      onChange={(e) => {
+        const next = {
+          ...calendars,
+          [platform]: items.map((x) => (x.id === p.id ? { ...x, intent: e.target.value } : x)),
+        };
+        setCalendars(next);
+        persist(windowStart, windowEnd, next);
+      }}
+      style={{ width: "100%" }}
+    >
+      {INTENTS.map((i) => (
+        <option key={i}>{i}</option>
+      ))}
+    </select>
 
-                    <select
-                      value={p.format}
-                      onChange={(e) => {
-                        const next = {
-                          ...calendars,
-                          [platform]: items.map((x) => (x.id === p.id ? { ...x, format: e.target.value } : x)),
-                        };
-                        setCalendars(next);
-                        persist(windowStart, windowEnd, next);
-                      }}
-                      style={{ width: "100%" }}
-                    >
-                      {FORMATS[platform].map((f) => (
-                        <option key={f}>{f}</option>
-                      ))}
-                    </select>
+    <select
+      value={p.format}
+      onChange={(e) => {
+        const next = {
+          ...calendars,
+          [platform]: items.map((x) => (x.id === p.id ? { ...x, format: e.target.value } : x)),
+        };
+        setCalendars(next);
+        persist(windowStart, windowEnd, next);
+      }}
+      style={{ width: "100%" }}
+    >
+      {FORMATS[platform].map((f) => (
+        <option key={f}>{f}</option>
+      ))}
+    </select>
 
-                    <select
-                      value={p.themeId}
-                      onChange={(e) => {
-                        const t = themes[platform].find((x) => x.themeId === e.target.value);
-                        if (!t) return;
+    <select
+      value={p.themeId}
+      onChange={(e) => {
+        const t = themes[platform].find((x) => x.themeId === e.target.value);
+        if (!t) return;
 
-                        const next = {
-                          ...calendars,
-                          [platform]: items.map((x) =>
-                            x.id === p.id ? { ...x, themeId: t.themeId, themeTitle: t.title } : x
-                          ),
-                        };
-                        setCalendars(next);
-                        persist(windowStart, windowEnd, next);
-                      }}
-                      style={{ width: "100%" }}
-                    >
-                      {themes[platform].map((t) => (
-                        <option key={t.themeId} value={t.themeId}>
-                          {t.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
+        const next = {
+          ...calendars,
+          [platform]: items.map((x) =>
+            x.id === p.id ? { ...x, themeId: t.themeId, themeTitle: t.title } : x
+          ),
+        };
+        setCalendars(next);
+        persist(windowStart, windowEnd, next);
+      }}
+      style={{ width: "100%" }}
+    >
+      {themes[platform].map((t) => (
+        <option key={t.themeId} value={t.themeId}>
+          {t.title}
+        </option>
+      ))}
+    </select>
+  </div>
+))}
+
               </div>
             ) : null
           )}
