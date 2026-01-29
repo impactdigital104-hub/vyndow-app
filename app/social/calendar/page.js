@@ -21,7 +21,10 @@ function addDays(d, n) {
   x.setDate(x.getDate() + n);
   return x;
 }
-
+function pick(arr) {
+  if (!arr || arr.length === 0) return "";
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 function weekdayLabel(yyyyMmDd) {
   if (!yyyyMmDd) return "";
   const d = new Date(`${yyyyMmDd}T00:00:00`);
@@ -127,37 +130,46 @@ function SocialCalendarInner() {
     load();
   }, [uid, websiteId, router]);
 
-  function generateInitial(focus, themeSet) {
-    const start = iso(new Date());
-    const end = iso(addDays(start, 13));
+ function generateInitial(focus, themeSet) {
+  const start = iso(new Date());
+  const end = iso(addDays(start, 13));
 
-    // 7 posts across 14 days => 3–4 posts/week
-    const baseDays = [0, 2, 4, 6, 8, 10, 12];
+  // 7 posts across 14 days => 3–4 posts/week
+  // Shift pattern each regeneration so dates visibly change
+  const offset = Math.random() < 0.5 ? 0 : 1;
+  const baseDays = offset === 0 ? [0, 2, 4, 6, 8, 10, 12] : [1, 3, 5, 7, 9, 11, 13];
 
-    const build = (platform) =>
-      baseDays.map((d, i) => {
-        const pick = themeSet?.[platform]?.[i % (themeSet?.[platform]?.length || 1)];
-        return {
-          id: `${platform}-${d}`,
-          date: iso(addDays(start, d)),
-          day: weekdayLabel(iso(addDays(start, d))),
-          intent: INTENTS[i % INTENTS.length],
-          format: FORMATS[platform][i % FORMATS[platform].length],
-          themeId: pick?.themeId || "",
-          themeTitle: pick?.title || "",
-        };
-      });
+  const build = (platform) => {
+    const list = themeSet?.[platform] || [];
+    const formats = FORMATS[platform] || [];
 
-    const next = {
-      linkedin: focus === "instagram" ? [] : build("linkedin"),
-      instagram: focus === "linkedin" ? [] : build("instagram"),
-    };
+    return baseDays.map((d) => {
+      const chosen = list.length ? pick(list) : null;
 
-    setWindowStart(start);
-    setWindowEnd(end);
-    setCalendars(next);
-    persist(start, end, next);
-  }
+      const dateStr = iso(addDays(start, d));
+      return {
+        id: `${platform}-${d}`,
+        date: dateStr,
+        day: weekdayLabel(dateStr),
+        intent: pick(INTENTS) || "Educate",
+        format: pick(formats) || "Text",
+        themeId: chosen?.themeId || "",
+        themeTitle: chosen?.title || "",
+      };
+    });
+  };
+
+  const next = {
+    linkedin: focus === "instagram" ? [] : build("linkedin"),
+    instagram: focus === "linkedin" ? [] : build("instagram"),
+  };
+
+  setWindowStart(start);
+  setWindowEnd(end);
+  setCalendars(next);
+  persist(start, end, next);
+}
+
 
   function withinWindow(dateStr, startStr, endStr) {
     if (!dateStr || !startStr || !endStr) return false;
