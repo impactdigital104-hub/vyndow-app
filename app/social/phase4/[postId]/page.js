@@ -45,7 +45,6 @@ function SocialPhase4PostInner() {
 
 const [textLoading, setTextLoading] = useState(false);
 const [textError, setTextError] = useState("");
-// Load existing Phase 4 draft (if any) so refresh keeps generated text
 useEffect(() => {
   if (!uid || !websiteId || !postId) return;
 
@@ -67,18 +66,27 @@ useEffect(() => {
       );
 
       const snap = await getDoc(draftRef);
-      if (!snap.exists() || cancelled) return;
+      if (cancelled) return;
+      if (!snap.exists()) return;
 
       const d = snap.data() || {};
-      const next = {
+
+      const hasAny =
+        (typeof d.visualHeadline === "string" && d.visualHeadline.trim().length > 0) ||
+        (typeof d.visualSubHeadline === "string" && d.visualSubHeadline.trim().length > 0) ||
+        (typeof d.caption === "string" && d.caption.trim().length > 0) ||
+        (typeof d.cta === "string" && d.cta.trim().length > 0) ||
+        (Array.isArray(d.hashtags) && d.hashtags.length > 0);
+
+      if (!hasAny) return;
+
+      setText({
         visualHeadline: d.visualHeadline || "",
         visualSubHeadline: d.visualSubHeadline || "",
         caption: d.caption || "",
         cta: d.cta || "",
         hashtags: Array.isArray(d.hashtags) ? d.hashtags : [],
-      };
-
-      setText(next);
+      });
     } catch (e) {
       console.error("loadDraft error:", e);
     }
@@ -90,6 +98,7 @@ useEffect(() => {
     cancelled = true;
   };
 }, [uid, websiteId, postId]);
+
 
 
   // Read-only brief values
