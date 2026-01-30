@@ -68,6 +68,9 @@ const [locking, setLocking] = useState(false);
   const [windowStart, setWindowStart] = useState("");
   const [windowEnd, setWindowEnd] = useState("");
   const [calendars, setCalendars] = useState({ linkedin: [], instagram: [] });
+  const [selectedPostId, setSelectedPostId] = useState("");
+const [selectedPlatform, setSelectedPlatform] = useState("");
+
 
   const saveTimer = useRef(null);
 
@@ -306,12 +309,18 @@ if (data?.phase3?.calendars) {
   </button>
 
   <button
-    disabled={!phase3Completed}
+ disabled={!phase3Completed || !selectedPostId}
 onClick={() => {
+  if (!selectedPostId) {
+    alert("Please select a post from the calendar first.");
+    return;
+  }
+
   router.push(
-    `/social/phase4/${post.id}`
+    `/social/phase4/${selectedPostId}?websiteId=${encodeURIComponent(websiteId)}`
   );
 }}
+
 
     style={{
       padding: "10px 14px",
@@ -357,6 +366,10 @@ onClick={() => {
 {items.map((p) => (
   <div
     key={p.id}
+           onClick={() => {
+  setSelectedPostId(p.id);
+  setSelectedPlatform(platform);
+}}
     style={{
       display: "grid",
       gridTemplateColumns: "190px 160px 160px 1fr",
@@ -365,7 +378,7 @@ onClick={() => {
       padding: 12,
       marginBottom: 8,
       borderRadius: 12,
-      background: "white",
+      background: selectedPostId === p.id ? "#fff7ed" : "white",
     }}
   >
     <div>
