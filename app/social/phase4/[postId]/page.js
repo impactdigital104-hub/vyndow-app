@@ -28,17 +28,39 @@ function SocialPhase4PostInner() {
 
   const [uid, setUid] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [idToken, setIdToken] = useState("");
+
 
   const [post, setPost] = useState(null);
+  const [text, setText] = useState({
+  visualHeadline: "",
+  visualSubHeadline: "",
+  caption: "",
+  cta: "",
+  hashtags: [],
+});
+
+const [textLoading, setTextLoading] = useState(false);
+const [textError, setTextError] = useState("");
+
 
   // Read-only brief values
   const [toneLabel, setToneLabel] = useState("-");
   const [riskLabel, setRiskLabel] = useState("-");
 
-  useEffect(() => {
-    const unsub = auth.onAuthStateChanged((u) => setUid(u?.uid || null));
-    return () => unsub();
-  }, []);
+useEffect(() => {
+  const unsub = auth.onAuthStateChanged(async (u) => {
+    setUid(u?.uid || null);
+    try {
+      const t = u ? await u.getIdToken() : "";
+      setIdToken(t || "");
+    } catch {
+      setIdToken("");
+    }
+  });
+  return () => unsub();
+}, []);
+
 
   useEffect(() => {
     if (!uid) return;
@@ -116,6 +138,60 @@ function SocialPhase4PostInner() {
 
     load();
   }, [uid, websiteId, postId, router]);
+  async function generateText() {
+  try {
+    setTextError("");
+    setTextLoading(true);
+
+    if (!idToken) {
+      setTextError("Not logged in. Please refresh and try again.");
+      setTextLoading(false);
+      return;
+    }
+
+    const resp = await fetch("/api/social/generatePostText", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        websiteId,
+        post: {
+          platform: post?.platform || "",
+          intent: post?.intent || "",
+          format: post?.format || "",
+          themeTitle: post?.themeTitle || "",
+          date: post?.date || "",
+        },
+      }),
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok || !data?.ok) {
+      setTextError(data?.error || "Could not generate text. Please try again.");
+      setTextLoading(false);
+      return;
+    }
+
+    const t = data.text || {};
+    setText({
+      visualHeadline: t.visualHeadline || "",
+      visualSubHeadline: t.visualSubHeadline || "",
+      caption: t.caption || "",
+      cta: t.cta || "",
+      hashtags: Array.isArray(t.hashtags) ? t.hashtags : [],
+    });
+
+    setTextLoading(false);
+  } catch (e) {
+    console.error("generateText UI error:", e);
+    setTextError("Could not generate text. Please try again.");
+    setTextLoading(false);
+  }
+}
+
 
   if (!websiteId) {
     return (
@@ -191,13 +267,38 @@ function SocialPhase4PostInner() {
             </div>
           </div>
 
-          {/* Placeholder: Step 4A will come next */}
-          <div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: "1px dashed #e5e7eb" }}>
-            <div style={{ fontWeight: 800, marginBottom: 8 }}>Step 4A — Text (coming next)</div>
-            <div style={{ color: "#6b7280", fontSize: 14 }}>
-              Next, we will implement Text-First Generation here (Visual Copy, Caption, CTA, Hashtags) with regenerate + manual edit.
-            </div>
-          </div>
+{/* Step 4A — TEXT FIRST GENERATION (TEXT ONLY) */}
+<div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: "1px solid #e5e7eb", background: "white" }}>
+  <div style={{ fontWeight: 800, marginBottom: 10 }}>Step 4A — Text</div>
+
+  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+    <button
+      disabled={textLoading}
+      onClick={generateText}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: "1px solid #e5e7eb",
+        background: textLoading ? "#f3f4f6" : "white",
+        cursor: textLoading ? "not-allowed" : "pointer",
+        fontWeight: 700,
+      }}
+    >
+      {textLoading ? "Generating…" : text.visualHeadline ? "Regenerate text" : "Generate text"}
+    </button>
+  </div>
+
+  {textError ? (
+    <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>
+      {textError}
+    </div>
+  ) : null}
+
+  <div style={{ marginTop: 12, fontSize: 13, color: "#6b7280" }}>
+    Text-only generation. You can edit any section after generation.
+  </div>
+</div>
+
         </div>
       </VyndowShell>
     </AuthGate>
