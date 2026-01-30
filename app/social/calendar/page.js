@@ -307,9 +307,12 @@ if (data?.phase3?.calendars) {
 
   <button
     disabled={!phase3Completed}
-    onClick={() => {
-      alert("Proceeding to Phase 4 (placeholder).");
-    }}
+onClick={() => {
+  router.push(
+    `/social/phase4/${post.id}`
+  );
+}}
+
     style={{
       padding: "10px 14px",
       borderRadius: 10,
