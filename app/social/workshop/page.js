@@ -91,6 +91,27 @@ const [logoError, setLogoError] = useState(""); // inline validation message
   const [scanMsg, setScanMsg] = useState("");
     const [scanSuggestedColors, setScanSuggestedColors] = useState([]); // hex list from scan (stub)
   const colorPickerRef = useRef(null);
+    // Enforce: 1 Primary + 1 Optional Secondary (max 2 colors)
+  function addBrandColor(hex) {
+    if (!hex) return;
+
+    setColors((prev) => {
+      const existing = Array.isArray(prev) ? prev : [];
+
+      // If already present, do nothing
+      if (existing.includes(hex)) return existing;
+
+      // 0 -> set primary
+      if (existing.length === 0) return [hex];
+
+      // 1 -> set secondary
+      if (existing.length === 1) return [existing[0], hex];
+
+      // 2+ -> replace secondary (keep primary intact)
+      return [existing[0], hex];
+    });
+  }
+
 
 
   // Save state
@@ -161,8 +182,8 @@ const [logoError, setLogoError] = useState(""); // inline validation message
             });
           }
           // Step 4 resume (Visual)
-          const v = data?.visual || {};
-          if (Array.isArray(v.colors)) setColors(v.colors);
+const v = data?.visual || {};
+if (Array.isArray(v.colors)) setColors(v.colors.slice(0, 2));
           if (typeof v.visualStyle === "string") setVisualStyle(v.visualStyle);
           if (typeof v.typography === "string") setTypography(v.typography);
           if (v.logoAssetRef) setLogoFileMeta(v.logoAssetRef);
@@ -358,7 +379,7 @@ async function uploadLogo(file) {
         },
         // Step 4 (Visual)
 visual: {
-  colors: colors || [],
+colors: (colors || []).slice(0, 2),
   visualStyle: visualStyle || null,
   typography: typography || null,
 
@@ -1107,9 +1128,10 @@ visual: {
             {scanSuggestedColors.map((c) => (
               <button
                 key={c}
-                onClick={() => {
-                  if (!colors.includes(c)) setColors([...colors, c]);
-                }}
+               onClick={() => {
+  addBrandColor(c);
+}}
+
                 title="Add this color"
                 style={{
                   width: 34,
@@ -1146,11 +1168,12 @@ visual: {
           ref={colorPickerRef}
           type="color"
           value={colorInput}
-          onChange={(e) => {
-            const hex = e.target.value;
-            setColorInput(hex);
-            if (!colors.includes(hex)) setColors([...colors, hex]);
-          }}
+         onChange={(e) => {
+  const hex = e.target.value;
+  setColorInput(hex);
+  addBrandColor(hex);
+}}
+
           style={{ width: 1, height: 1, opacity: 0, position: "absolute", pointerEvents: "none" }}
           aria-hidden="true"
           tabIndex={-1}
@@ -1183,7 +1206,14 @@ visual: {
                 />
              
                 <button
-                  onClick={() => setColors(colors.filter((x) => x !== c))}
+               onClick={() => {
+  setColors((prev) => {
+    const arr = (prev || []).filter((x) => x !== c);
+    // If primary removed and secondary exists, secondary becomes primary automatically due to array order.
+    return arr;
+  });
+}}
+
                   style={{
                     border: "none",
                     background: "transparent",
@@ -1221,9 +1251,9 @@ visual: {
               const hex = (colorInput || "").trim();
               const isHex = /^#([0-9A-Fa-f]{6})$/.test(hex);
               if (!isHex) return alert("Enter a valid hex like #1A1A1A");
-              if (colors.includes(hex)) return;
-              setColors([...colors, hex]);
-              setColorInput("#000000");
+addBrandColor(hex);
+setColorInput("#000000");
+
             }}
             style={{
               padding: "10px 14px",
