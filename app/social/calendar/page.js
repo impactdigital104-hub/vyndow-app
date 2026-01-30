@@ -311,14 +311,9 @@ if (data?.phase3?.calendars) {
   <button
 disabled={!phase3Completed}
 onClick={() => {
-  if (!selectedPostId) {
-    alert("Please select a post from the calendar first.");
-    return;
-  }
-
- router.push(`/social/phase4?websiteId=${encodeURIComponent(websiteId)}`);
-  );
+  router.push(`/social/phase4?websiteId=${encodeURIComponent(websiteId)}`);
 }}
+
 
 
     style={{
