@@ -45,6 +45,47 @@ function SocialPhase4PostInner() {
 
 const [textLoading, setTextLoading] = useState(false);
 const [textError, setTextError] = useState("");
+  const [copyLocked, setCopyLocked] = useState(false);
+const [lockSaving, setLockSaving] = useState(false);
+
+ async function lockCopyNow() {
+  try {
+    if (!uid || !websiteId || !postId) return;
+
+    setLockSaving(true);
+
+    const saveRef = doc(
+      db,
+      "users",
+      uid,
+      "websites",
+      websiteId,
+      "modules",
+      "social",
+      "phase4Posts",
+      postId
+    );
+
+    await setDoc(
+      saveRef,
+      {
+        copyLocked: true,
+        lockedAt: serverTimestamp(),
+        lockedBy: uid,
+        status: "locked",
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    setCopyLocked(true);
+    setLockSaving(false);
+  } catch (e) {
+    console.error("lockCopy error:", e);
+    setLockSaving(false);
+  }
+}
+ 
 useEffect(() => {
   if (!uid || !websiteId || !postId) return;
 
@@ -87,6 +128,8 @@ const draftRef = doc(
         cta: d.cta || "",
         hashtags: Array.isArray(d.hashtags) ? d.hashtags : [],
       });
+      setCopyLocked(!!d.copyLocked);
+
     } catch (e) {
       console.error("loadDraft error:", e);
     }
@@ -235,6 +278,8 @@ const saveRef = doc(
 }
   useEffect(() => {
   if (!post) return;
+    if (copyLocked) return;
+
 
   const isEmpty =
     (!text.visualHeadline || text.visualHeadline.trim() === "") &&
@@ -250,7 +295,7 @@ const saveRef = doc(
   }, 600);
 
   return () => clearTimeout(t);
-}, [text, post]);
+}, [text, post, copyLocked]);
 
 
 async function generateText() {
@@ -392,7 +437,7 @@ async function generateText() {
 
   <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
     <button
-      disabled={textLoading}
+  disabled={textLoading || copyLocked}
       onClick={generateText}
       style={{
         padding: "10px 14px",
@@ -405,6 +450,21 @@ async function generateText() {
     >
       {textLoading ? "Generating…" : text.visualHeadline ? "Regenerate text" : "Generate text"}
     </button>
+      <button
+  disabled={lockSaving || copyLocked || !text.visualHeadline}
+  onClick={lockCopyNow}
+  style={{
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    background: copyLocked ? "#f3f4f6" : "white",
+    cursor: copyLocked ? "not-allowed" : "pointer",
+    fontWeight: 800,
+  }}
+>
+  {copyLocked ? "Copy locked" : lockSaving ? "Locking…" : "Lock copy"}
+</button>
+
   </div>
 
   {textError ? (
@@ -415,6 +475,16 @@ async function generateText() {
 
   <div style={{ marginTop: 12, fontSize: 13, color: "#6b7280" }}>
     Text-only generation. You can edit any section after generation.
+      {copyLocked ? (
+  <div style={{ marginTop: 10, padding: 10, borderRadius: 10, border: "1px solid #e5e7eb", background: "#f9fafb", fontSize: 13 }}>
+    ✅ Copy is locked. Editing and regeneration are disabled. Visual generation in Step 3 will use only this locked copy.
+  </div>
+) : (
+  <div style={{ marginTop: 10, fontSize: 13, color: "#6b7280" }}>
+    Lock the copy when you are satisfied. Visual generation will only use locked copy.
+  </div>
+)}
+
   </div>
       {/* 4 required sections (editable) */}
 <div style={{ marginTop: 14, display: "grid", gap: 14 }}>
