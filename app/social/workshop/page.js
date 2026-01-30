@@ -7,6 +7,9 @@ import VyndowShell from "../../VyndowShell";
 import { auth, db } from "../../firebaseClient";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+
+
 export default function SocialWorkshopPage() {
   return (
     <Suspense fallback={<div style={{ padding: 24 }}>Loading workshop…</div>}>
@@ -49,7 +52,7 @@ function SocialWorkshopInner() {
   const [authorityRelatable, setAuthorityRelatable] = useState(50);
     // Step 4 (Visual Direction)
   const [colors, setColors] = useState([]); // array of hex strings like "#111111"
-  const [colorInput, setColorInput] = useState("#");
+  const [colorInput, setColorInput] = useState("#000000");
   const [visualStyle, setVisualStyle] = useState(""); // minimal|editorial|illustration|photo|data
   const [typography, setTypography] = useState(""); // modern|classic|playful|neutral
     // Step 5 (Strategic Intent + Risk Appetite)
@@ -64,6 +67,9 @@ function SocialWorkshopInner() {
   const [visualAvoid, setVisualAvoid] = useState([]); // array of strings
 
   const [logoFileMeta, setLogoFileMeta] = useState(null); // {name,size,type} (no upload yet)
+  const [logoUrl, setLogoUrl] = useState(""); // download URL after upload
+const [logoError, setLogoError] = useState(""); // inline validation message
+
 
 
   // Hard-stop rule: user must either accept defaults OR move each slider once
@@ -160,6 +166,8 @@ function SocialWorkshopInner() {
           if (typeof v.visualStyle === "string") setVisualStyle(v.visualStyle);
           if (typeof v.typography === "string") setTypography(v.typography);
           if (v.logoAssetRef) setLogoFileMeta(v.logoAssetRef);
+          if (typeof v.logoUrl === "string") setLogoUrl(v.logoUrl);
+
                     // Step 5 resume (Strategy)
           const s = data?.strategy || {};
           if (typeof s.primaryObjective === "string") setPrimaryObjective(s.primaryObjective);
@@ -202,6 +210,115 @@ function SocialWorkshopInner() {
     loadExisting();
   }, [uid, websiteId]);
 
+  async function checkHasTransparency(file) {
+  // Best-effort check: ensure at least SOME pixels have alpha < 255.
+  // This is not perfect, but it enforces “transparent PNG” better than a plain warning.
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+
+          const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+          // Sample pixels (every ~20px) to keep it fast
+          const step = Math.max(1, Math.floor(Math.min(width, height) / 50));
+          for (let y = 0; y < height; y += step) {
+            for (let x = 0; x < width; x += step) {
+              const i = (y * width + x) * 4;
+              const alpha = data[i + 3]; // 0..255
+              if (alpha < 250) {
+                resolve(true);
+                return;
+              }
+            }
+          }
+          resolve(false);
+        } catch (e) {
+          resolve(false);
+        }
+      };
+      img.onerror = () => resolve(false);
+
+      const url = URL.createObjectURL(file);
+      img.src = url;
+    } catch (e) {
+      resolve(false);
+    }
+  });
+}
+
+async function uploadLogo(file) {
+  setLogoError("");
+
+  if (!file) return;
+
+  // 1) PNG only
+  if (file.type !== "image/png") {
+    setLogoError("Please upload a PNG file only.");
+    return;
+  }
+
+  // 2) Enforce transparency (best-effort)
+  const hasTransparency = await checkHasTransparency(file);
+  if (!hasTransparency) {
+    setLogoError("Please upload a transparent PNG logo to continue.");
+    return;
+  }
+
+  // 3) Upload to Firebase Storage
+  try {
+    setSaving(true);
+
+    const storage = getStorage();
+    const safeName = (file.name || "logo.png").replace(/\s+/g, "-");
+    const path = `brand-logos/${uid}/${websiteId}-${Date.now()}-${safeName}`;
+    const r = storageRef(storage, path);
+
+    const snap = await uploadBytes(r, file, { contentType: "image/png" });
+    const url = await getDownloadURL(snap.ref);
+
+    // Save into state
+    setLogoUrl(url);
+    setLogoFileMeta({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      storagePath: path,
+    });
+
+    // Also persist immediately so refresh doesn’t lose it
+    const refDoc = doc(db, "users", uid, "websites", websiteId, "modules", "social");
+    await setDoc(
+      refDoc,
+      {
+        visual: {
+          logoUrl: url,
+          logoAssetRef: {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            storagePath: path,
+          },
+          logoUploadedAt: serverTimestamp(),
+        },
+        meta: { updatedAt: serverTimestamp() },
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.error("Logo upload error:", e);
+    setLogoError("Logo upload failed. Please try again.");
+  } finally {
+    setSaving(false);
+  }
+}
+
   function normalizeUrl(input) {
     const raw = (input || "").trim();
     if (!raw) return "";
@@ -240,12 +357,17 @@ function SocialWorkshopInner() {
           authorityRelatable,
         },
         // Step 4 (Visual)
-        visual: {
-          colors: colors || [],
-          visualStyle: visualStyle || null,
-          typography: typography || null,
-          logoAssetRef: logoFileMeta || null,
-        },
+visual: {
+  colors: colors || [],
+  visualStyle: visualStyle || null,
+  typography: typography || null,
+
+  // Phase 1.1 — mandatory logo
+  logoUrl: logoUrl || null,
+  logoAssetRef: logoFileMeta || null,
+  // (optional) timestamp will be written when upload happens; keep it out of draft payload to avoid overwriting
+},
+
         // Step 5 (Strategy)
         strategy: {
           primaryObjective: primaryObjective || null,
@@ -1101,7 +1223,7 @@ function SocialWorkshopInner() {
               if (!isHex) return alert("Enter a valid hex like #1A1A1A");
               if (colors.includes(hex)) return;
               setColors([...colors, hex]);
-              setColorInput("#");
+              setColorInput("#000000");
             }}
             style={{
               padding: "10px 14px",
@@ -1168,6 +1290,45 @@ function SocialWorkshopInner() {
         <option value="playful">Playful</option>
         <option value="neutral">Neutral</option>
       </select>
+        <div style={{ marginTop: 16 }}>
+  <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+    Brand logo <span style={{ color: "#b91c1c" }}>*</span>
+  </label>
+
+  <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 10 }}>
+    Upload your brand logo (PNG with transparent background). This will be used across social creatives.
+  </div>
+
+  <input
+    type="file"
+    accept="image/png"
+    onChange={async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      await uploadLogo(f);
+    }}
+  />
+
+  <div style={{ marginTop: 8, fontSize: 12, color: "#374151" }}>
+    {logoUrl ? (
+      <span>
+        ✅ Logo uploaded{" "}
+        <a href={logoUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>
+          View
+        </a>
+      </span>
+    ) : (
+      <span>Logo: Not uploaded</span>
+    )}
+  </div>
+
+  {logoError ? (
+    <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c" }}>
+      {logoError}
+    </div>
+  ) : null}
+</div>
+
     </div>
 
     <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
@@ -1186,19 +1347,23 @@ function SocialWorkshopInner() {
 
       <button
         onClick={async () => {
-          if (colors.length === 0 || !visualStyle || !typography) return;
+        if (colors.length === 0 || !visualStyle || !typography || !logoUrl) {
+  if (!logoUrl) setLogoError("Please upload a transparent PNG logo to continue.");
+  return;
+}
+
           await saveDraft(5);
           setCurrentStep(5);
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
-        disabled={colors.length === 0 || !visualStyle || !typography}
+      disabled={colors.length === 0 || !visualStyle || !typography || !logoUrl}
         style={{
           padding: "10px 14px",
           borderRadius: 10,
           border: "1px solid #e5e7eb",
-          background: colors.length && visualStyle && typography ? "white" : "#f3f4f6",
-          fontWeight: 600,
-          cursor: colors.length && visualStyle && typography ? "pointer" : "not-allowed",
+background: colors.length && visualStyle && typography && logoUrl ? "white" : "#f3f4f6",
+fontWeight: 600,
+cursor: colors.length && visualStyle && typography && logoUrl ? "pointer" : "not-allowed",
         }}
       >
         Continue
@@ -1576,7 +1741,7 @@ function SocialWorkshopInner() {
           <span style={{ color: "#6b7280" }}>Typography:</span> {typography || "—"}
         </div>
         <div style={{ fontSize: 13, color: "#374151" }}>
-          <span style={{ color: "#6b7280" }}>Logo:</span> {logoFileMeta ? "Present" : "Not uploaded"}
+      <span style={{ color: "#6b7280" }}>Logo:</span> {logoUrl ? "Present" : "Not uploaded"}
         </div>
       </div>
     </div>
@@ -1629,10 +1794,17 @@ function SocialWorkshopInner() {
       </button>
 
       <button
-        onClick={async () => {
-          if (saving) return;
-          await finishPhase1();
-        }}
+onClick={async () => {
+  if (saving) return;
+  if (!logoUrl) {
+    setLogoError("Please upload a transparent PNG logo to continue.");
+    setCurrentStep(4);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  await finishPhase1();
+}}
+
         disabled={saving}
         style={{
           padding: "10px 14px",
