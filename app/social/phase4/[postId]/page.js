@@ -7,7 +7,8 @@ import AuthGate from "../../../components/AuthGate";
 import VyndowShell from "../../../VyndowShell";
 import { auth, db } from "../../../firebaseClient";
 
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+
 
 // IMPORTANT: Suspense wrapper (required for useSearchParams in Next App Router)
 export default function SocialPhase4PostPage() {
@@ -29,6 +30,8 @@ function SocialPhase4PostInner() {
   const [uid, setUid] = useState(null);
   const [loading, setLoading] = useState(true);
   const [idToken, setIdToken] = useState("");
+  const [ownerUid, setOwnerUid] = useState(null);
+
 
 
   const [post, setPost] = useState(null);
@@ -81,6 +84,10 @@ useEffect(() => {
 
         const ref = doc(db, "users", uid, "websites", websiteId, "modules", "social");
         const snap = await getDoc(ref);
+        // ownerUid is either stored on website doc or defaults to uid
+// For now, we assume uid is owner unless your system sets ownerUid elsewhere.
+setOwnerUid(uid);
+
 
         if (!snap.exists()) {
           router.replace(`/social/workshop?websiteId=${encodeURIComponent(websiteId)}`);
@@ -138,7 +145,61 @@ useEffect(() => {
 
     load();
   }, [uid, websiteId, postId, router]);
-  async function generateText() {
+    async function saveDraft(nextText) {
+  try {
+    if (!uid || !websiteId || !postId) return;
+
+    const saveRef = doc(
+      db,
+      "users",
+      uid,
+      "websites",
+      websiteId,
+      "modules",
+      "social",
+      "phase4",
+      "posts",
+      postId
+    );
+
+    await setDoc(
+      saveRef,
+      {
+        visualHeadline: nextText.visualHeadline || "",
+        visualSubHeadline: nextText.visualSubHeadline || "",
+        caption: nextText.caption || "",
+        cta: nextText.cta || "",
+        hashtags: Array.isArray(nextText.hashtags) ? nextText.hashtags : [],
+        status: "draft",
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.error("saveDraft error:", e);
+  }
+}
+  useEffect(() => {
+  if (!post) return;
+
+  const isEmpty =
+    (!text.visualHeadline || text.visualHeadline.trim() === "") &&
+    (!text.caption || text.caption.trim() === "") &&
+    (!text.cta || text.cta.trim() === "") &&
+    (!text.hashtags || text.hashtags.length === 0) &&
+    (!text.visualSubHeadline || text.visualSubHeadline.trim() === "");
+
+  if (isEmpty) return;
+
+  const t = setTimeout(() => {
+    saveDraft(text);
+  }, 600);
+
+  return () => clearTimeout(t);
+}, [text, post]);
+
+
+async function generateText() {
   try {
     setTextError("");
     setTextLoading(true);
@@ -176,13 +237,16 @@ useEffect(() => {
     }
 
     const t = data.text || {};
-    setText({
+    const next = {
       visualHeadline: t.visualHeadline || "",
       visualSubHeadline: t.visualSubHeadline || "",
       caption: t.caption || "",
       cta: t.cta || "",
       hashtags: Array.isArray(t.hashtags) ? t.hashtags : [],
-    });
+    };
+
+    setText(next);
+    await saveDraft(next);
 
     setTextLoading(false);
   } catch (e) {
@@ -224,6 +288,7 @@ useEffect(() => {
         </VyndowShell>
       </AuthGate>
     );
+
   }
 
   return (
