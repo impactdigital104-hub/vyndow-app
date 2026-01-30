@@ -52,18 +52,18 @@ useEffect(() => {
 
   async function loadDraft() {
     try {
-      const draftRef = doc(
-        db,
-        "users",
-        uid,
-        "websites",
-        websiteId,
-        "modules",
-        "social",
-        "phase4",
-        "posts",
-        postId
-      );
+const draftRef = doc(
+  db,
+  "users",
+  uid,
+  "websites",
+  websiteId,
+  "modules",
+  "social",
+  "phase4Posts",
+  postId
+);
+
 
       const snap = await getDoc(draftRef);
       if (cancelled) return;
@@ -203,18 +203,18 @@ setOwnerUid(uid);
   try {
     if (!uid || !websiteId || !postId) return;
 
-    const saveRef = doc(
-      db,
-      "users",
-      uid,
-      "websites",
-      websiteId,
-      "modules",
-      "social",
-      "phase4",
-      "posts",
-      postId
-    );
+const saveRef = doc(
+  db,
+  "users",
+  uid,
+  "websites",
+  websiteId,
+  "modules",
+  "social",
+  "phase4Posts",
+  postId
+);
+
 
     await setDoc(
       saveRef,
