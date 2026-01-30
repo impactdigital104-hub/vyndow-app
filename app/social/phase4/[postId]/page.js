@@ -493,74 +493,82 @@ async function generateText() {
     <div style={{ fontWeight: 800, marginBottom: 8 }}>1) Visual Copy (On-Image)</div>
 
     <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>Headline (mandatory)</div>
-    <input
-      value={text.visualHeadline}
-      onChange={(e) => setText((prev) => ({ ...prev, visualHeadline: e.target.value }))}
-      placeholder="Headline will appear here…"
-      style={{
-        width: "100%",
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: "1px solid #e5e7eb",
-        background: "white",
-        fontSize: 14,
-      }}
-    />
+   <input
+  value={text.visualHeadline}
+  disabled={copyLocked}
+  onChange={(e) => setText((prev) => ({ ...prev, visualHeadline: e.target.value }))}
+  placeholder="Headline will appear here…"
+  style={{
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    background: copyLocked ? "#f3f4f6" : "white",
+    fontSize: 14,
+  }}
+/>
+
 
     <div style={{ fontSize: 13, color: "#6b7280", marginTop: 10, marginBottom: 6 }}>Sub-headline (optional)</div>
-    <input
-      value={text.visualSubHeadline}
-      onChange={(e) => setText((prev) => ({ ...prev, visualSubHeadline: e.target.value }))}
-      placeholder="Optional sub-headline…"
-      style={{
-        width: "100%",
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: "1px solid #e5e7eb",
-        background: "white",
-        fontSize: 14,
-      }}
-    />
+    
   </div>
 
   {/* 2) Caption */}
   <div style={{ padding: 12, borderRadius: 12, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
     <div style={{ fontWeight: 800, marginBottom: 8 }}>2) Caption</div>
+<input
+  value={text.visualSubHeadline}
+  disabled={copyLocked}
+  onChange={(e) => setText((prev) => ({ ...prev, visualSubHeadline: e.target.value }))}
+  placeholder="Optional sub-headline…"
+  style={{
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    background: copyLocked ? "#f3f4f6" : "white",
+    fontSize: 14,
+  }}
+/>
 
-    <textarea
-      value={text.caption}
-      onChange={(e) => setText((prev) => ({ ...prev, caption: e.target.value }))}
-      placeholder="Caption will appear here…"
-      rows={6}
-      style={{
-        width: "100%",
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: "1px solid #e5e7eb",
-        background: "white",
-        fontSize: 14,
-        resize: "vertical",
-      }}
-    />
+   <textarea
+  value={text.caption}
+  disabled={copyLocked}
+  onChange={(e) => setText((prev) => ({ ...prev, caption: e.target.value }))}
+  placeholder="Caption will appear here…"
+  rows={6}
+  style={{
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    background: copyLocked ? "#f3f4f6" : "white",
+    fontSize: 14,
+    resize: "vertical",
+  }}
+/>
+
   </div>
 
   {/* 3) CTA */}
   <div style={{ padding: 12, borderRadius: 12, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
     <div style={{ fontWeight: 800, marginBottom: 8 }}>3) CTA</div>
 
-    <input
-      value={text.cta}
-      onChange={(e) => setText((prev) => ({ ...prev, cta: e.target.value }))}
-      placeholder='e.g., "Book a demo" or "None required"'
-      style={{
-        width: "100%",
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: "1px solid #e5e7eb",
-        background: "white",
-        fontSize: 14,
-      }}
-    />
+   <input
+  value={text.cta}
+  disabled={copyLocked}
+  onChange={(e) => setText((prev) => ({ ...prev, cta: e.target.value }))}
+  placeholder='e.g., "Book a demo" or "None required"'
+  style={{
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    background: copyLocked ? "#f3f4f6" : "white",
+    fontSize: 14,
+  }}
+/>
+
   </div>
 
   {/* 4) Hashtags */}
@@ -571,29 +579,31 @@ async function generateText() {
       One per line (we’ll store as a list).
     </div>
 
-    <textarea
-      value={(text.hashtags || []).join("\n")}
-      onChange={(e) =>
-        setText((prev) => ({
-          ...prev,
-          hashtags: e.target.value
-            .split("\n")
-            .map((h) => h.trim())
-            .filter(Boolean),
-        }))
-      }
-      placeholder={"#example\n#another"}
-      rows={5}
-      style={{
-        width: "100%",
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: "1px solid #e5e7eb",
-        background: "white",
-        fontSize: 14,
-        resize: "vertical",
-      }}
-    />
+   <textarea
+  value={(text.hashtags || []).join("\n")}
+  disabled={copyLocked}
+  onChange={(e) =>
+    setText((prev) => ({
+      ...prev,
+      hashtags: e.target.value
+        .split("\n")
+        .map((h) => h.trim())
+        .filter(Boolean),
+    }))
+  }
+  placeholder={"#example\n#another"}
+  rows={5}
+  style={{
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    background: copyLocked ? "#f3f4f6" : "white",
+    fontSize: 14,
+    resize: "vertical",
+  }}
+/>
+
   </div>
 </div>
 
