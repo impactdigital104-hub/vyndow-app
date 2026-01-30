@@ -45,6 +45,51 @@ function SocialPhase4PostInner() {
 
 const [textLoading, setTextLoading] = useState(false);
 const [textError, setTextError] = useState("");
+// Load existing Phase 4 draft (if any) so refresh keeps generated text
+useEffect(() => {
+  if (!uid || !websiteId || !postId) return;
+
+  let cancelled = false;
+
+  async function loadDraft() {
+    try {
+      const draftRef = doc(
+        db,
+        "users",
+        uid,
+        "websites",
+        websiteId,
+        "modules",
+        "social",
+        "phase4",
+        "posts",
+        postId
+      );
+
+      const snap = await getDoc(draftRef);
+      if (!snap.exists() || cancelled) return;
+
+      const d = snap.data() || {};
+      const next = {
+        visualHeadline: d.visualHeadline || "",
+        visualSubHeadline: d.visualSubHeadline || "",
+        caption: d.caption || "",
+        cta: d.cta || "",
+        hashtags: Array.isArray(d.hashtags) ? d.hashtags : [],
+      };
+
+      setText(next);
+    } catch (e) {
+      console.error("loadDraft error:", e);
+    }
+  }
+
+  loadDraft();
+
+  return () => {
+    cancelled = true;
+  };
+}, [uid, websiteId, postId]);
 
 
   // Read-only brief values
