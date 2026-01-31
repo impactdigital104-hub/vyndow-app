@@ -47,6 +47,11 @@ const [textLoading, setTextLoading] = useState(false);
 const [textError, setTextError] = useState("");
   const [copyLocked, setCopyLocked] = useState(false);
 const [lockSaving, setLockSaving] = useState(false);
+  const [visualLoading, setVisualLoading] = useState(false);
+const [visualError, setVisualError] = useState("");
+const [staticImageUrl, setStaticImageUrl] = useState("");
+const [carouselImageUrls, setCarouselImageUrls] = useState([]);
+
 
  async function lockCopyNow() {
   try {
@@ -129,6 +134,9 @@ const draftRef = doc(
         hashtags: Array.isArray(d.hashtags) ? d.hashtags : [],
       });
       setCopyLocked(!!d.copyLocked);
+      setStaticImageUrl(typeof d.staticImageUrl === "string" ? d.staticImageUrl : "");
+setCarouselImageUrls(Array.isArray(d.carouselImageUrls) ? d.carouselImageUrls : []);
+
 
     } catch (e) {
       console.error("loadDraft error:", e);
@@ -297,6 +305,71 @@ const saveRef = doc(
   return () => clearTimeout(t);
 }, [text, post, copyLocked]);
 
+async function generateVisual(mode) {
+  try {
+    setVisualError("");
+
+    // Only allow visuals when copy is locked
+    if (!copyLocked) {
+      setVisualError("Lock copy first. Visual generation is only allowed for locked copy.");
+      return;
+    }
+
+    if (!idToken) {
+      setVisualError("Not logged in. Please refresh and try again.");
+      return;
+    }
+
+    setVisualLoading(true);
+
+    const response = await fetch("/api/social/generatePostVisual", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        mode,
+        postId,
+        websiteId,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data?.ok) {
+      setVisualError(data?.error || "Could not generate visual. Please try again.");
+      setVisualLoading(false);
+      return;
+    }
+
+    if (mode === "static") {
+      const url = data?.url || "";
+      if (!url) {
+        setVisualError("No static image URL returned.");
+        setVisualLoading(false);
+        return;
+      }
+      setStaticImageUrl(url);
+    }
+
+    if (mode === "carousel") {
+      const urls = Array.isArray(data?.urls) ? data.urls : [];
+      if (!urls.length) {
+        setVisualError("No carousel image URLs returned.");
+        setVisualLoading(false);
+        return;
+      }
+      setCarouselImageUrls(urls);
+    }
+
+    setVisualLoading(false);
+  } catch (e) {
+    console.error("generateVisual UI error:", e);
+    setVisualError("Could not generate visual. Please try again.");
+    setVisualLoading(false);
+  }
+}
 
 async function generateText() {
   try {
