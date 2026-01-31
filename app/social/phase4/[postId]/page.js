@@ -335,13 +335,25 @@ async function generateVisual(mode) {
       }),
     });
 
-    const data = await response.json();
+    const raw = await response.text();
+let data = null;
+try {
+  data = raw ? JSON.parse(raw) : null;
+} catch (e) {
+  data = null;
+}
 
-    if (!response.ok || !data?.ok) {
-      setVisualError(data?.error || "Could not generate visual. Please try again.");
-      setVisualLoading(false);
-      return;
-    }
+
+if (!response.ok || !data?.ok) {
+  const msg =
+    data?.error ||
+    (raw && raw.length ? raw.slice(0, 200) : "") ||
+    "Could not generate visual. Please try again.";
+  setVisualError(msg);
+  setVisualLoading(false);
+  return;
+}
+
 
     if (mode === "static") {
       const url = data?.url || "";
