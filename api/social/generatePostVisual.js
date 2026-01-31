@@ -1,8 +1,7 @@
-import OpenAI from "openai";
 import admin from "../firebaseAdmin.js";
 
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 
 function getBearerToken(req) {
   const h = req.headers?.authorization || "";
@@ -13,8 +12,40 @@ function getBearerToken(req) {
 function asDataUrlPng(base64) {
   return `data:image/png;base64,${base64}`;
 }
+async function callOpenAIImage({ prompt, apiKey }) {
+  const resp = await fetch("https://api.openai.com/v1/images/generations", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-image-1",
+      prompt,
+      size: "1024x1024",
+      response_format: "b64_json",
+    }),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    const err = new Error(`OpenAI error: ${resp.status} ${text}`);
+    err.code = "OPENAI_ERROR";
+    throw err;
+  }
+
+  const data = await resp.json();
+  const b64 = data?.data?.[0]?.b64_json;
+  if (!b64) {
+    const err = new Error("OpenAI returned no image");
+    err.code = "OPENAI_NO_IMAGE";
+    throw err;
+  }
+  return b64;
+}
 
 export default async function handler(req, res) {
+
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -116,13 +147,11 @@ Rules:
 `.trim();
 
     if (mode === "static") {
-      const img = await openai.images.generate({
-        model: "gpt-image-1",
+            const b64 = await callOpenAIImage({
         prompt: basePrompt + "\n\nOutput: ONE static square image (1:1).",
-        size: "1024x1024",
+        apiKey: process.env.OPENAI_API_KEY,
       });
 
-      const b64 = img?.data?.[0]?.b64_json;
       if (!b64) {
         return res.status(500).json({ ok: false, error: "No image returned" });
       }
@@ -157,13 +186,11 @@ Carousel Rules:
 - Slide ${i} should feel like part of a cohesive carousel set.
 Output: ONE square image (1:1) for this slide.`;
 
-      const img = await openai.images.generate({
-        model: "gpt-image-1",
+      const b64 = await callOpenAIImage({
         prompt: slidePrompt,
-        size: "1024x1024",
+        apiKey: process.env.OPENAI_API_KEY,
       });
 
-      const b64 = img?.data?.[0]?.b64_json;
       if (!b64) {
         return res.status(500).json({ ok: false, error: `No image returned for slide ${i}` });
       }
