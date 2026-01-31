@@ -679,6 +679,80 @@ async function generateText() {
 
   </div>
 </div>
+{/* Step 4B — Visuals */}
+<div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: "1px solid #e5e7eb", background: "white" }}>
+  <div style={{ fontWeight: 800, marginBottom: 10 }}>Step 4B — Visuals</div>
+
+  <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
+    Visual generation is enabled only after copy is locked. This step will not change your text.
+  </div>
+
+  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+    <button
+      disabled={visualLoading || !copyLocked}
+      onClick={() => generateVisual("static")}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: "1px solid #e5e7eb",
+        background: visualLoading || !copyLocked ? "#f3f4f6" : "white",
+        cursor: visualLoading || !copyLocked ? "not-allowed" : "pointer",
+        fontWeight: 800,
+      }}
+    >
+      {staticImageUrl ? "Regenerate static" : "Generate static"}
+    </button>
+
+    <button
+      disabled={visualLoading || !copyLocked}
+      onClick={() => generateVisual("carousel")}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: "1px solid #e5e7eb",
+        background: visualLoading || !copyLocked ? "#f3f4f6" : "white",
+        cursor: visualLoading || !copyLocked ? "not-allowed" : "pointer",
+        fontWeight: 800,
+      }}
+    >
+      {carouselImageUrls?.length ? "Regenerate carousel" : "Generate carousel"}
+    </button>
+  </div>
+
+  {!copyLocked ? (
+    <div style={{ marginTop: 10, fontSize: 13, color: "#b45309" }}>
+      🔒 Lock copy first to enable visual generation.
+    </div>
+  ) : null}
+
+  {visualError ? (
+    <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>
+      {visualError}
+    </div>
+  ) : null}
+
+  {staticImageUrl ? (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ fontWeight: 800, marginBottom: 8 }}>Static preview</div>
+      <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#f9fafb" }}>
+        <img src={staticImageUrl} alt="Static visual" style={{ width: "100%", display: "block" }} />
+      </div>
+    </div>
+  ) : null}
+
+  {carouselImageUrls?.length ? (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ fontWeight: 800, marginBottom: 8 }}>Carousel preview</div>
+      <div style={{ display: "grid", gap: 10 }}>
+        {(carouselImageUrls || []).map((u, i) => (
+          <div key={u + i} style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#f9fafb" }}>
+            <img src={u} alt={`Carousel slide ${i + 1}`} style={{ width: "100%", display: "block" }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null}
+</div>
 
 </div>
 
