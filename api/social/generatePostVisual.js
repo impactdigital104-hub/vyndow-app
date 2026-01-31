@@ -123,28 +123,34 @@ export default async function handler(req, res) {
     const logoUrl = social.logoUrl || "";
 
     // Prompt (no text regeneration; only visual composition)
+    // VISUAL CONTRACT v1.1:
+    // Allowed inside image text ONLY: visualHeadline, optional visualSubHeadline (1 line), cta (short).
+    // Forbidden inside image: caption, hashtags, body copy, explanations, bullets, long CTAs.
     const basePrompt = `
-Create high-quality social media marketing visuals for a brand.
+Create a clean, premium, social-feed marketing visual for a brand.
 
 Brand Inputs:
-- Colors: ${colors.join(", ") || "not provided"}
-- Typography: ${typography || "not provided"}
-- Visual Style: ${visualStyle || "not provided"}
-- Logo URL (if present): ${logoUrl || "not provided"}
+- Colors (use as accents; do not overload): ${colors.join(", ") || "not provided"}
+- Typography (style inspiration only): ${typography || "not provided"}
+- Visual Style (style inspiration only): ${visualStyle || "not provided"}
+- Logo URL (if present; optional placement): ${logoUrl || "not provided"}
 
-Locked Copy (MUST be used exactly; do NOT rewrite):
-- Visual headline: ${visualHeadline}
-- Visual sub-headline: ${visualSubHeadline || "(none)"}
-- Caption: ${caption || "(none)"}
-- CTA: ${cta || "(none)"}
-- Hashtags: ${(hashtags || []).join(" ") || "(none)"}
+ON-IMAGE TEXT (MUST be used exactly; do NOT rewrite; do NOT add any other words):
+1) Headline (required): ${visualHeadline}
+2) Sub-headline (optional; MAX one line): ${visualSubHeadline || "(none)"}
+3) CTA (required; short & punchy): ${cta || "(none)"}
 
-Rules:
-- Do NOT rewrite or improve any text.
-- Use the headline (and sub-headline if present) as the on-image text.
-- Keep layout clean with strong hierarchy and good readability.
-- Produce a polished, agency-quality design.
+STRICT RULES (non-negotiable):
+- The image must contain ONLY the headline, optional sub-headline, and CTA. Nothing else.
+- Do NOT include caption text. Do NOT include hashtags. Do NOT include any extra copy, explanations, bullets, fine print, or paragraphs.
+- Do NOT rewrite, improve, paraphrase, or add words. Use the provided text exactly as-is.
+- Minimal text overall. Strong hierarchy: Headline (largest) → Sub-headline (small, one line) → CTA (smallest).
+- CTA must be visible but NOT dominant. Render CTA as a small button, tag, or footer strip.
+- Clean layout with whitespace. Avoid clutter.
+- Do NOT create a poster, flyer, infographic, or dense text layout.
+- Social-feed appropriate, modern, brand-appropriate design.
 `.trim();
+
 
     if (mode === "static") {
            const url = await callOpenAIImage({
