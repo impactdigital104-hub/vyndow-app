@@ -9,9 +9,7 @@ function getBearerToken(req) {
   return h.slice("Bearer ".length).trim();
 }
 
-function asDataUrlPng(base64) {
-  return `data:image/png;base64,${base64}`;
-}
+
 async function callOpenAIImage({ prompt, apiKey }) {
   const resp = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
@@ -35,22 +33,8 @@ async function callOpenAIImage({ prompt, apiKey }) {
 
   const data = await resp.json();
 const first = data?.data?.[0] || {};
-const b64 = first?.b64_json || "";
-const url = first?.url || "";
-
-if (b64) return b64;
-if (url) return url;
-
-const err = new Error("OpenAI returned no image");
-err.code = "OPENAI_NO_IMAGE";
-throw err;
-
-  if (!b64) {
-    const err = new Error("OpenAI returned no image");
-    err.code = "OPENAI_NO_IMAGE";
-    throw err;
-  }
-  return b64;
+const url = first?.url;
+return url;
 }
 
 export default async function handler(req, res) {
@@ -165,9 +149,7 @@ Rules:
         return res.status(500).json({ ok: false, error: "No image returned" });
       }
 
-   const url = b64.startsWith("http")
-  ? b64
-  : asDataUrlPng(b64);
+const url = b64;
 
 
       await postRef.set(
@@ -207,7 +189,7 @@ Output: ONE square image (1:1) for this slide.`;
         return res.status(500).json({ ok: false, error: `No image returned for slide ${i}` });
       }
 
-      urls.push(asDataUrlPng(b64));
+urls.push(b64);
     }
 
     await postRef.set(
