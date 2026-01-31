@@ -135,20 +135,26 @@ Brand Inputs:
 - Visual Style (style inspiration only): ${visualStyle || "not provided"}
 - Logo URL (if present; optional placement): ${logoUrl || "not provided"}
 
-ON-IMAGE TEXT (MUST be used exactly; do NOT rewrite; do NOT add any other words):
+ON-IMAGE TEXT (USE EXACTLY; do NOT rewrite; do NOT add any other words):
 1) Headline (required): ${visualHeadline}
 2) Sub-headline (optional; MAX one line): ${visualSubHeadline || "(none)"}
-3) CTA (required; short & punchy): ${cta || "(none)"}
+3) Button text (required; short): ${cta || "(none)"}
 
 STRICT RULES (non-negotiable):
-- The image must contain ONLY the headline, optional sub-headline, and CTA. Nothing else.
+- The image must contain ONLY the headline, optional sub-headline, and the button text. Nothing else.
+- Do NOT print any labels like: "CTA", "Caption", "Hashtags", "Headline", "Sub-headline".
 - Do NOT include caption text. Do NOT include hashtags. Do NOT include any extra copy, explanations, bullets, fine print, or paragraphs.
+- Do NOT generate placeholder/lorem ipsum or tiny decorative text blocks.
+- Do NOT add charts, tables, poll UI, bars, checkboxes, icons with text, or infographic elements.
 - Do NOT rewrite, improve, paraphrase, or add words. Use the provided text exactly as-is.
-- Minimal text overall. Strong hierarchy: Headline (largest) → Sub-headline (small, one line) → CTA (smallest).
-- CTA must be visible but NOT dominant. Render CTA as a small button, tag, or footer strip.
+
+LAYOUT RESTRAINT:
+- Minimal text overall. Strong hierarchy: Headline (largest) → Sub-headline (small, one line) → Button text (smallest).
+- Button text must be visible but NOT dominant. Render as a small button, tag, or footer strip.
 - Clean layout with whitespace. Avoid clutter.
 - Do NOT create a poster, flyer, infographic, or dense text layout.
 - Social-feed appropriate, modern, brand-appropriate design.
+
 `.trim();
 
 
