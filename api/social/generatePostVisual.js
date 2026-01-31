@@ -23,7 +23,6 @@ async function callOpenAIImage({ prompt, apiKey }) {
       model: "gpt-image-1",
       prompt,
       size: "1024x1024",
-      response_format: "b64_json",
     }),
   });
 
@@ -35,7 +34,17 @@ async function callOpenAIImage({ prompt, apiKey }) {
   }
 
   const data = await resp.json();
-  const b64 = data?.data?.[0]?.b64_json;
+const first = data?.data?.[0] || {};
+const b64 = first?.b64_json || "";
+const url = first?.url || "";
+
+if (b64) return b64;
+if (url) return url;
+
+const err = new Error("OpenAI returned no image");
+err.code = "OPENAI_NO_IMAGE";
+throw err;
+
   if (!b64) {
     const err = new Error("OpenAI returned no image");
     err.code = "OPENAI_NO_IMAGE";
@@ -156,7 +165,10 @@ Rules:
         return res.status(500).json({ ok: false, error: "No image returned" });
       }
 
-      const url = asDataUrlPng(b64);
+   const url = b64.startsWith("http")
+  ? b64
+  : asDataUrlPng(b64);
+
 
       await postRef.set(
         {
