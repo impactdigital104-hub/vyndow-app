@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import admin from "../firebaseAdmin";
+import admin from "../firebaseAdmin.js";
+
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
