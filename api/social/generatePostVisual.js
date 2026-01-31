@@ -18,7 +18,7 @@ async function callOpenAIImage({ prompt, apiKey }) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-image-1",
+      model: "dall-e-3",
       prompt,
       size: "1024x1024",
     }),
@@ -32,9 +32,16 @@ async function callOpenAIImage({ prompt, apiKey }) {
   }
 
   const data = await resp.json();
-const first = data?.data?.[0] || {};
-const url = first?.url;
-return url;
+  const first = data?.data?.[0] || {};
+  const url = first?.url;
+
+  if (!url) {
+    const err = new Error("OpenAI returned no image URL");
+    err.code = "OPENAI_NO_IMAGE";
+    throw err;
+  }
+
+  return url;
 }
 
 export default async function handler(req, res) {
@@ -140,16 +147,15 @@ Rules:
 `.trim();
 
     if (mode === "static") {
-            const b64 = await callOpenAIImage({
+           const url = await callOpenAIImage({
         prompt: basePrompt + "\n\nOutput: ONE static square image (1:1).",
         apiKey: process.env.OPENAI_API_KEY,
       });
 
-      if (!b64) {
-        return res.status(500).json({ ok: false, error: "No image returned" });
-      }
+if (!url) {
+  return res.status(500).json({ ok: false, error: "No image returned" });
+}
 
-const url = b64;
 
 
       await postRef.set(
@@ -180,16 +186,16 @@ Carousel Rules:
 - Slide ${i} should feel like part of a cohesive carousel set.
 Output: ONE square image (1:1) for this slide.`;
 
-      const b64 = await callOpenAIImage({
+     const url = await callOpenAIImage({
         prompt: slidePrompt,
         apiKey: process.env.OPENAI_API_KEY,
       });
 
-      if (!b64) {
+   if (!url) {
         return res.status(500).json({ ok: false, error: `No image returned for slide ${i}` });
       }
 
-urls.push(b64);
+urls.push(url);
     }
 
     await postRef.set(
