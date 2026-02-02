@@ -2,10 +2,11 @@
 import admin from "../firebaseAdmin";
 
 function getAddonPlanIdFor(currentPlan) {
-  if (currentPlan === "small_business") return process.env.RAZORPAY_PLAN_ID_ADD_WEBSITE_SMALL_BUSINESS_TEST;
-  if (currentPlan === "enterprise") return process.env.RAZORPAY_PLAN_ID_ADD_WEBSITE_ENTERPRISE_TEST;
+  if (currentPlan === "small_business") return process.env.RAZORPAY_SEO_ADD_WEBSITE_SB_PLAN_USD;
+  if (currentPlan === "enterprise") return process.env.RAZORPAY_SEO_ADD_WEBSITE_ENT_PLAN_USD;
   return null;
 }
+
 
 async function razorpayRequest(path, { method = "GET", bodyObj = null } = {}) {
   const keyId = process.env.RAZORPAY_KEY_ID;
