@@ -246,6 +246,8 @@ console.log("RP_NOTES_RAW:", JSON.stringify({
     const vyndowPlan = (notes.vyndowPlan || "").trim(); // "small_business" | "enterprise"
    const addonType = (notes.addonType || "").trim();
 const moduleName = (notes.module || "").trim();
+    const bundleName = (notes.bundle || "").trim(); // e.g. "growth"
+
 
     if (!uid) {
       // If uid is missing, we can't apply entitlements safely.
@@ -254,6 +256,49 @@ const moduleName = (notes.module || "").trim();
 
  // Decide what to do based on event
 
+  // ===== BUNDLE SUBSCRIPTIONS (SEO + GEO together) =====
+if ((event === "subscription.activated" || event === "subscription.charged") && (moduleName === "bundle" || bundleName === "growth")) {
+  const planToApply = vyndowPlan === "enterprise" ? "enterprise" : "small_business";
+
+  // Apply SEO entitlements (existing function)
+  await applyPlanToUserAndWebsites({ uid, plan: planToApply });
+
+  // Apply GEO entitlements (same logic as GEO main plan)
+  const db = admin.firestore();
+  const geoRef = db.doc(`users/${uid}/modules/geo`);
+
+  const pagesPerMonthMap = {
+    free: 5,
+    small_business: 20,
+    enterprise: 50,
+  };
+
+  await geoRef.set(
+    {
+      moduleId: "geo",
+      plan: planToApply,
+      pagesPerMonth: pagesPerMonthMap[planToApply] ?? 5,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+if ((event === "subscription.cancelled" || event === "subscription.completed") && (moduleName === "bundle" || bundleName === "growth")) {
+  // Remove both entitlements if bundle ends
+  await applyPlanToUserAndWebsites({ uid, plan: "free" });
+
+  const db = admin.firestore();
+  const geoRef = db.doc(`users/${uid}/modules/geo`);
+  await geoRef.set(
+    {
+      plan: "free",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+  
 // ===== MAIN PLAN SUBSCRIPTIONS (no addonType) =====
 if ((event === "subscription.activated" || event === "subscription.charged") && !addonType && moduleName !== "geo") {
   const planToApply = vyndowPlan === "enterprise" ? "enterprise" : "small_business";
