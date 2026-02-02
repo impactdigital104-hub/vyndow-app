@@ -3,10 +3,11 @@ import admin from "../firebaseAdmin";
 import crypto from "crypto";
 
 function getPlanIdFor(plan) {
-  if (plan === "small_business") return process.env.RAZORPAY_PLAN_ID_GEO_SMALL_BUSINESS_TEST;
-  if (plan === "enterprise") return process.env.RAZORPAY_PLAN_ID_GEO_ENTERPRISE_TEST;
+  if (plan === "small_business") return process.env.RAZORPAY_GEO_SB_PLAN_USD;
+  if (plan === "enterprise") return process.env.RAZORPAY_GEO_ENT_PLAN_USD;
   return null;
 }
+
 
 
 async function razorpayRequest(path, { method = "GET", bodyObj = null } = {}) {
