@@ -39,13 +39,13 @@ export default async function handler(req, res) {
     const uid = decoded.uid;
     const email = decoded.email || "";
 
-    // 2) Create Razorpay Order (₹199 => 19900 paise)
-    const amount = 19900;
+// 2) Create Razorpay Order ($9 => 900 cents)
+const amount = 900;
     const order = await razorpayRequest("/orders", {
       method: "POST",
       bodyObj: {
         amount,
-        currency: "INR",
+        currency: "USD",
        receipt: `bc_${Date.now()}`,
         notes: {
           uid,
