@@ -36,6 +36,7 @@ export default function PricingPage() {
 
       if (open === "geo") setOpenSection("geo");
       else if (open === "seo") setOpenSection("seo");
+      else if (open === "bundle") setOpenSection("bundle");
       else setOpenSection("seo");
     } catch (e) {
       setSeoPlanIntent(null);
@@ -284,6 +285,62 @@ export default function PricingPage() {
           alert(
             "Payment received. Website capacity will update shortly. Please refresh in 10–20 seconds."
           );
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (e) {
+      alert("Error: " + (e?.message || String(e)));
+    }
+  }
+
+    // ===========================
+  // BUNDLE CHECKOUTS (Growth)
+  // ===========================
+  async function startBundleSubscriptionCheckout(plan) {
+    try {
+      const ok = await loadRazorpay();
+      if (!ok) {
+        alert("Razorpay checkout failed to load. Please try again.");
+        return;
+      }
+
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        alert("Please login again.");
+        router.push("/login");
+        return;
+      }
+
+      const token = await user.getIdToken();
+
+      const resp = await fetch("/api/razorpay/createBundleSubscription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ plan }),
+      });
+
+      const json = await resp.json();
+
+      if (!resp.ok || !json.ok) {
+        alert("Could not start payment: " + (json.error || "Unknown error"));
+        return;
+      }
+
+      const options = {
+        key: json.razorpayKeyId,
+        subscription_id: json.subscriptionId,
+        name: "Vyndow Growth Bundle",
+        description: plan === "enterprise" ? "Enterprise Monthly" : "Small Business Monthly",
+        prefill: { email: user.email || "" },
+        notes: { uid: user.uid, vyndowPlan: plan, module: "bundle", bundle: "growth" },
+        handler: function () {
+          alert("Payment received. Activating plan... Please refresh in 10–20 seconds.");
         },
       };
 
@@ -617,6 +674,76 @@ async function startGeoExtraUrlsCheckout() {
 
         {/* ACCORDION */}
         <section style={{ display: "grid", gap: 12, marginBottom: 18 }}>
+                    <AccordionHeader
+            title="Vyndow Growth Bundle"
+            subtitle="SEO + GEO together (best value)"
+            active={openSection === "bundle"}
+            onClick={() => setOpenSection("bundle")}
+          />
+          {openSection === "bundle" && (
+            <div style={{ padding: "10px 4px 0 4px" }}>
+              <section
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                  gap: 20,
+                  marginBottom: 24,
+                }}
+              >
+                <PlanCard
+                  title="Growth Small Business"
+                  price="$49 / month"
+                  highlight={false}
+                  muted={false}
+                  badge="Best Value"
+                  features={["SEO: 6 Blogs / website / month", "GEO: 20 Pages / month", "1 Website", "1 User"]}
+                >
+                  <button
+                    type="button"
+                    onClick={() => startBundleSubscriptionCheckout("small_business")}
+                    style={{
+                      padding: "12px 18px",
+                      borderRadius: 999,
+                      fontWeight: 900,
+                      border: "0",
+                      cursor: "pointer",
+                      color: "#fff",
+                      background: "#6D28D9",
+                      boxShadow: "0 14px 30px rgba(109,40,217,0.18)",
+                    }}
+                  >
+                    Upgrade
+                  </button>
+                </PlanCard>
+
+                <PlanCard
+                  title="Growth Enterprise"
+                  price="$119 / month"
+                  highlight={false}
+                  muted={false}
+                  features={["SEO: 15 Blogs / website / month", "GEO: 50 Pages / month", "1 Website", "3 Users"]}
+                >
+                  <button
+                    type="button"
+                    onClick={() => startBundleSubscriptionCheckout("enterprise")}
+                    style={{
+                      padding: "12px 18px",
+                      borderRadius: 999,
+                      fontWeight: 900,
+                      border: "0",
+                      cursor: "pointer",
+                      color: "#fff",
+                      background: "#6D28D9",
+                      boxShadow: "0 14px 30px rgba(109,40,217,0.18)",
+                    }}
+                  >
+                    Upgrade
+                  </button>
+                </PlanCard>
+              </section>
+            </div>
+          )}
+
           <AccordionHeader
             title="Vyndow SEO"
             subtitle="Blog credits + Website add-on (live)"
@@ -636,7 +763,7 @@ async function startGeoExtraUrlsCheckout() {
               >
                 <PlanCard
                   title="Free"
-                  price="₹0"
+                price="$0"
                   highlight={false}
                   muted={isCurrentSeo("free")}
                   features={["1 Website", "2 Blogs / website / month"]}
@@ -646,23 +773,23 @@ async function startGeoExtraUrlsCheckout() {
 
                 <PlanCard
                   title="Small Business"
-                  price="₹499 / month"
+                 price="$29 / month"
                   highlight={isIntentSeo("small_business")}
                   muted={isCurrentSeo("small_business")}
                   badge="Most Popular"
                   features={["1 Website", "6 Blogs / website / month"]}
                 >
-                  {renderSeoPlanButton("small_business", "₹499")}
+                 {renderSeoPlanButton("small_business", "$29")}
                 </PlanCard>
 
                 <PlanCard
                   title="Enterprise"
-                  price="₹999 / month"
+                price="$69 / month"
                   highlight={isIntentSeo("enterprise")}
                   muted={isCurrentSeo("enterprise")}
                   features={["1 Website", "15 Blogs / website / month", "3 Users"]}
                 >
-                  {renderSeoPlanButton("enterprise", "₹999")}
+                 {renderSeoPlanButton("enterprise", "$69")}
                 </PlanCard>
               </section>
 
@@ -672,7 +799,7 @@ async function startGeoExtraUrlsCheckout() {
 
                 <AddOnCard
                   title="Extra Blog Credits"
-                  price="₹199"
+                  price="$9"
                   description="+2 blog credits (used after monthly limit)"
                   actionLabel="Buy 2 Credits"
                   onAction={startSeoBlogCreditsCheckout}
@@ -682,9 +809,9 @@ async function startGeoExtraUrlsCheckout() {
                   title="Additional Website"
                   price={
                     currentSeoPlan === "enterprise"
-                      ? "₹999 / month"
+                    ? "$69 / month"
                       : currentSeoPlan === "small_business"
-                      ? "₹499 / month"
+                    ? "$29 / month"
                       : "Upgrade to buy"
                   }
                   description="Adds capacity for 1 more website with full monthly quota"
@@ -718,7 +845,7 @@ async function startGeoExtraUrlsCheckout() {
               >
                 <PlanCard
                   title="Free"
-                  price="₹0"
+                 price="$0"
                   highlight={false}
                   muted={currentGeoPlan === "free"}
                   features={["5 Pages / month", "1 Website"]}
@@ -743,7 +870,7 @@ async function startGeoExtraUrlsCheckout() {
 
                 <PlanCard
                   title="Small Business"
-                  price="₹799 / month"
+                  price="$29 / month"
                   highlight={false}
                   muted={currentGeoPlan === "small_business"}
                   badge="Most Popular"
@@ -769,7 +896,7 @@ async function startGeoExtraUrlsCheckout() {
 
                 <PlanCard
                   title="Enterprise"
-                  price="₹1599 / month"
+                 price="$69 / month"
                   highlight={false}
                   muted={currentGeoPlan === "enterprise"}
                   features={["50 Pages / month", "1 Website"]}
@@ -799,7 +926,7 @@ async function startGeoExtraUrlsCheckout() {
 
                 <AddOnCard
                   title="Extra URL Pack (+5)"
-                  price="₹249 (one-time)"
+                  price="$9 (one-time)"
                   description="Adds +5 pages for this month (one-time purchase)"
                   actionLabel="Buy +5 URLs"
                   onAction={startGeoExtraUrlsCheckout}
@@ -809,9 +936,9 @@ async function startGeoExtraUrlsCheckout() {
                   title="Additional Website"
                   price={
                     currentGeoPlan === "enterprise"
-                      ? "₹1599 / month"
+                      ? "$69 / month"
                       : currentGeoPlan === "small_business"
-                      ? "₹799 / month"
+                   ? "$29 / month"
                       : "Upgrade to buy"
                   }
                   description="Adds capacity for 1 more website with full monthly GEO quota"
