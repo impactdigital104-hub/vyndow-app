@@ -339,7 +339,7 @@ export default async function handler(req, res) {
     const auditRef = admin
       .firestore()
       .doc(
-        `users/${effectiveUid}/websites/${effectiveWebsiteId}/modules/seo/strategy/auditResults/${urlId}`
+        `users/${effectiveUid}/websites/${effectiveWebsiteId}/modules/seo/strategy/auditResults/urls/${urlId}`
       );
 
     await auditRef.set(
