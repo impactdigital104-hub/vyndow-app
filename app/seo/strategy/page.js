@@ -140,9 +140,7 @@ const [auditCurrentUrl, setAuditCurrentUrl] = useState("");
 function auditResultsColRef() {
   if (!uid || !selectedWebsiteId) return null;
 
-  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(
-    selectedWebsiteId
-  );
+  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
   if (!effectiveUid || !effectiveWebsiteId) return null;
 
   return collection(
@@ -154,9 +152,11 @@ function auditResultsColRef() {
     "modules",
     "seo",
     "strategy",
-    "auditResults"
+    "auditResults",
+    "urls"
   );
 }
+
 
 async function loadExistingAuditResults() {
   const colRef = auditResultsColRef();
