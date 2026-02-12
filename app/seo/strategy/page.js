@@ -126,6 +126,58 @@ const [savePagesError, setSavePagesError] = useState("");
   const [discoverState, setDiscoverState] = useState("idle"); // idle | discovering | done | error
 const [discoverError, setDiscoverError] = useState("");
 const [lastPagesSavedAt, setLastPagesSavedAt] = useState(null);
+  // =========================
+// Step 3 — Pure On-Page Audit (run + resume)
+// Firestore:
+// users/{effectiveUid}/websites/{effectiveWebsiteId}/modules/seo/strategy/auditResults/{urlId}
+// =========================
+const [auditRunState, setAuditRunState] = useState("idle"); // idle | running | done | error
+const [auditError, setAuditError] = useState("");
+const [auditedUrlSet, setAuditedUrlSet] = useState(new Set()); // Set of URL strings
+const [auditProgress, setAuditProgress] = useState({ done: 0, total: 0 });
+const [auditCurrentUrl, setAuditCurrentUrl] = useState("");
+
+function auditResultsColRef() {
+  if (!uid || !selectedWebsiteId) return null;
+
+  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(
+    selectedWebsiteId
+  );
+  if (!effectiveUid || !effectiveWebsiteId) return null;
+
+  return collection(
+    db,
+    "users",
+    effectiveUid,
+    "websites",
+    effectiveWebsiteId,
+    "modules",
+    "seo",
+    "strategy",
+    "auditResults"
+  );
+}
+
+async function loadExistingAuditResults() {
+  const colRef = auditResultsColRef();
+  if (!colRef) return;
+
+  try {
+    const snap = await getDocs(colRef);
+
+    const s = new Set();
+    snap.docs.forEach((d) => {
+      const data = d.data() || {};
+      if (data.url) s.add(String(data.url));
+    });
+
+    setAuditedUrlSet(s);
+  } catch (e) {
+    console.error("Failed to load audit results:", e);
+    // non-blocking
+  }
+}
+
 
 
   // Step 1 data
@@ -368,6 +420,13 @@ useEffect(() => {
   loadPageDiscovery();
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [uid, selectedWebsiteId, websites]);
+  // Load existing Step 3 audit results (resume)
+useEffect(() => {
+  if (!uid || !selectedWebsiteId || !websites?.length) return;
+  loadExistingAuditResults();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [uid, selectedWebsiteId, websites]);
+
 
 async function handleSavePages() {
   const ref = pageDiscoveryDocRef();
@@ -412,7 +471,6 @@ async function handleSavePages() {
     setSavePagesError(e?.message || "Failed to save URLs.");
   }
 }
-
 async function handleDiscoverUrls() {
   const w = websites.find((x) => x.id === selectedWebsiteId);
   const origin = normalizeWebsiteBaseUrl(w);
@@ -452,8 +510,85 @@ async function handleDiscoverUrls() {
     setDiscoverError(e?.message || "URL discovery failed");
   }
 }
+async function handleRunAudit() {
+  const ref = pageDiscoveryDocRef();
+  if (!ref) return;
 
+  setAuditRunState("running");
+  setAuditError("");
+  setAuditCurrentUrl("");
 
+  try {
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      setAuditRunState("error");
+      setAuditError("No saved URL list found. Please Save URLs in Step 2 first.");
+      return;
+    }
+
+    const d = snap.data() || {};
+    const savedUrls = Array.isArray(d.urls) ? d.urls : [];
+    const cap = Number(d.cap) || savedUrls.length || 10;
+    const urls = savedUrls.slice(0, cap);
+
+    if (!urls.length) {
+      setAuditRunState("error");
+      setAuditError("Saved URL list is empty. Please Save URLs in Step 2 first.");
+      return;
+    }
+
+    // Refresh audited set
+    await loadExistingAuditResults();
+
+    const already = auditedUrlSet || new Set();
+    const toRun = urls.filter((u) => !already.has(u));
+
+    setAuditProgress({ done: urls.length - toRun.length, total: urls.length });
+
+    if (!toRun.length) {
+      setAuditRunState("done");
+      setAuditCurrentUrl("");
+      return;
+    }
+
+    const token = await auth.currentUser.getIdToken();
+    let doneCount = urls.length - toRun.length;
+
+    for (const u of toRun) {
+      setAuditCurrentUrl(u);
+
+      const res = await fetch("/api/seo/strategy/runAudit", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          websiteId: selectedWebsiteId,
+          url: u,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || "Audit failed for one URL.");
+      }
+
+      doneCount += 1;
+      setAuditProgress({ done: doneCount, total: urls.length });
+    }
+
+    await loadExistingAuditResults();
+
+    setAuditRunState("done");
+    setAuditCurrentUrl("");
+  } catch (e) {
+    console.error("Audit run failed:", e);
+    setAuditRunState("error");
+    setAuditError(e?.message || "Audit run failed.");
+  }
+}
 
   // Load existing Step 1 profile (resume)
   useEffect(() => {
@@ -1132,6 +1267,90 @@ async function handleDiscoverUrls() {
     ) : null}
   </div>
 </div>
+{/* STEP 3 */}
+<div
+  style={{
+    marginTop: 14,
+    padding: 16,
+    border: "1px solid #eee",
+    borderRadius: 12,
+    background: "white",
+  }}
+>
+  <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
+    Step 3 — Pure On-Page Audit (Diagnostics)
+  </div>
+
+  <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
+    This runs a diagnostics audit only (no AI, no fixes). It audits only the URLs saved in Step 2.
+    It is resume-safe and skips URLs already audited.
+  </div>
+
+  <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+    <button
+      type="button"
+      onClick={handleRunAudit}
+      disabled={!selectedWebsiteId || auditRunState === "running"}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: "1px solid #111827",
+        cursor:
+          !selectedWebsiteId || auditRunState === "running" ? "not-allowed" : "pointer",
+        background: "#111827",
+        color: "white",
+        opacity: !selectedWebsiteId || auditRunState === "running" ? 0.6 : 1,
+      }}
+    >
+      {auditRunState === "running" ? "Running Audit…" : "Run Audit"}
+    </button>
+
+    {auditRunState === "done" ? (
+      <div style={{ color: "#065f46", fontWeight: 800 }}>Audit complete</div>
+    ) : null}
+
+    {auditRunState === "error" ? (
+      <div style={{ color: "#b91c1c", fontWeight: 700 }}>Audit failed</div>
+    ) : null}
+  </div>
+
+  <div
+    style={{
+      marginTop: 12,
+      padding: 12,
+      borderRadius: 12,
+      border: "1px solid #f3f4f6",
+      background: "#fafafa",
+      color: "#374151",
+      fontSize: 13,
+      lineHeight: 1.5,
+    }}
+  >
+    <div style={{ fontWeight: 800, color: "#111827" }}>Progress</div>
+
+    {auditRunState === "running" ? (
+      <>
+        <div style={{ marginTop: 6 }}>
+          Done: <b>{auditProgress.done}</b> / <b>{auditProgress.total}</b>
+        </div>
+        {auditCurrentUrl ? (
+          <div style={{ marginTop: 6 }}>
+            Current: <span style={{ wordBreak: "break-all" }}>{auditCurrentUrl}</span>
+          </div>
+        ) : null}
+      </>
+    ) : (
+      <div style={{ marginTop: 6 }}>
+        Already audited (resume): <b>{auditedUrlSet?.size || 0}</b> URLs
+      </div>
+    )}
+
+    {auditError ? (
+      <div style={{ marginTop: 10, color: "#b91c1c" }}>{auditError}</div>
+    ) : null}
+  </div>
+</div>
+
 
         {/* WIP link (not used in this phase) */}
         <div style={{ marginTop: 14 }}>
