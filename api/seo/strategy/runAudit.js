@@ -269,13 +269,18 @@ export default async function handler(req, res) {
     // PLAN CAP: enforce (even if doc is wrong)
     const capped = urls.slice(0, cap);
 
-    // Only audit URLs that are already saved in Step 2
-    if (!capped.includes(normalized)) {
-      return res.status(400).json({
-        error:
-          "URL is not in the saved Step 2 list. Please save it in Page Discovery first.",
-      });
-    }
+// Only audit URLs that are already saved in Step 2 (normalize both sides)
+const cappedNormalized = capped
+  .map((u) => normalizeUrl(u))
+  .filter(Boolean);
+
+if (!cappedNormalized.includes(normalized)) {
+  return res.status(400).json({
+    error:
+      "URL is not in the saved Step 2 list. Please save it in Page Discovery first.",
+  });
+}
+
 
     const fetchRes = await fetchHtml(normalized);
     if (!fetchRes.ok || !fetchRes.html) {
