@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -45,6 +45,62 @@ const helpStyle = {
   marginTop: 6,
   lineHeight: 1.4,
 };
+function safeToDate(ts) {
+  try {
+    return ts?.toDate ? ts.toDate() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function normalizeWebsiteBaseUrl(w) {
+  const raw = (w?.websiteUrl || w?.domain || "").trim();
+  if (!raw) return "";
+
+  const withScheme =
+    raw.startsWith("http://") || raw.startsWith("https://")
+      ? raw
+      : `https://${raw}`;
+
+  try {
+    const u = new URL(withScheme);
+    return u.origin;
+  } catch (e) {
+    return "";
+  }
+}
+
+function parseUrlList(raw) {
+  const lines = String(raw || "")
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  const valid = [];
+  const invalid = [];
+  const seen = new Set();
+
+  for (const line of lines) {
+    try {
+      const u = new URL(line);
+      const isHttp = u.protocol === "http:" || u.protocol === "https:";
+      if (!isHttp) {
+        invalid.push(line);
+        continue;
+      }
+      const normalized = u.toString();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        valid.push(normalized);
+      }
+    } catch (e) {
+      invalid.push(line);
+    }
+  }
+
+  return { valid, invalid };
+}
+
 
 export default function SeoStrategyPage() {
   const router = useRouter();
@@ -56,6 +112,19 @@ export default function SeoStrategyPage() {
   const [websitesLoading, setWebsitesLoading] = useState(true);
   const [websitesError, setWebsitesError] = useState("");
   const [selectedWebsiteId, setSelectedWebsiteId] = useState("");
+  // SEO module plan — used only for Step 2 caps
+const [seoModule, setSeoModule] = useState(null);
+const [seoModuleLoading, setSeoModuleLoading] = useState(true);
+const [seoModuleError, setSeoModuleError] = useState("");
+
+// Step 2 data — Page Discovery
+const [urlListRaw, setUrlListRaw] = useState("");
+const [loadingPages, setLoadingPages] = useState(false);
+const [pageDiscoveryExists, setPageDiscoveryExists] = useState(false);
+const [savePagesState, setSavePagesState] = useState("idle"); // idle | saving | saved | error
+const [savePagesError, setSavePagesError] = useState("");
+const [lastPagesSavedAt, setLastPagesSavedAt] = useState(null);
+
 
   // Step 1 data
   const [loadingProfile, setLoadingProfile] = useState(false);
@@ -177,6 +246,206 @@ export default function SeoStrategyPage() {
       "businessProfile"
     );
   }
+  function pageDiscoveryDocRef() {
+  if (!uid || !selectedWebsiteId) return null;
+  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(
+    selectedWebsiteId
+  );
+  if (!effectiveUid || !effectiveWebsiteId) return null;
+
+  return doc(
+    db,
+    "users",
+    effectiveUid,
+    "websites",
+    effectiveWebsiteId,
+    "modules",
+    "seo",
+    "strategy",
+    "pageDiscovery"
+  );
+}
+
+function seoModuleDocRef() {
+  if (!uid || !selectedWebsiteId) return null;
+  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(
+    selectedWebsiteId
+  );
+  if (!effectiveUid || !effectiveWebsiteId) return null;
+
+  return doc(
+    db,
+    "users",
+    effectiveUid,
+    "websites",
+    effectiveWebsiteId,
+    "modules",
+    "seo"
+  );
+}
+
+// Load SEO module (plan) for caps (SB=10, Ent=25)
+useEffect(() => {
+  async function loadSeoModule() {
+    const ref = seoModuleDocRef();
+    if (!ref) return;
+
+    try {
+      setSeoModuleLoading(true);
+      setSeoModuleError("");
+
+      const snap = await getDoc(ref);
+      if (snap.exists()) setSeoModule({ id: snap.id, ...snap.data() });
+      else setSeoModule(null);
+    } catch (e) {
+      console.error("Failed to load SEO module:", e);
+      setSeoModule(null);
+      setSeoModuleError(e?.message || "Unknown error while loading SEO module.");
+    } finally {
+      setSeoModuleLoading(false);
+    }
+  }
+
+  loadSeoModule();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [uid, selectedWebsiteId, websites]);
+
+function getUrlCap() {
+  const planTypeRaw =
+    seoModule?.plan ||
+    seoModule?.planType ||
+    seoModule?.tier ||
+    seoModule?.pricingPlan ||
+    "";
+
+  const planType = String(planTypeRaw).toLowerCase();
+  if (planType.includes("enterprise")) return 25;
+  return 10; // small business OR unknown
+}
+
+
+const urlCap = getUrlCap();
+const parsedUrls = useMemo(() => parseUrlList(urlListRaw), [urlListRaw]);
+const cappedValidUrls = useMemo(
+  () => parsedUrls.valid.slice(0, urlCap),
+  [parsedUrls.valid, urlCap]
+);
+
+// Load existing Step 2 page discovery (resume)
+useEffect(() => {
+  async function loadPageDiscovery() {
+    const ref = pageDiscoveryDocRef();
+    if (!ref) return;
+
+    try {
+      setLoadingPages(true);
+      setSavePagesState("idle");
+      setSavePagesError("");
+
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        setPageDiscoveryExists(false);
+        setLastPagesSavedAt(null);
+        setUrlListRaw("");
+        return;
+      }
+
+      const d = snap.data() || {};
+      setPageDiscoveryExists(true);
+      const urls = Array.isArray(d.urls) ? d.urls : [];
+      setUrlListRaw(urls.join("\n"));
+      setLastPagesSavedAt(safeToDate(d.updatedAt));
+    } catch (e) {
+      console.error("Failed to load page discovery:", e);
+      setPageDiscoveryExists(false);
+    } finally {
+      setLoadingPages(false);
+    }
+  }
+
+  loadPageDiscovery();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [uid, selectedWebsiteId, websites]);
+
+async function handleSavePages() {
+  const ref = pageDiscoveryDocRef();
+  if (!ref) return;
+
+  setSavePagesState("saving");
+  setSavePagesError("");
+
+  let createdAt = null;
+  try {
+    const existing = await getDoc(ref);
+    if (existing.exists()) createdAt = existing.data()?.createdAt || null;
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    await setDoc(
+      ref,
+      {
+        urls: cappedValidUrls,
+        invalidCount: parsedUrls.invalid.length,
+        status: "draft",
+        cap: urlCap,
+        createdAt: createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    setPageDiscoveryExists(true);
+    setSavePagesState("saved");
+    setLastPagesSavedAt(new Date());
+
+    // Normalize textarea to capped + valid only
+    setUrlListRaw(cappedValidUrls.join("\n"));
+
+    setTimeout(() => setSavePagesState("idle"), 1500);
+  } catch (e) {
+    console.error("Failed to save page discovery:", e);
+    setSavePagesState("error");
+    setSavePagesError(e?.message || "Failed to save URLs.");
+  }
+}
+
+function handleAutoSuggestUrls() {
+  const w = websites.find((x) => x.id === selectedWebsiteId);
+  const base = normalizeWebsiteBaseUrl(w);
+  if (!base) return;
+
+  const suggestions = [
+    "",
+    "/about",
+    "/about-us",
+    "/services",
+    "/service",
+    "/products",
+    "/pricing",
+    "/contact",
+    "/blog",
+    "/blogs",
+    "/resources",
+    "/case-studies",
+    "/testimonials",
+  ];
+
+  const urls = [];
+  const seen = new Set();
+  for (const path of suggestions) {
+    const u = `${base}${path}`;
+    if (!seen.has(u)) {
+      seen.add(u);
+      urls.push(u);
+    }
+    if (urls.length >= urlCap) break;
+  }
+
+  setUrlListRaw(urls.join("\n"));
+}
+
 
   // Load existing Step 1 profile (resume)
   useEffect(() => {
@@ -650,6 +919,200 @@ export default function SeoStrategyPage() {
             <div style={{ marginTop: 12, color: "#b91c1c" }}>{saveError}</div>
           ) : null}
         </div>
+{/* STEP 2 */}
+<div
+  style={{
+    marginTop: 14,
+    padding: 16,
+    border: "1px solid #eee",
+    borderRadius: 12,
+    background: "white",
+  }}
+>
+  <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
+    Step 2 — Page Discovery
+  </div>
+  <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
+    Add the key URLs you want to include in this SEO strategy. This step only
+    saves URLs — no audit, no AI calls, no fixes.
+  </div>
+
+  <div
+    style={{
+      marginTop: 10,
+      padding: 12,
+      borderRadius: 12,
+      border: "1px solid #f3f4f6",
+      background: "#fafafa",
+      color: "#374151",
+      fontSize: 13,
+      lineHeight: 1.5,
+    }}
+  >
+    <div style={{ fontWeight: 800, color: "#111827" }}>Plan cap</div>
+    {seoModuleLoading ? (
+      <div>Loading SEO plan…</div>
+    ) : seoModuleError ? (
+      <div style={{ color: "#b91c1c" }}>SEO plan load error: {seoModuleError}</div>
+    ) : (
+      <div>
+        You can save up to <b>{urlCap}</b> URLs for this website (Small Business:
+        10, Enterprise: 25).
+      </div>
+    )}
+  </div>
+
+  {selectedWebsiteId && pageDiscoveryExists ? (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 14,
+        border: "1px solid #dcfce7",
+        borderRadius: 12,
+        background: "#f0fdf4",
+        color: "#065f46",
+      }}
+    >
+      <div style={{ fontWeight: 900 }}>Saved URL list found</div>
+      <div style={{ marginTop: 6, fontSize: 13 }}>
+        A saved page list was found for this website.
+        {lastPagesSavedAt ? (
+          <span> Last saved: {lastPagesSavedAt.toLocaleString()}.</span>
+        ) : null}
+      </div>
+    </div>
+  ) : null}
+
+  {loadingPages ? (
+    <div style={{ marginTop: 12, color: "#374151" }}>Loading saved URLs…</div>
+  ) : null}
+
+  <div style={{ marginTop: 12 }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 10,
+      }}
+    >
+      <label style={labelStyle}>URLs (one per line)</label>
+
+      <button
+        type="button"
+        onClick={handleAutoSuggestUrls}
+        disabled={!selectedWebsiteId}
+        style={{
+          padding: "8px 12px",
+          borderRadius: 10,
+          border: "1px solid #ddd",
+          cursor: !selectedWebsiteId ? "not-allowed" : "pointer",
+          background: "white",
+          opacity: !selectedWebsiteId ? 0.6 : 1,
+        }}
+        title="Auto-fill a suggested starter list (no crawling)"
+      >
+        Auto-fill suggested URLs
+      </button>
+    </div>
+
+    <textarea
+      value={urlListRaw}
+      onChange={(e) => setUrlListRaw(e.target.value)}
+      placeholder={`https://example.com/\nhttps://example.com/about\nhttps://example.com/services`}
+      rows={8}
+      style={{ ...inputStyle, resize: "vertical" }}
+    />
+
+    <div style={{ marginTop: 10, fontSize: 13, color: "#374151" }}>
+      Valid URLs: <b>{parsedUrls.valid.length}</b> · Invalid:{" "}
+      <b>{parsedUrls.invalid.length}</b>
+      <span style={{ marginLeft: 10 }}>
+        · Will save: <b>{cappedValidUrls.length}</b> / <b>{urlCap}</b>
+      </span>
+    </div>
+
+    {parsedUrls.valid.length > urlCap ? (
+      <div
+        style={{
+          marginTop: 10,
+          padding: 12,
+          borderRadius: 12,
+          border: "1px solid #fde68a",
+          background: "#fffbeb",
+          color: "#92400e",
+          fontSize: 13,
+          lineHeight: 1.5,
+        }}
+      >
+        You pasted more than the plan cap. We will save only the first{" "}
+        <b>{urlCap}</b> valid URLs.
+      </div>
+    ) : null}
+
+    <div
+      style={{
+        marginTop: 14,
+        display: "flex",
+        gap: 10,
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <button
+          type="button"
+          onClick={handleSavePages}
+          disabled={!selectedWebsiteId || savePagesState === "saving"}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "1px solid #111827",
+            cursor:
+              !selectedWebsiteId || savePagesState === "saving"
+                ? "not-allowed"
+                : "pointer",
+            background: "#111827",
+            color: "white",
+            opacity:
+              !selectedWebsiteId || savePagesState === "saving" ? 0.6 : 1,
+          }}
+        >
+          {savePagesState === "saving" ? "Saving…" : "Save URLs"}
+        </button>
+
+        {savePagesState === "saved" ? (
+          <div style={{ color: "#065f46", fontWeight: 800 }}>Saved</div>
+        ) : null}
+
+        {savePagesState === "error" ? (
+          <div style={{ color: "#b91c1c", fontWeight: 700 }}>Save failed</div>
+        ) : null}
+      </div>
+
+      <button
+        disabled
+        style={{
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "#f3f4f6",
+          color: "#6b7280",
+          cursor: "not-allowed",
+        }}
+        title="Step 3 will be enabled after we finish Phase D"
+      >
+        Continue to Step 3 (next phase)
+      </button>
+    </div>
+
+    {savePagesError ? (
+      <div style={{ marginTop: 12, color: "#b91c1c" }}>{savePagesError}</div>
+    ) : null}
+  </div>
+</div>
 
         {/* WIP link (not used in this phase) */}
         <div style={{ marginTop: 14 }}>
