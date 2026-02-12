@@ -136,6 +136,12 @@ const [auditError, setAuditError] = useState("");
 const [auditedUrlSet, setAuditedUrlSet] = useState(new Set()); // Set of URL strings
 const [auditProgress, setAuditProgress] = useState({ done: 0, total: 0 });
 const [auditCurrentUrl, setAuditCurrentUrl] = useState("");
+  // Step 3.5 — Audit Results Viewer UI (resume-safe)
+const [auditRows, setAuditRows] = useState([]); // [{ id, url, extracted, flags, status, lastAuditedAt }]
+const [auditRowsLoading, setAuditRowsLoading] = useState(false);
+const [auditRowsError, setAuditRowsError] = useState("");
+const [expandedAuditRowId, setExpandedAuditRowId] = useState(null);
+
 
 function auditResultsColRef() {
   if (!uid || !selectedWebsiteId) return null;
@@ -163,18 +169,41 @@ async function loadExistingAuditResults() {
   if (!colRef) return;
 
   try {
+    setAuditRowsLoading(true);
+    setAuditRowsError("");
+
     const snap = await getDocs(colRef);
 
+    // 1) auditedUrlSet (resume-safe)
     const s = new Set();
-    snap.docs.forEach((d) => {
+
+    // 2) auditRows (viewer table)
+    const rows = snap.docs.map((d) => {
       const data = d.data() || {};
-      if (data.url) s.add(String(data.url));
+      const url = data.url ? String(data.url) : "";
+      if (url) s.add(url);
+
+      return {
+        id: d.id,
+        url,
+        extracted: data.extracted || {},
+        flags: data.flags || {},
+        status: data.status || "",
+        lastAuditedAt: data.lastAuditedAt || null,
+      };
     });
 
+    // Stable table ordering (no scoring / no severity sorting)
+    rows.sort((a, b) => (a.url || "").localeCompare(b.url || ""));
+
     setAuditedUrlSet(s);
+    setAuditRows(rows);
   } catch (e) {
     console.error("Failed to load audit results:", e);
+    setAuditRowsError(e?.message || "Failed to load audit results.");
     // non-blocking
+  } finally {
+    setAuditRowsLoading(false);
   }
 }
 
@@ -1349,6 +1378,334 @@ async function handleRunAudit() {
       <div style={{ marginTop: 10, color: "#b91c1c" }}>{auditError}</div>
     ) : null}
   </div>
+</div>
+{/* STEP 3.5 — Audit Results Viewer */}
+<div
+  style={{
+    marginTop: 14,
+    padding: 16,
+    border: "1px solid #eee",
+    borderRadius: 12,
+    background: "white",
+  }}
+>
+  <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
+    Step 3.5 — Audit Results Viewer
+  </div>
+
+  <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
+    Resume-safe: results render automatically if audits already exist. Click a row to expand details.
+  </div>
+
+  {/* Dot helper */}
+  {(() => {
+    const Dot = ({ ok }) => (
+      <div
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: 999,
+          background: ok ? "#16a34a" : "#dc2626",
+          display: "inline-block",
+          border: "1px solid rgba(0,0,0,0.08)",
+        }}
+      />
+    );
+    const Cell = ({ children }) => (
+      <td
+        style={{
+          padding: "10px 10px",
+          borderTop: "1px solid #f3f4f6",
+          fontSize: 13,
+          color: "#111827",
+          verticalAlign: "top",
+        }}
+      >
+        {children}
+      </td>
+    );
+
+    const Header = ({ children }) => (
+      <th
+        style={{
+          textAlign: "left",
+          padding: "10px 10px",
+          fontSize: 12,
+          color: "#374151",
+          fontWeight: 900,
+          borderBottom: "1px solid #e5e7eb",
+          background: "#fafafa",
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
+        }}
+      >
+        {children}
+      </th>
+    );
+
+    const hasRows = Array.isArray(auditRows) && auditRows.length > 0;
+
+    return (
+      <div style={{ marginTop: 12 }}>
+        {auditRowsLoading ? (
+          <div style={{ color: "#374151" }}>Loading audit results…</div>
+        ) : auditRowsError ? (
+          <div style={{ color: "#b91c1c" }}>{auditRowsError}</div>
+        ) : !hasRows ? (
+          <div
+            style={{
+              marginTop: 10,
+              padding: 12,
+              borderRadius: 12,
+              border: "1px solid #f3f4f6",
+              background: "#fafafa",
+              color: "#374151",
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+          >
+            No audit results found yet. Run Step 3 to generate results.
+          </div>
+        ) : (
+          <div
+            style={{
+              marginTop: 10,
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ maxHeight: 420, overflow: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <Header>URL</Header>
+                    <Header>Thin Content</Header>
+                    <Header>Missing Meta</Header>
+                    <Header>No H1</Header>
+                    <Header>Multiple H1</Header>
+                    <Header>No H2</Header>
+                    <Header>No Schema</Header>
+                    <Header>No Internal Links</Header>
+                    <Header>Word Count</Header>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditRows.map((row) => {
+                    const flags = row.flags || {};
+                    const extracted = row.extracted || {};
+                    const isOpen = expandedAuditRowId === row.id;
+
+                    const onRowClick = () => {
+                      setExpandedAuditRowId((prev) =>
+                        prev === row.id ? null : row.id
+                      );
+                    };
+
+                    return (
+                      <>
+                        <tr
+                          key={row.id}
+                          onClick={onRowClick}
+                          style={{
+                            cursor: "pointer",
+                            background: isOpen ? "#f9fafb" : "white",
+                          }}
+                          title="Click to expand"
+                        >
+                          <Cell>
+                            <div style={{ fontWeight: 800, fontSize: 13 }}>
+                              {row.url}
+                            </div>
+                            <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                              {row.status ? `Status: ${row.status}` : ""}
+                              {row.lastAuditedAt?.toDate ? (
+                                <span>
+                                  {row.status ? " · " : ""}
+                                  {`Audited: ${row.lastAuditedAt.toDate().toLocaleString()}`}
+                                </span>
+                              ) : null}
+                            </div>
+                          </Cell>
+
+                          <Cell>
+                            <Dot ok={!Boolean(flags.thinContent)} />
+                          </Cell>
+                          <Cell>
+                            <Dot ok={!Boolean(flags.missingMeta)} />
+                          </Cell>
+                          <Cell>
+                            <Dot ok={!Boolean(flags.noH1)} />
+                          </Cell>
+                          <Cell>
+                            <Dot ok={!Boolean(flags.multipleH1)} />
+                          </Cell>
+                          <Cell>
+                            <Dot ok={!Boolean(flags.noH2)} />
+                          </Cell>
+                          <Cell>
+                            <Dot ok={!Boolean(flags.noSchema)} />
+                          </Cell>
+                          <Cell>
+                            <Dot ok={!Boolean(flags.noInternalLinks)} />
+                          </Cell>
+                          <Cell>
+                            <div style={{ fontWeight: 800 }}>
+                              {Number(extracted.wordCount || 0)}
+                            </div>
+                          </Cell>
+                        </tr>
+
+                        {isOpen ? (
+                          <tr>
+                            <td
+                              colSpan={9}
+                              style={{
+                                padding: 12,
+                                borderTop: "1px solid #f3f4f6",
+                                background: "#ffffff",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  border: "1px solid #e5e7eb",
+                                  borderRadius: 12,
+                                  padding: 12,
+                                  background: "#fafafa",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr 1fr",
+                                    gap: 12,
+                                  }}
+                                >
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+                                      Title
+                                    </div>
+                                    <div style={{ marginTop: 6, color: "#111827", fontSize: 13 }}>
+                                      {extracted.title || "—"}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+                                      Meta Description
+                                    </div>
+                                    <div style={{ marginTop: 6, color: "#111827", fontSize: 13 }}>
+                                      {extracted.metaDescription || "—"}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+                                      H1
+                                    </div>
+                                    <div style={{ marginTop: 6, color: "#111827", fontSize: 13 }}>
+                                      {extracted.h1 || "—"}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+                                      Word Count
+                                    </div>
+                                    <div style={{ marginTop: 6, color: "#111827", fontSize: 13 }}>
+                                      {Number(extracted.wordCount || 0)}
+                                    </div>
+                                  </div>
+
+                                  <div style={{ gridColumn: "1 / -1" }}>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+                                      H2 List
+                                    </div>
+                                    <div style={{ marginTop: 6, color: "#111827", fontSize: 13 }}>
+                                      {Array.isArray(extracted.h2List) && extracted.h2List.length ? (
+                                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                                          {extracted.h2List.map((h2, idx) => (
+                                            <li key={idx} style={{ marginBottom: 4 }}>
+                                              {h2}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      ) : (
+                                        "—"
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+                                      Image Count
+                                    </div>
+                                    <div style={{ marginTop: 6, color: "#111827", fontSize: 13 }}>
+                                      {Number(extracted.imageCount || 0)}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+                                      Images Missing Alt
+                                    </div>
+                                    <div style={{ marginTop: 6, color: "#111827", fontSize: 13 }}>
+                                      {Number(extracted.imagesMissingAlt || 0)}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+                                      Canonical
+                                    </div>
+                                    <div style={{ marginTop: 6, color: "#111827", fontSize: 13, wordBreak: "break-all" }}>
+                                      {extracted.canonical || "—"}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+                                      Robots Meta
+                                    </div>
+                                    <div style={{ marginTop: 6, color: "#111827", fontSize: 13 }}>
+                                      {extracted.robotsMeta || "—"}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+                                      Internal Link Count
+                                    </div>
+                                    <div style={{ marginTop: 6, color: "#111827", fontSize: 13 }}>
+                                      {Number(extracted.internalLinkCount || 0)}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+                                      External Link Count
+                                    </div>
+                                    <div style={{ marginTop: 6, color: "#111827", fontSize: 13 }}>
+                                      {Number(extracted.externalLinkCount || 0)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })()}
 </div>
 
 
