@@ -123,6 +123,8 @@ const [loadingPages, setLoadingPages] = useState(false);
 const [pageDiscoveryExists, setPageDiscoveryExists] = useState(false);
 const [savePagesState, setSavePagesState] = useState("idle"); // idle | saving | saved | error
 const [savePagesError, setSavePagesError] = useState("");
+  const [discoverState, setDiscoverState] = useState("idle"); // idle | discovering | done | error
+const [discoverError, setDiscoverError] = useState("");
 const [lastPagesSavedAt, setLastPagesSavedAt] = useState(null);
 
 
@@ -411,40 +413,46 @@ async function handleSavePages() {
   }
 }
 
-function handleAutoSuggestUrls() {
+async function handleDiscoverUrls() {
   const w = websites.find((x) => x.id === selectedWebsiteId);
-  const base = normalizeWebsiteBaseUrl(w);
-  if (!base) return;
+  const origin = normalizeWebsiteBaseUrl(w);
+  if (!origin) return;
 
-  const suggestions = [
-    "",
-    "/about",
-    "/about-us",
-    "/services",
-    "/service",
-    "/products",
-    "/pricing",
-    "/contact",
-    "/blog",
-    "/blogs",
-    "/resources",
-    "/case-studies",
-    "/testimonials",
-  ];
+  setDiscoverState("discovering");
+  setDiscoverError("");
 
-  const urls = [];
-  const seen = new Set();
-  for (const path of suggestions) {
-    const u = `${base}${path}`;
-    if (!seen.has(u)) {
-      seen.add(u);
-      urls.push(u);
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch("/api/seo/strategy/discoverUrls", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        origin,
+        planCap: urlCap,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.error || "Discovery failed");
     }
-    if (urls.length >= urlCap) break;
-  }
 
-  setUrlListRaw(urls.join("\n"));
+    const urls = Array.isArray(data?.urls) ? data.urls : [];
+    setUrlListRaw(urls.join("\n"));
+
+    setDiscoverState("done");
+    setTimeout(() => setDiscoverState("idle"), 1500);
+  } catch (e) {
+    console.error("URL discovery failed:", e);
+    setDiscoverState("error");
+    setDiscoverError(e?.message || "URL discovery failed");
+  }
 }
+
 
 
   // Load existing Step 1 profile (resume)
@@ -999,22 +1007,27 @@ function handleAutoSuggestUrls() {
     >
       <label style={labelStyle}>URLs (one per line)</label>
 
-      <button
-        type="button"
-        onClick={handleAutoSuggestUrls}
-        disabled={!selectedWebsiteId}
-        style={{
-          padding: "8px 12px",
-          borderRadius: 10,
-          border: "1px solid #ddd",
-          cursor: !selectedWebsiteId ? "not-allowed" : "pointer",
-          background: "white",
-          opacity: !selectedWebsiteId ? 0.6 : 1,
-        }}
-        title="Auto-fill a suggested starter list (no crawling)"
-      >
-        Auto-fill suggested URLs
-      </button>
+<button
+  type="button"
+  onClick={handleDiscoverUrls}
+  disabled={!selectedWebsiteId || discoverState === "discovering"}
+  style={{
+    padding: "8px 12px",
+    borderRadius: 10,
+    border: "1px solid #ddd",
+    cursor:
+      !selectedWebsiteId || discoverState === "discovering"
+        ? "not-allowed"
+        : "pointer",
+    background: "white",
+    opacity:
+      !selectedWebsiteId || discoverState === "discovering" ? 0.6 : 1,
+  }}
+  title="Discover URLs using sitemap.xml first, else a lightweight crawl (no AI)"
+>
+  {discoverState === "discovering" ? "Discovering…" : "Discover URLs"}
+</button>
+
     </div>
 
     <textarea
@@ -1032,6 +1045,12 @@ function handleAutoSuggestUrls() {
         · Will save: <b>{cappedValidUrls.length}</b> / <b>{urlCap}</b>
       </span>
     </div>
+{discoverError ? (
+  <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>
+    Discovery error: {discoverError}
+  </div>
+) : null}
+
 
     {parsedUrls.valid.length > urlCap ? (
       <div
