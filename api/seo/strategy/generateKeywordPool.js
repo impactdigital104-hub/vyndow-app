@@ -65,12 +65,22 @@ const language_code = "en";
 
     // -------------------- LOCK CHECK --------------------
     if (existingSnap.exists) {
-      return res.status(200).json({
-        ok: true,
-        generationLocked: true,
-        source: "existing",
-        data: existingSnap.data(),
-      });
+return res.status(200).json({
+  ok: true,
+  generationLocked: true,
+  source: "existing",
+
+  // DEBUG (temporary)
+  debug: {
+    firestoreProjectId: admin.app()?.options?.projectId || null,
+    effectiveUid,
+    effectiveWebsiteId,
+    keywordPoolDocPath: keywordPoolRef.path,
+  },
+
+  data: existingSnap.data(),
+});
+
     }
 
     // -------------------- DATAFORSEO CALL --------------------
