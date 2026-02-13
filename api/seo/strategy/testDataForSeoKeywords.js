@@ -71,13 +71,11 @@ export default async function handler(req, res) {
     }
 
     const results = Array.isArray(task.result) ? task.result : [];
-    const raw_sample = results.length ? results[0] : null;
-const raw_sample_keys = raw_sample ? Object.keys(raw_sample) : [];
 
 
     // Minimal parsed output (first ~20 items only for readability)
     const parsed = results.slice(0, 20).map((item) => {
-      const info = item?.keyword_info || {};
+      const info = item || {};
       return {
         keyword: item?.keyword ?? null,
 
@@ -106,10 +104,8 @@ const raw_sample_keys = raw_sample ? Object.keys(raw_sample) : [];
 
     return res.status(200).json({
       ok: true,
-      meta: {
-        raw_sample_keys,
-raw_sample,
-        endpoint: "google_ads/keywords_for_keywords/live",
+meta: {
+  endpoint: "google_ads/keywords_for_keywords/live",
         note:
           "This endpoint can return up to 20,000 suggestions per request; we only return first 20 here for test readability.",
         cost_from_api_if_present: task?.cost ?? json?.cost ?? null,
