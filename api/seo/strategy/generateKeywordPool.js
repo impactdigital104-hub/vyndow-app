@@ -91,15 +91,22 @@ if (existingSnap.exists) {
     const endpoint =
       "https://api.dataforseo.com/v3/keywords_data/google_ads/keywords_for_keywords/live";
 
-    const payload = [
-      {
-        location_code,
-        language_code,
-        keywords: seeds,
-        include_adult_keywords: false,
-        sort_by: "relevance",
-      },
-    ];
+const payload = [
+  {
+    location_code,
+    language_code,
+    keywords: seeds,
+    include_adult_keywords: false,
+    sort_by: "relevance",
+
+    // IMPORTANT: ask for more than the default
+    // DataForSEO supports limit/offset for many endpoints; this endpoint’s docs are here:
+    // https://docs.dataforseo.com/v3/keywords_data-google_ads-keywords_for_keywords-live/
+    limit: 2000,
+    offset: 0,
+  },
+];
+
 
     const r = await fetch(endpoint, {
       method: "POST",
@@ -127,17 +134,23 @@ if (existingSnap.exists) {
       });
     }
 
-    const results = Array.isArray(task.result) ? task.result : [];
+const resultsRaw = Array.isArray(task.result) ? task.result : [];
 
-    const parsed = results.map((item) => ({
-      keyword: item?.keyword ?? null,
-      volume: item?.search_volume ?? null,
-      competition: item?.competition ?? null,
-      competition_index: item?.competition_index ?? null,
-      cpc: item?.cpc ?? null,
-      location_code,
-      language_code,
-    }));
+// Some DataForSEO responses expose keyword rows under result[0].items
+const items =
+  Array.isArray(resultsRaw?.[0]?.items) ? resultsRaw[0].items : resultsRaw;
+
+
+const parsed = items.map((item) => ({
+  keyword: item?.keyword ?? null,
+  volume: item?.search_volume ?? null,
+  competition: item?.competition ?? null,
+  competition_index: item?.competition_index ?? null,
+  cpc: item?.cpc ?? null,
+  location_code,
+  language_code,
+}));
+
 
     // -------------------- SORT BY VOLUME DESC --------------------
     parsed.sort((a, b) => (b.volume || 0) - (a.volume || 0));
@@ -154,6 +167,7 @@ if (existingSnap.exists) {
       location_code,
       language_code,
       seedCount: seeds.length,
+      apiCost: task?.cost ?? null,
     });
 
     return res.status(200).json({
