@@ -18,7 +18,10 @@ export default async function handler(req, res) {
 
     // Fixed sanity context (as requested)
     const location_code = 2840; // United States (example used by DataForSEO) :contentReference[oaicite:2]{index=2}
+    const location_name = "United States";
     const language_code = "en"; // English :contentReference[oaicite:3]{index=3}
+    const language_name = "English";
+
 
     // One seed keyword for test
     const seedKeyword = "plumbing services";
@@ -84,14 +87,16 @@ export default async function handler(req, res) {
         competition: info?.competition ?? null, // Google Ads competition level :contentReference[oaicite:6]{index=6}
         cpc: info?.cpc ?? null,
 
-        // Sanity context used
-        location_code: item?.location_code ?? location_code,
-        language_code: item?.language_code ?? language_code,
+// Sanity context used (store both code + name)
+location_code,
+location_name,
 
-        // NICE-TO-HAVE (only if present)
-        competition_index: info?.competition_index ?? null,
-        low_top_of_page_bid: info?.low_top_of_page_bid ?? null,
-        high_top_of_page_bid: info?.high_top_of_page_bid ?? null,
+language_code,
+language_name,
+
+// NICE-TO-HAVE (only if present)
+competition_index: info?.competition_index ?? null,
+
 
         // For debugging / sanity
         rawFieldsUsed: {
@@ -102,9 +107,9 @@ export default async function handler(req, res) {
       };
     });
 
-    return res.status(200).json({
-      ok: true,
-meta: {
+return res.status(200).json({
+  ok: true,
+  meta: {
   endpoint: "google_ads/keywords_for_keywords/live",
         note:
           "This endpoint can return up to 20,000 suggestions per request; we only return first 20 here for test readability.",
