@@ -31,26 +31,34 @@ async function resolveEffectiveContext(uid, websiteId) {
 // -------------------- MAIN HANDLER --------------------
 export default async function handler(req, res) {
   try {
-// TEMP TEST MODE - allow GET for browser testing
-if (req.method !== "POST" && req.method !== "GET") {
+if (req.method !== "POST") {
   return res.status(405).json({ error: "Method not allowed" });
 }
 
 
-  // TEMP TEST MODE - bypass auth
-const uid = "iiwQlPX1gaHMzit3BrIa";
+const uid = await getUidFromRequest(req);
 
 
-// TEMP TEST MODE (will remove after verification)
-const websiteId = "iiwQlPX1gaHMzit3BrIa";
-const seeds = ["plumbing services"];
-const location_code = 2840;
-const language_code = "en";
+const { websiteId, seeds = [], location_code, language_code } = req.body || {};
+
+if (!websiteId) {
+  return res.status(400).json({ error: "Missing websiteId" });
+}
+
+if (!Array.isArray(seeds) || seeds.length === 0) {
+  return res.status(400).json({ error: "Missing seeds[]" });
+}
+
+if (!location_code) {
+  return res.status(400).json({ error: "Missing location_code" });
+}
+
+if (!language_code) {
+  return res.status(400).json({ error: "Missing language_code" });
+}
 
 
-    if (!Array.isArray(seeds) || seeds.length === 0) {
-      return res.status(400).json({ error: "Missing seeds[]" });
-    }
+
 
     const { effectiveUid, effectiveWebsiteId } =
       await resolveEffectiveContext(uid, websiteId);
@@ -64,24 +72,15 @@ const language_code = "en";
     const existingSnap = await keywordPoolRef.get();
 
     // -------------------- LOCK CHECK --------------------
-    if (existingSnap.exists) {
-return res.status(200).json({
-  ok: true,
-  generationLocked: true,
-  source: "existing",
+if (existingSnap.exists) {
+  return res.status(200).json({
+    ok: true,
+    generationLocked: true,
+    source: "existing",
+    data: existingSnap.data(),
+  });
+}
 
-  // DEBUG (temporary)
-  debug: {
-    firestoreProjectId: admin.app()?.options?.projectId || null,
-    effectiveUid,
-    effectiveWebsiteId,
-    keywordPoolDocPath: keywordPoolRef.path,
-  },
-
-  data: existingSnap.data(),
-});
-
-    }
 
     // -------------------- DATAFORSEO CALL --------------------
     const login = process.env.DATAFORSEO_LOGIN;
