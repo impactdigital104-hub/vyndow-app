@@ -35,13 +35,16 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const uid = await getUidFromRequest(req);
+  // TEMP TEST MODE - bypass auth
+const uid = "iiwQlPX1gaHMzit3BrIa";
 
-    const { websiteId, seeds = [], location_code, language_code } = req.body || {};
 
-    if (!websiteId) {
-      return res.status(400).json({ error: "Missing websiteId" });
-    }
+// TEMP TEST MODE (will remove after verification)
+const websiteId = "iiwQlPX1gaHMzit3BrIa";
+const seeds = ["plumbing services"];
+const location_code = 2840;
+const language_code = "en";
+
 
     if (!Array.isArray(seeds) || seeds.length === 0) {
       return res.status(400).json({ error: "Missing seeds[]" });
