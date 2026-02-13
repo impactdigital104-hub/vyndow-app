@@ -141,6 +141,20 @@ const [auditRows, setAuditRows] = useState([]); // [{ id, url, extracted, flags,
 const [auditRowsLoading, setAuditRowsLoading] = useState(false);
 const [auditRowsError, setAuditRowsError] = useState("");
 const [expandedAuditRowId, setExpandedAuditRowId] = useState(null);
+  // =========================
+// Step 4B — Keyword Pool UI wiring (resume-safe)
+// Firestore:
+// users/{effectiveUid}/websites/{effectiveWebsiteId}/modules/seo/strategy/keywordPool
+// =========================
+const [seedKeywordsRaw, setSeedKeywordsRaw] = useState("");
+const [seedKeywordsError, setSeedKeywordsError] = useState("");
+const [keywordPoolState, setKeywordPoolState] = useState("idle"); // idle | loading | generating | ready | error
+const [keywordPoolError, setKeywordPoolError] = useState("");
+const [keywordPoolExists, setKeywordPoolExists] = useState(false);
+const [keywordPoolLocked, setKeywordPoolLocked] = useState(false);
+const [keywordPoolRows, setKeywordPoolRows] = useState([]); // [{ keyword, volume, competition, cpc, competition_index }]
+const [keywordPoolMeta, setKeywordPoolMeta] = useState(null); // { generatedAt, seedCount, location_code, language_code }
+
 
 
 function auditResultsColRef() {
@@ -224,6 +238,150 @@ async function loadExistingAuditResults() {
   const [primaryOffer, setPrimaryOffer] = useState("");
   const [targetCustomer, setTargetCustomer] = useState("");
   const [competitorsRaw, setCompetitorsRaw] = useState("");
+// -------------------------
+// Step 4B helpers — Keyword Pool (Firestore resume + UI wiring)
+// -------------------------
+function keywordPoolDocRef() {
+  if (!uid || !selectedWebsiteId) return null;
+
+  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
+  if (!effectiveUid || !effectiveWebsiteId) return null;
+
+  return doc(
+    db,
+    "users",
+    effectiveUid,
+    "websites",
+    effectiveWebsiteId,
+    "modules",
+    "seo",
+    "strategy",
+    "keywordPool"
+  );
+}
+
+function parseSeedKeywords(raw) {
+  const parts = String(raw || "")
+    .split(/[\n,]+/g)
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  const seen = new Set();
+  const out = [];
+
+  for (const p of parts) {
+    const key = p.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(p);
+  }
+
+  return out;
+}
+
+function hydrateKeywordPoolFromDoc(d) {
+  const top = Array.isArray(d?.topKeywords) ? d.topKeywords : [];
+  const all = Array.isArray(d?.allKeywords) ? d.allKeywords : [];
+  const rows = (top.length ? top : all).slice(0, 200);
+
+  setKeywordPoolRows(rows);
+  setKeywordPoolLocked(Boolean(d?.generationLocked));
+  setKeywordPoolMeta({
+    generatedAt: d?.generatedAt ? safeToDate(d.generatedAt) : null,
+    seedCount: d?.seedCount ?? null,
+    location_code: d?.location_code ?? null,
+    language_code: d?.language_code ?? null,
+  });
+}
+
+async function loadExistingKeywordPool() {
+  const ref = keywordPoolDocRef();
+  if (!ref) return;
+
+  try {
+    setKeywordPoolState("loading");
+    setKeywordPoolError("");
+
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      setKeywordPoolExists(false);
+      setKeywordPoolLocked(false);
+      setKeywordPoolRows([]);
+      setKeywordPoolMeta(null);
+      setKeywordPoolState("idle");
+      return;
+    }
+
+    const d = snap.data() || {};
+    setKeywordPoolExists(true);
+    hydrateKeywordPoolFromDoc(d);
+    setKeywordPoolState("ready");
+  } catch (e) {
+    console.error("Failed to load keyword pool:", e);
+    setKeywordPoolState("error");
+    setKeywordPoolError(e?.message || "Failed to load keyword pool.");
+  }
+}
+
+async function handleGenerateKeywordPool() {
+  // If already exists & locked, do nothing (UI should show lock notice)
+  if (keywordPoolExists && keywordPoolLocked) return;
+
+  const seeds = parseSeedKeywords(seedKeywordsRaw);
+
+  if (seeds.length < 3) {
+    setSeedKeywordsError("Please enter at least 3 unique seed keywords.");
+    return;
+  }
+  if (seeds.length > 10) {
+    setSeedKeywordsError("Please limit to 10 unique seed keywords.");
+    return;
+  }
+
+  setSeedKeywordsError("");
+  setKeywordPoolState("generating");
+  setKeywordPoolError("");
+
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch("/api/seo/strategy/generateKeywordPool", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        websiteId: selectedWebsiteId,
+        seeds,
+        location_code: 2840,
+        language_code: "en",
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error || "Keyword generation failed.");
+    }
+
+    // If API returned existing doc, hydrate immediately (no extra read needed)
+    if (data?.source === "existing" && data?.data) {
+      setKeywordPoolExists(true);
+      hydrateKeywordPoolFromDoc(data.data);
+      setKeywordPoolState("ready");
+      return;
+    }
+
+    // Newly generated: read from Firestore (resume-safe)
+    await loadExistingKeywordPool();
+  } catch (e) {
+    console.error("Keyword pool generation failed:", e);
+    setKeywordPoolState("error");
+    setKeywordPoolError(e?.message || "Keyword pool generation failed.");
+  }
+}
 
   // Feature flag (default should be false in Vercel until you enable it)
   const STRATEGY_ENABLED =
@@ -455,6 +613,13 @@ useEffect(() => {
   loadExistingAuditResults();
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [uid, selectedWebsiteId, websites]);
+  // Load existing Step 4B keyword pool (resume-safe)
+useEffect(() => {
+  if (!uid || !selectedWebsiteId || !websites?.length) return;
+  loadExistingKeywordPool();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [uid, selectedWebsiteId, websites]);
+
 
 
 async function handleSavePages() {
@@ -1708,6 +1873,157 @@ async function handleRunAudit() {
   })()}
 </div>
 
+        {/* STEP 4B — Keyword Pool (Seed Keywords → Generate → Top 200) */}
+        <div
+          style={{
+            marginTop: 14,
+            padding: 16,
+            border: "1px solid #eee",
+            borderRadius: 12,
+            background: "white",
+          }}
+        >
+          <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
+            Step 4B — Keyword Pool (Top 200)
+          </div>
+
+          <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
+            Enter 3–10 seed keywords (comma or newline separated). Generate is locked per website once created.
+          </div>
+
+          {keywordPoolExists && keywordPoolLocked ? (
+            <div
+              style={{
+                marginTop: 10,
+                padding: 10,
+                borderRadius: 10,
+                border: "1px solid #fde68a",
+                background: "#fffbeb",
+                color: "#92400e",
+                fontSize: 13,
+                lineHeight: 1.4,
+              }}
+            >
+              <b>Keywords already generated for this website (locked).</b> To regenerate, admin must delete the{" "}
+              <code>keywordPool</code> Firestore doc.
+            </div>
+          ) : null}
+
+          <div style={{ marginTop: 12 }}>
+            <label style={labelStyle}>Seed Keywords</label>
+            <textarea
+              value={seedKeywordsRaw}
+              onChange={(e) => setSeedKeywordsRaw(e.target.value)}
+              rows={4}
+              placeholder={`Example:\nplumbing services\nwater heater repair\nplumber near me`}
+              style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+              disabled={keywordPoolExists && keywordPoolLocked}
+            />
+            <div style={helpStyle}>
+              Tip: We’ll trim + de-duplicate. Minimum 3, maximum 10 unique seeds.
+            </div>
+            {seedKeywordsError ? (
+              <div style={{ marginTop: 8, color: "#b91c1c", fontSize: 13 }}>
+                {seedKeywordsError}
+              </div>
+            ) : null}
+          </div>
+
+          <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
+            <button
+              onClick={handleGenerateKeywordPool}
+              disabled={
+                keywordPoolState === "generating" ||
+                keywordPoolState === "loading" ||
+                (keywordPoolExists && keywordPoolLocked)
+              }
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "1px solid #ddd",
+                cursor: "pointer",
+                background: keywordPoolState === "generating" ? "#f9fafb" : "white",
+                fontWeight: 800,
+              }}
+            >
+              {keywordPoolState === "generating" ? "Generating…" : "Generate Keyword Pool"}
+            </button>
+
+            {keywordPoolMeta?.generatedAt ? (
+              <div style={{ fontSize: 12, color: "#6b7280" }}>
+                Generated:{" "}
+                <b>{new Date(keywordPoolMeta.generatedAt).toLocaleString()}</b>
+              </div>
+            ) : null}
+          </div>
+
+          {keywordPoolError ? (
+            <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>
+              {keywordPoolError}
+            </div>
+          ) : null}
+
+          <div style={{ marginTop: 14 }}>
+            {keywordPoolState === "loading" ? (
+              <div style={{ color: "#374151" }}>Loading keyword pool…</div>
+            ) : keywordPoolRows?.length ? (
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+                <div style={{ maxHeight: 420, overflow: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        {["Keyword", "Volume", "Ads Competition", "CPC", "Competition Index"].map((h) => (
+                          <th
+                            key={h}
+                            style={{
+                              textAlign: "left",
+                              padding: "10px 10px",
+                              fontSize: 12,
+                              color: "#374151",
+                              fontWeight: 900,
+                              borderBottom: "1px solid #e5e7eb",
+                              background: "#fafafa",
+                              position: "sticky",
+                              top: 0,
+                              zIndex: 1,
+                            }}
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {keywordPoolRows.slice(0, 200).map((row, idx) => (
+                        <tr key={`${row.keyword || "k"}-${idx}`}>
+                          <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                            {row.keyword || "—"}
+                          </td>
+                          <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                            {row.volume != null ? Number(row.volume) : "—"}
+                          </td>
+                          <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                            {row.competition || "—"}
+                          </td>
+                          <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                            {row.cpc != null && row.cpc !== "" ? Number(row.cpc).toFixed(2) : "—"}
+                          </td>
+                          <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                            {row.competition_index != null ? Number(row.competition_index) : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div style={{ color: "#6b7280", fontSize: 13 }}>
+                No keyword pool found yet for this website.
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* WIP link (not used in this phase) */}
         <div style={{ marginTop: 14 }}>
