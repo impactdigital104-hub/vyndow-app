@@ -264,14 +264,48 @@ ${JSON.stringify(factsBundle, null, 2)}
       }
     }
 
-    const wc = wordCount(out.summary);
-    if (wc < 120 || wc > 180) {
-      return res.status(500).json({
-        error: "Summary word count out of range (120–180).",
-        wordCount: wc,
-        summary: out.summary,
-      });
-    }
+let wc = wordCount(out.summary);
+
+// Auto-retry once if summary is not in 120–180 words.
+// This keeps UX "idiot-proof" and avoids user getting stuck on model variance.
+if (wc < 120 || wc > 180) {
+  const fixPrompt = `
+You previously returned valid JSON for the required schema.
+
+TASK:
+- Return VALID JSON with the EXACT SAME schema and keys.
+- Keep ALL fields the same EXCEPT "summary".
+- Rewrite ONLY "summary" so it is strictly 120–180 words.
+- Summary must remain neutral, factual, strategic.
+- Must explicitly mention GEO target using mode + location below.
+- No superlatives, no promotional language.
+- Return JSON only. No markdown. No extra keys.
+
+GEO TARGET:
+mode="${factsBundle.geo_mode}"
+location="${factsBundle.location_name}"
+
+PREVIOUS JSON:
+${JSON.stringify(out, null, 2)}
+`;
+
+  const rawFix = await callOpenAI({ prompt: fixPrompt });
+  const fixed = safeJsonParse(rawFix);
+
+  // Re-validate summary length after fix
+  const wc2 = wordCount(fixed.summary);
+  if (wc2 < 120 || wc2 > 180) {
+    return res.status(500).json({
+      error: "Summary word count out of range (120–180).",
+      wordCount: wc2,
+      summary: fixed.summary,
+    });
+  }
+
+  out = fixed;
+  wc = wc2;
+}
+
 
     // -------------------- STORE --------------------
     const businessContextRef = db.doc(
