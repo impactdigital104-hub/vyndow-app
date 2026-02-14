@@ -39,7 +39,14 @@ if (req.method !== "POST") {
 const uid = await getUidFromRequest(req);
 
 
-const { websiteId, seeds = [], location_code, language_code } = req.body || {};
+const {
+  websiteId,
+  seeds = [],
+  location_code,
+  language_code,
+  geoMode = "country", // default mode
+} = req.body || {};
+
 
 if (!websiteId) {
   return res.status(400).json({ error: "Missing websiteId" });
@@ -88,24 +95,49 @@ if (existingSnap.exists) {
 
     const auth = Buffer.from(`${login}:${password}`).toString("base64");
 
-    const endpoint =
-      "https://api.dataforseo.com/v3/keywords_data/google_ads/keywords_for_keywords/live";
+let endpoint;
+let payload;
+let source;
 
-const payload = [
-  {
-    location_code,
-    language_code,
-    keywords: seeds,
-    include_adult_keywords: false,
-    sort_by: "relevance",
+if (geoMode === "country") {
+  // Use DataForSEO Labs Keyword Ideas
+  endpoint =
+    "https://api.dataforseo.com/v3/dataforseo_labs/keyword_ideas/live";
 
-    // IMPORTANT: ask for more than the default
-    // DataForSEO supports limit/offset for many endpoints; this endpoint’s docs are here:
-    // https://docs.dataforseo.com/v3/keywords_data-google_ads-keywords_for_keywords-live/
-    limit: 2000,
-    offset: 0,
-  },
-];
+  payload = [
+    {
+      location_code,
+      language_code,
+      keywords: seeds,
+      limit: 500, // guarantees 200 safely
+      offset: 0,
+      order_by: ["keyword_info.search_volume,desc"],
+      include_serp_info: false,
+      closely_variants: false,
+    },
+  ];
+
+  source = "labs";
+} else {
+  // Use Google Ads endpoint for local targeting
+  endpoint =
+    "https://api.dataforseo.com/v3/keywords_data/google_ads/keywords_for_keywords/live";
+
+  payload = [
+    {
+      location_code,
+      language_code,
+      keywords: seeds,
+      include_adult_keywords: false,
+      sort_by: "relevance",
+      limit: 2000,
+      offset: 0,
+    },
+  ];
+
+  source = "google_ads";
+}
+
 
 
     const r = await fetch(endpoint, {
@@ -134,22 +166,61 @@ const payload = [
       });
     }
 
-const resultsRaw = Array.isArray(task.result) ? task.result : [];
+const apiCost = task?.cost ?? null;
+const apiResultCount = task?.result_count ?? null;
 
-// Some DataForSEO responses expose keyword rows under result[0].items
-const items =
-  Array.isArray(resultsRaw?.[0]?.items) ? resultsRaw[0].items : resultsRaw;
+let items = [];
 
+if (source === "labs") {
+  items =
+    Array.isArray(task?.result?.[0]?.items)
+      ? task.result[0].items
+      : [];
 
-const parsed = items.map((item) => ({
-  keyword: item?.keyword ?? null,
-  volume: item?.search_volume ?? null,
-  competition: item?.competition ?? null,
-  competition_index: item?.competition_index ?? null,
-  cpc: item?.cpc ?? null,
-  location_code,
-  language_code,
-}));
+} else {
+  const resultsRaw = Array.isArray(task.result) ? task.result : [];
+  items =
+    Array.isArray(resultsRaw?.[0]?.items)
+      ? resultsRaw[0].items
+      : resultsRaw;
+}
+
+function competitionLabelFromFloat(v) {
+  if (v == null) return null;
+  if (v < 0.33) return "LOW";
+  if (v < 0.67) return "MEDIUM";
+  return "HIGH";
+}
+
+const parsed = items.map((item) => {
+  if (source === "labs") {
+    const ki = item?.keyword_info || {};
+    const compFloat = ki?.competition ?? null;
+    const compIndex =
+      compFloat == null ? null : Math.round(compFloat * 100);
+
+    return {
+      keyword: item?.keyword ?? null,
+      volume: ki?.search_volume ?? null,
+      competition: competitionLabelFromFloat(compFloat),
+      competition_index: compIndex,
+      cpc: ki?.cpc ?? null,
+      location_code,
+      language_code,
+    };
+  } else {
+    return {
+      keyword: item?.keyword ?? null,
+      volume: item?.search_volume ?? null,
+      competition: item?.competition ?? null,
+      competition_index: item?.competition_index ?? null,
+      cpc: item?.cpc ?? null,
+      location_code,
+      language_code,
+    };
+  }
+});
+
 
 
     // -------------------- SORT BY VOLUME DESC --------------------
@@ -159,16 +230,20 @@ const parsed = items.map((item) => ({
     const topKeywords = parsed.slice(0, 200);
 
     // -------------------- STORE --------------------
-    await keywordPoolRef.set({
-      allKeywords,
-      topKeywords,
-      generationLocked: true,
-      generatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      location_code,
-      language_code,
-      seedCount: seeds.length,
-      apiCost: task?.cost ?? null,
-    });
+await keywordPoolRef.set({
+  allKeywords,
+  topKeywords,
+  generationLocked: true,
+  generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  location_code,
+  language_code,
+  seedCount: seeds.length,
+  source,
+  geoMode,
+  apiCost,
+  apiResultCount,
+});
+
 
     return res.status(200).json({
       ok: true,
