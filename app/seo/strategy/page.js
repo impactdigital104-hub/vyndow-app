@@ -1977,7 +1977,7 @@ async function handleRunAudit() {
 
   <div>
     <label style={labelStyle}>
-      {keywordGeoMode === "country" ? "Country (location_name)" : "Local location_name"}
+      {keywordGeoMode === "country" ? "Country" : "City / State"}
     </label>
 {keywordGeoMode === "country" ? (
   <input
@@ -2082,7 +2082,7 @@ async function handleRunAudit() {
           </div>
         ) : !localLocError ? (
           <div style={{ padding: 12, fontSize: 13, color: "#6b7280" }}>
-            Type a city/state and click Search.
+           Type a city or state, click Search, then choose the correct location.
           </div>
         ) : null}
 
