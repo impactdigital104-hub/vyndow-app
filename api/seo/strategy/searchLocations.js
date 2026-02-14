@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     }
 
     // NOTE: DataForSEO provides locations list here (no cost)
-    const url = "https://api.dataforseo.com/v3/keywords_data/google/locations";
+  const url = "https://api.dataforseo.com/v3/keywords_data/google_ads/locations";
 
     const auth = Buffer.from(`${login}:${password}`).toString("base64");
     const r = await fetch(url, {
