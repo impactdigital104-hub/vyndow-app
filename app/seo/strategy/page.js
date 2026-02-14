@@ -346,6 +346,10 @@ async function handleGenerateKeywordPool() {
   try {
     const token = await auth.currentUser.getIdToken();
 
+    // Dynamic geo (India/US/etc.) based on the selected website
+    const { location_code, language_code } =
+      getKeywordGeoDefaultsForWebsite(selectedWebsiteId);
+
     const res = await fetch("/api/seo/strategy/generateKeywordPool", {
       method: "POST",
       headers: {
@@ -355,8 +359,9 @@ async function handleGenerateKeywordPool() {
       body: JSON.stringify({
         websiteId: selectedWebsiteId,
         seeds,
-        location_code: 2840,
-        language_code: "en",
+        location_code,
+        language_code,
+        geoMode: "country",
       }),
     });
 
@@ -458,15 +463,16 @@ async function handleGenerateKeywordPool() {
     }
   }, [selectedWebsiteId]);
 
-  function getEffectiveContext(websiteId) {
-    const id = websiteId || selectedWebsiteId;
-    const w = websites.find((x) => x.id === id);
+const getEffectiveContext = (websiteId) => {
+  const id = websiteId || selectedWebsiteId;
+  const w = websites.find((x) => x.id === id);
 
-    const effectiveUid = w && w.ownerUid ? w.ownerUid : uid;
-    const effectiveWebsiteId = w && w.ownerWebsiteId ? w.ownerWebsiteId : id;
+  const effectiveUid = w && w.ownerUid ? w.ownerUid : uid;
+  const effectiveWebsiteId = w && w.ownerWebsiteId ? w.ownerWebsiteId : id;
 
-    return { effectiveUid, effectiveWebsiteId };
-  }
+  return { effectiveUid, effectiveWebsiteId };
+};
+
 
   function businessProfileDocRef() {
     if (!uid || !selectedWebsiteId) return null;
@@ -506,7 +512,64 @@ async function handleGenerateKeywordPool() {
     "pageDiscovery"
   );
 }
+function getKeywordGeoDefaultsForWebsite(websiteId) {
+  const w = websites.find((x) => x.id === (websiteId || selectedWebsiteId));
 
+  // 1) Prefer explicit codes if present on the website document
+  const loc =
+    w?.location_code ??
+    w?.locationCode ??
+    w?.countryLocationCode ??
+    null;
+
+  const lang =
+    w?.language_code ??
+    w?.languageCode ??
+    w?.language ??
+    null;
+
+  if (loc && lang) return { location_code: Number(loc), language_code: String(lang) };
+  if (loc) return { location_code: Number(loc), language_code: "en" };
+  if (lang) return { location_code: 2840, language_code: String(lang) };
+
+  // 2) Fallback: map common country names/codes (if website stores country only)
+  const countryRaw =
+    (w?.country || w?.countryName || w?.country_code || w?.countryCode || "").toString().trim();
+
+  const countryKey = countryRaw.toLowerCase();
+
+  const COUNTRY_TO_LOCATION_CODE = {
+    "united states": 2840,
+    "usa": 2840,
+    "us": 2840,
+
+    "india": 2356,
+    "in": 2356,
+
+    "united kingdom": 2826,
+    "uk": 2826,
+    "gb": 2826,
+
+    "united arab emirates": 2784,
+    "uae": 2784,
+    "ae": 2784,
+
+    "canada": 2124,
+    "ca": 2124,
+
+    "australia": 2036,
+    "au": 2036,
+  };
+
+  const mappedLoc = COUNTRY_TO_LOCATION_CODE[countryKey];
+
+  if (mappedLoc) return { location_code: mappedLoc, language_code: "en" };
+
+  // 3) Final fallback (current v1 behavior)
+  return { location_code: 2840, language_code: "en" };
+}
+
+  
 function seoModuleDocRef() {
   if (!uid || !selectedWebsiteId) return null;
   const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(
