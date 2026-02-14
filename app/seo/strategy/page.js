@@ -363,7 +363,7 @@ body: JSON.stringify({
   seeds,
   location_code,
   language_code,
-  geoMode: "country",
+  geoMode: isCountryGeography(geography) ? "country" : "local",
   countryName,
 }),
     });
@@ -516,6 +516,29 @@ const getEffectiveContext = (websiteId) => {
   );
 }
 function getKeywordGeoDefaultsForWebsite(websiteId) {
+  function isCountryGeography(value) {
+  const v = (value || "").trim().toLowerCase();
+
+  // Treat blank as country (default path)
+  if (!v) return true;
+
+  // Common country inputs you will use
+  const COUNTRIES = new Set([
+    "india",
+    "united states",
+    "usa",
+    "us",
+    "united kingdom",
+    "uk",
+    "uae",
+    "united arab emirates",
+    "canada",
+    "australia",
+  ]);
+
+  return COUNTRIES.has(v);
+}
+
   const w = websites.find((x) => x.id === (websiteId || selectedWebsiteId));
 
   // 1) Prefer explicit codes if present on the website document
