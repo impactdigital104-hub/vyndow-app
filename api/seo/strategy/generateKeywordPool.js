@@ -162,13 +162,24 @@ if (geo_mode === "country") {
       });
     }
 
-    const task = json?.tasks?.[0];
-    if (!task || task.status_code !== 20000) {
-      return res.status(500).json({
-        error: "DataForSEO task error",
-        raw: json,
-      });
-    }
+const task = json?.tasks?.[0];
+if (!task || task.status_code !== 20000) {
+  const status_message =
+    task?.status_message ||
+    json?.status_message ||
+    "DataForSEO task error";
+
+  // Explicit STOP — do not fallback, do not save anything
+  return res.status(400).json({
+    error: "DataForSEO task error",
+    status_code: task?.status_code ?? json?.status_code ?? null,
+    status_message,
+    geo_mode,
+    location_name: String(location_name).trim(),
+    source,
+  });
+}
+
     // If location_name is invalid/unresolvable, DataForSEO often returns empty/no result payload.
 if (!Array.isArray(task?.result) || task.result.length === 0) {
   return res.status(400).json({
