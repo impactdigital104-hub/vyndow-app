@@ -153,7 +153,10 @@ const [keywordPoolError, setKeywordPoolError] = useState("");
 const [keywordPoolExists, setKeywordPoolExists] = useState(false);
 const [keywordPoolLocked, setKeywordPoolLocked] = useState(false);
 const [keywordPoolRows, setKeywordPoolRows] = useState([]); // [{ keyword, volume, competition, cpc, competition_index }]
-const [keywordPoolMeta, setKeywordPoolMeta] = useState(null); // { generatedAt, seedCount, location_code, language_code }
+const [keywordGeoMode, setKeywordGeoMode] = useState("country"); // "country" | "local"
+const [keywordLocationName, setKeywordLocationName] = useState(""); // location_name typed by user
+const [keywordPoolMeta, setKeywordPoolMeta] = useState(null); // { generatedAt, seedCount, geo_mode, location_name, language_code, source, resultCount, apiCost }
+
 
 
 
@@ -289,10 +292,19 @@ function hydrateKeywordPoolFromDoc(d) {
   setKeywordPoolMeta({
     generatedAt: d?.generatedAt ? safeToDate(d.generatedAt) : null,
     seedCount: d?.seedCount ?? null,
-    location_code: d?.location_code ?? null,
+    geo_mode: d?.geo_mode ?? null,
+    location_name: d?.location_name ?? null,
     language_code: d?.language_code ?? null,
+    source: d?.source ?? null,
+    resultCount: d?.resultCount ?? null,
+    apiCost: d?.apiCost ?? null,
   });
+
+  // Keep selector/input in sync when resuming from Firestore
+  if (d?.geo_mode === "country" || d?.geo_mode === "local") setKeywordGeoMode(d.geo_mode);
+  if (d?.location_name) setKeywordLocationName(String(d.location_name));
 }
+
 
 async function loadExistingKeywordPool() {
   const ref = keywordPoolDocRef();
@@ -345,11 +357,16 @@ async function handleGenerateKeywordPool() {
 
   try {
     const token = await auth.currentUser.getIdToken();
+    const geo_mode = keywordGeoMode;
+const location_name = String(keywordLocationName || "").trim();
+const language_code = "en";
 
-    // Dynamic geo (India/US/etc.) based on the selected website
-    const { location_code, language_code } =
-      getKeywordGeoDefaultsForWebsite(selectedWebsiteId);
-    const countryName = (geography || "").trim() || null;
+if (!location_name) {
+  setKeywordPoolState("idle");
+  setKeywordPoolError("Please enter a location (location_name) before generating keywords.");
+  return;
+}
+
 
 
     const res = await fetch("/api/seo/strategy/generateKeywordPool", {
@@ -361,10 +378,9 @@ async function handleGenerateKeywordPool() {
 body: JSON.stringify({
   websiteId: selectedWebsiteId,
   seeds,
-  location_code,
+  geo_mode,
+  location_name,
   language_code,
-  geoMode: isCountryGeography(geography) ? "country" : "local",
-  countryName,
 }),
     });
 
@@ -514,92 +530,6 @@ const getEffectiveContext = (websiteId) => {
     "strategy",
     "pageDiscovery"
   );
-}
-function getKeywordGeoDefaultsForWebsite(websiteId) {
-  function isCountryGeography(value) {
-  const v = (value || "").trim().toLowerCase();
-
-  // Treat blank as country (default path)
-  if (!v) return true;
-
-  // Common country inputs you will use
-  const COUNTRIES = new Set([
-    "india",
-    "united states",
-    "usa",
-    "us",
-    "united kingdom",
-    "uk",
-    "uae",
-    "united arab emirates",
-    "canada",
-    "australia",
-  ]);
-
-  return COUNTRIES.has(v);
-}
-
-  const w = websites.find((x) => x.id === (websiteId || selectedWebsiteId));
-
-  // 1) Prefer explicit codes if present on the website document
-  const loc =
-    w?.location_code ??
-    w?.locationCode ??
-    w?.countryLocationCode ??
-    null;
-
-  const lang =
-    w?.language_code ??
-    w?.languageCode ??
-    w?.language ??
-    null;
-
-  if (loc && lang) return { location_code: Number(loc), language_code: String(lang) };
-  if (loc) return { location_code: Number(loc), language_code: "en" };
-  if (lang) return { location_code: 2840, language_code: String(lang) };
-
-  // 2) Fallback: map common country names/codes (if website stores country only)
- const countryRaw =
-  (
-    w?.country ||
-    w?.countryName ||
-    w?.country_code ||
-    w?.countryCode ||
-    geography || ""   // ✅ use Step 1 Geography if website has no country
-  ).toString().trim();
-
-
-  const countryKey = countryRaw.toLowerCase();
-
-  const COUNTRY_TO_LOCATION_CODE = {
-    "united states": 2840,
-    "usa": 2840,
-    "us": 2840,
-
-    "india": 2356,
-    "in": 2356,
-
-    "united kingdom": 2826,
-    "uk": 2826,
-    "gb": 2826,
-
-    "united arab emirates": 2784,
-    "uae": 2784,
-    "ae": 2784,
-
-    "canada": 2124,
-    "ca": 2124,
-
-    "australia": 2036,
-    "au": 2036,
-  };
-
-  const mappedLoc = COUNTRY_TO_LOCATION_CODE[countryKey];
-
-  if (mappedLoc) return { location_code: mappedLoc, language_code: "en" };
-
-  // 3) Final fallback (current v1 behavior)
-  return { location_code: 2840, language_code: "en" };
 }
 
   
@@ -1980,11 +1910,49 @@ async function handleRunAudit() {
           }}
         >
           <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
-            Step 4B — Keyword Pool (Top 200)
+           Step 4B — Keyword Pool
           </div>
 
           <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
             Enter 3–10 seed keywords (comma or newline separated). Generate is locked per website once created.
+              <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+  <div>
+    <label style={labelStyle}>Geo Strategy Mode</label>
+    <select
+      value={keywordGeoMode}
+      onChange={(e) => setKeywordGeoMode(e.target.value)}
+      style={inputStyle}
+      disabled={keywordPoolExists && keywordPoolLocked}
+    >
+      <option value="country">Country-level strategy (recommended)</option>
+      <option value="local">Local strategy (city/state)</option>
+    </select>
+    <div style={helpStyle}>You must explicitly choose a mode. No fallback is used.</div>
+  </div>
+
+  <div>
+    <label style={labelStyle}>
+      {keywordGeoMode === "country" ? "Country (location_name)" : "Local location_name"}
+    </label>
+    <input
+      value={keywordLocationName}
+      onChange={(e) => setKeywordLocationName(e.target.value)}
+      placeholder={
+        keywordGeoMode === "country"
+          ? "Example: India"
+          : "Example: Mumbai,Maharashtra,India"
+      }
+      style={inputStyle}
+      disabled={keywordPoolExists && keywordPoolLocked}
+    />
+    <div style={helpStyle}>
+      {keywordGeoMode === "country"
+        ? "Type a country name exactly (e.g., India, United Kingdom, United States)."
+        : "Type a city/state/country string (e.g., London,England,United Kingdom)."}
+    </div>
+  </div>
+</div>
+
           </div>
 
           {keywordPoolExists && keywordPoolLocked ? (
@@ -2063,7 +2031,29 @@ async function handleRunAudit() {
             {keywordPoolState === "loading" ? (
               <div style={{ color: "#374151" }}>Loading keyword pool…</div>
             ) : keywordPoolRows?.length ? (
-              <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+           <div>
+    <div style={{ marginBottom: 8, display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+        {((keywordPoolMeta?.geo_mode || keywordGeoMode) === "country")
+          ? "Top 200 Keywords"
+          : "Top results (count depends on Google Ads availability)"}
+      </div>
+      <div style={{ fontSize: 12, color: "#6b7280" }}>
+        Source: <b>{keywordPoolMeta?.source === "google_ads" ? "Google Ads" : "Labs"}</b>
+        {keywordPoolMeta?.location_name ? (
+          <>
+            {" "}• Location: <b>{keywordPoolMeta.location_name}</b>
+          </>
+        ) : null}
+        {keywordPoolMeta?.resultCount != null ? (
+          <>
+            {" "}• Results: <b>{Number(keywordPoolMeta.resultCount)}</b>
+          </>
+        ) : null}
+      </div>
+    </div>
+
+    <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
                 <div style={{ maxHeight: 420, overflow: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
@@ -2113,6 +2103,7 @@ async function handleRunAudit() {
                   </table>
                 </div>
               </div>
+ </div>
             ) : (
               <div style={{ color: "#6b7280", fontSize: 13 }}>
                 No keyword pool found yet for this website.
