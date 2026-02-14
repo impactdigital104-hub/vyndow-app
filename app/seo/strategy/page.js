@@ -162,6 +162,27 @@ const [localLocOpen, setLocalLocOpen] = useState(false); // show/hide dropdown
 const [localLocLoading, setLocalLocLoading] = useState(false);
 const [localLocError, setLocalLocError] = useState("");
 const [localLocSelected, setLocalLocSelected] = useState(false); // TRUE only when user clicks a suggestion
+  // =========================
+// Step 4.5 — Business Context Intelligence Layer (resume-safe)
+// Firestore:
+// users/{effectiveUid}/websites/{effectiveWebsiteId}/modules/seo/strategy/businessContext
+// =========================
+const [businessContextState, setBusinessContextState] = useState("idle"); // idle | loading | generating | ready | error
+const [businessContextError, setBusinessContextError] = useState("");
+const [businessContextExists, setBusinessContextExists] = useState(false);
+
+const [businessContextAi, setBusinessContextAi] = useState(null); // full JSON output
+const [businessContextSummary, setBusinessContextSummary] = useState(""); // editable textarea value
+  const [businessContextLastSavedSummary, setBusinessContextLastSavedSummary] = useState("");
+const [businessContextApproved, setBusinessContextApproved] = useState(false);
+
+const [businessContextGeoMode, setBusinessContextGeoMode] = useState("");
+const [businessContextLocationName, setBusinessContextLocationName] = useState("");
+const [businessContextGeoSource, setBusinessContextGeoSource] = useState("");
+
+const [businessContextPrimaryServices, setBusinessContextPrimaryServices] = useState([]);
+const [businessContextMismatchWarning, setBusinessContextMismatchWarning] = useState("");
+
 
 
 
@@ -341,6 +362,86 @@ async function loadExistingKeywordPool() {
     setKeywordPoolError(e?.message || "Failed to load keyword pool.");
   }
 }
+  // -------------------------
+// Step 4.5 helpers — Business Context (Firestore resume + UI wiring)
+// -------------------------
+function businessContextDocRef() {
+  if (!uid || !selectedWebsiteId) return null;
+
+  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
+  if (!effectiveUid || !effectiveWebsiteId) return null;
+
+  return doc(
+    db,
+    "users",
+    effectiveUid,
+    "websites",
+    effectiveWebsiteId,
+    "modules",
+    "seo",
+    "strategy",
+    "businessContext"
+  );
+}
+
+function hydrateBusinessContextFromDoc(d) {
+  const ai = d?.aiVersion || null;
+
+  setBusinessContextAi(ai);
+  setBusinessContextApproved(Boolean(d?.approved));
+
+  const summaryText =
+    d?.finalVersion?.summaryText ||
+    ai?.summary ||
+    "";
+
+  setBusinessContextSummary(String(summaryText));
+  setBusinessContextLastSavedSummary(String(summaryText));
+
+
+  setBusinessContextGeoMode(String(d?.geoMode || ""));
+  setBusinessContextLocationName(String(d?.location_name || ""));
+  setBusinessContextGeoSource(String(d?.geoSource || ""));
+
+  setBusinessContextPrimaryServices(
+    Array.isArray(ai?.primary_services) ? ai.primary_services : []
+  );
+
+  setBusinessContextMismatchWarning(String(d?.mismatchWarning || ""));
+}
+
+async function loadExistingBusinessContext() {
+  const ref = businessContextDocRef();
+  if (!ref) return;
+
+  try {
+    setBusinessContextState("loading");
+    setBusinessContextError("");
+
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      setBusinessContextExists(false);
+      setBusinessContextAi(null);
+      setBusinessContextSummary("");
+      setBusinessContextApproved(false);
+      setBusinessContextPrimaryServices([]);
+      setBusinessContextMismatchWarning("");
+      setBusinessContextState("idle");
+      return;
+    }
+
+    const d = snap.data() || {};
+    setBusinessContextExists(true);
+    hydrateBusinessContextFromDoc(d);
+    setBusinessContextState("ready");
+  } catch (e) {
+    console.error("Failed to load business context:", e);
+    setBusinessContextState("error");
+    setBusinessContextError(e?.message || "Failed to load business context.");
+  }
+}
+
 async function searchLocalLocations(q) {
   try {
     setLocalLocLoading(true);
@@ -449,6 +550,133 @@ body: JSON.stringify({
     console.error("Keyword pool generation failed:", e);
     setKeywordPoolState("error");
     setKeywordPoolError(e?.message || "Keyword pool generation failed.");
+  }
+}
+// -------------------------
+// Step 4.5 handlers — Business Context (Generate / Save Edit / Approve)
+// -------------------------
+async function handleGenerateBusinessContext() {
+  // Basic prerequisites: we need website + keyword pool present (since geo target comes from there)
+  if (!selectedWebsiteId) return;
+
+  if (!keywordPoolExists) {
+    setBusinessContextError("Please generate the Keyword Pool (Step 4B) before generating Business Context.");
+    setBusinessContextState("error");
+    return;
+  }
+
+ // Prefer seeds from the UI textarea, but fallback to Firestore keywordPool seeds if user left it blank.
+let seeds = parseSeedKeywords(seedKeywordsRaw);
+
+// Note: keywordPoolMeta does NOT store seeds in this UI version.
+// If user cleared the seed box, we cannot safely infer seeds here.
+
+
+if (seeds.length < 3) {
+  setBusinessContextError(
+   "Please paste at least 3 seed keywords in Step 4B (Seed Keywords box), then click Generate Keyword Pool, and only then click Regenerate here."
+  );
+  setBusinessContextState("error");
+  return;
+}
+
+
+  setBusinessContextState("generating");
+  setBusinessContextError("");
+
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch("/api/seo/strategy/generateBusinessContext", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        websiteId: selectedWebsiteId,
+        seeds,
+        language_code: "en",
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error || data?.message || "Business Context generation failed.");
+    }
+
+    // Reload from Firestore (resume-safe)
+    await loadExistingBusinessContext();
+    setBusinessContextExists(true);
+    setBusinessContextState("ready");
+  } catch (e) {
+    console.error("Business Context generation failed:", e);
+    setBusinessContextState("error");
+    setBusinessContextError(e?.message || "Business Context generation failed.");
+  }
+}
+
+async function handleSaveBusinessContextEdit() {
+  const ref = businessContextDocRef();
+  if (!ref) return;
+
+  try {
+    setBusinessContextState("loading");
+    setBusinessContextError("");
+
+    const txt = String(businessContextSummary || "").trim();
+
+     const changed =
+      String(txt) !== String(businessContextLastSavedSummary || "");
+
+    const payload = {
+      userVersion: { summaryText: txt },
+      finalVersion: { summaryText: txt },
+      editedByUser: true,
+    };
+
+    // Only reset approval if the text actually changed
+    if (changed) {
+      payload.approved = false;
+      payload.approvedAt = null;
+    }
+
+    await setDoc(ref, payload, { merge: true });
+
+
+    await loadExistingBusinessContext();
+    setBusinessContextState("ready");
+  } catch (e) {
+    console.error("Failed to save business context edit:", e);
+    setBusinessContextState("error");
+    setBusinessContextError(e?.message || "Failed to save edit.");
+  }
+}
+
+async function handleApproveBusinessContext() {
+  const ref = businessContextDocRef();
+  if (!ref) return;
+
+  try {
+    setBusinessContextState("loading");
+    setBusinessContextError("");
+
+    await setDoc(
+      ref,
+      {
+        approved: true,
+        approvedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+await loadExistingBusinessContext();
+setBusinessContextState("ready");
+  } catch (e) {
+    console.error("Failed to approve business context:", e);
+    setBusinessContextState("error");
+    setBusinessContextError(e?.message || "Failed to approve.");
   }
 }
 
@@ -688,6 +916,12 @@ useEffect(() => {
 useEffect(() => {
   if (!uid || !selectedWebsiteId || !websites?.length) return;
   loadExistingKeywordPool();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [uid, selectedWebsiteId, websites]);
+// Load existing Step 4.5 business context (resume-safe)
+useEffect(() => {
+  if (!uid || !selectedWebsiteId || !websites?.length) return;
+  loadExistingBusinessContext();
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [uid, selectedWebsiteId, websites]);
 
@@ -2274,6 +2508,231 @@ async function handleRunAudit() {
             )}
           </div>
         </div>
+        {/* STEP 4.5 — Business Context Intelligence Layer */}
+        <div
+          style={{
+            marginTop: 14,
+            padding: 16,
+            border: "1px solid #eee",
+            borderRadius: 12,
+            background: "white",
+          }}
+        >
+          <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
+            Step 4.5 — AI Business Understanding
+          </div>
+
+          <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
+            This is a neutral, factual summary used for keyword relevance scoring and clustering.
+            Please edit if needed and approve to unlock Step 5 in the next phase.
+          </div>
+
+          {/* Mismatch warning (does not block) */}
+          {businessContextMismatchWarning ? (
+            <div
+              style={{
+                marginTop: 12,
+                padding: 12,
+                borderRadius: 12,
+                border: "1px solid #fde68a",
+                background: "#fffbeb",
+                color: "#92400e",
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
+              <div style={{ fontWeight: 900 }}>Industry mismatch warning</div>
+              <div style={{ marginTop: 6 }}>{businessContextMismatchWarning}</div>
+            </div>
+          ) : null}
+
+          {/* Editable summary */}
+          <div style={{ marginTop: 12 }}>
+            <label style={labelStyle}>AI Understanding of Your Business (editable)</label>
+            <textarea
+              value={businessContextSummary}
+              onChange={(e) => setBusinessContextSummary(e.target.value)}
+              rows={7}
+              style={{ ...inputStyle, resize: "vertical" }}
+              placeholder="Click Regenerate to create a summary from Business Profile + audited pages + keyword pool."
+            />
+            <div style={helpStyle}>
+              Must be 120–180 words, neutral, no promotional language, must mention geo target.
+            </div>
+          </div>
+
+          {/* Detected services */}
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+              Detected Core Services
+            </div>
+
+            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {(businessContextPrimaryServices || []).length ? (
+                businessContextPrimaryServices.map((t, idx) => (
+                  <div
+                    key={`${t}-${idx}`}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 999,
+                      border: "1px solid #e5e7eb",
+                      background: "#fafafa",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "#111827",
+                    }}
+                  >
+                    {t}
+                  </div>
+                ))
+              ) : (
+                <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
+                  Not generated yet.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* GEO target display */}
+          <div
+            style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 12,
+              border: "1px solid #f3f4f6",
+              background: "#fafafa",
+              color: "#374151",
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+          >
+            <div style={{ fontWeight: 900, color: "#111827" }}>SEO Target Geography</div>
+            <div style={{ marginTop: 6 }}>
+              <div>
+                Mode: <b>{businessContextGeoMode ? businessContextGeoMode : "—"}</b>
+              </div>
+              <div>
+                Location:{" "}
+                <b style={{ wordBreak: "break-word" }}>
+                  {businessContextLocationName ? businessContextLocationName : "—"}
+                </b>
+              </div>
+              <div>
+                Source: <b>{businessContextGeoSource ? businessContextGeoSource : "—"}</b>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div
+            style={{
+              marginTop: 14,
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={handleGenerateBusinessContext}
+                disabled={!selectedWebsiteId || businessContextState === "generating"}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #111827",
+                  cursor:
+                    !selectedWebsiteId || businessContextState === "generating"
+                      ? "not-allowed"
+                      : "pointer",
+                  background: "#111827",
+                  color: "white",
+                  opacity:
+                    !selectedWebsiteId || businessContextState === "generating" ? 0.6 : 1,
+                }}
+              >
+                {businessContextState === "generating" ? "Generating…" : "Regenerate"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveBusinessContextEdit}
+                disabled={!selectedWebsiteId || businessContextState === "loading"}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #ddd",
+                  cursor: !selectedWebsiteId ? "not-allowed" : "pointer",
+                  background: "white",
+                  opacity: !selectedWebsiteId ? 0.6 : 1,
+                }}
+              >
+                Save Edit
+              </button>
+
+              <button
+                type="button"
+                onClick={handleApproveBusinessContext}
+                disabled={businessContextApproved || !selectedWebsiteId || !businessContextSummary?.trim()}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #16a34a",
+                  cursor:
+                    !selectedWebsiteId || !businessContextSummary?.trim()
+                      ? "not-allowed"
+                      : "pointer",
+                  background: "#16a34a",
+                  color: "white",
+                  opacity:
+                    !selectedWebsiteId || !businessContextSummary?.trim() ? 0.6 : 1,
+                }}
+              >
+               {businessContextApproved ? "Approved ✓" : "Approve & Continue"}
+              </button>
+
+              {businessContextApproved ? (
+                <div style={{ color: "#065f46", fontWeight: 900 }}>Approved ✓</div>
+              ) : null}
+            </div>
+
+            <div style={{ color: "#6b7280", fontSize: 13 }}>
+              Step 5 status:{" "}
+              <b style={{ color: businessContextApproved ? "#065f46" : "#111827" }}>
+                {businessContextApproved ? "Unlocked" : "Locked"}
+              </b>
+            </div>
+          </div>
+
+          {businessContextError ? (
+            <div style={{ marginTop: 10, color: "#b91c1c" }}>{businessContextError}</div>
+          ) : null}
+
+          {/* Step 5 placeholder button (kept disabled until approved) */}
+          <div style={{ marginTop: 14 }}>
+            <button
+              disabled={!businessContextApproved}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "1px solid #e5e7eb",
+                background: businessContextApproved ? "#111827" : "#f3f4f6",
+                color: businessContextApproved ? "white" : "#6b7280",
+                cursor: businessContextApproved ? "pointer" : "not-allowed",
+              }}
+              title={
+                businessContextApproved
+                  ? "Step 5 will be implemented in the next phase"
+                  : "Approve Step 4.5 to unlock Step 5"
+              }
+            >
+              Continue to Step 5 (next phase)
+            </button>
+          </div>
+        </div>
+
 
         {/* WIP link (not used in this phase) */}
         <div style={{ marginTop: 14 }}>
