@@ -325,6 +325,7 @@ function hydrateKeywordPoolFromDoc(d) {
     source: d?.source ?? null,
     resultCount: d?.resultCount ?? null,
     apiCost: d?.apiCost ?? null,
+    seeds: Array.isArray(d?.seeds) ? d.seeds : [],
   });
 
   // Keep selector/input in sync when resuming from Firestore
@@ -568,8 +569,13 @@ async function handleGenerateBusinessContext() {
  // Prefer seeds from the UI textarea, but fallback to Firestore keywordPool seeds if user left it blank.
 let seeds = parseSeedKeywords(seedKeywordsRaw);
 
-// Note: keywordPoolMeta does NOT store seeds in this UI version.
-// If user cleared the seed box, we cannot safely infer seeds here.
+// Prefer seeds from the UI textarea, but fallback to Firestore keywordPool seeds.
+// This avoids the deadlock where the seed box is disabled after Step 4B is generated.
+if (seeds.length < 3) {
+  const fallback = Array.isArray(keywordPoolMeta?.seeds) ? keywordPoolMeta.seeds : [];
+  if (fallback.length >= 3) seeds = fallback;
+}
+
 
 
 if (seeds.length < 3) {
