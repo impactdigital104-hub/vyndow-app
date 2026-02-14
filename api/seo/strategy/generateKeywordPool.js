@@ -42,12 +42,10 @@ const uid = await getUidFromRequest(req);
 const {
   websiteId,
   seeds = [],
-  location_code,
+  geo_mode,
+  location_name,
   language_code,
-  geoMode = "country", // default mode
-  countryName = null,
 } = req.body || {};
-
 
 if (!websiteId) {
   return res.status(400).json({ error: "Missing websiteId" });
@@ -57,13 +55,18 @@ if (!Array.isArray(seeds) || seeds.length === 0) {
   return res.status(400).json({ error: "Missing seeds[]" });
 }
 
-if (!location_code) {
-  return res.status(400).json({ error: "Missing location_code" });
+if (!geo_mode || (geo_mode !== "country" && geo_mode !== "local")) {
+  return res.status(400).json({ error: "Missing or invalid geo_mode (country|local)" });
+}
+
+if (!location_name || !String(location_name).trim()) {
+  return res.status(400).json({ error: "Missing location_name" });
 }
 
 if (!language_code) {
   return res.status(400).json({ error: "Missing language_code" });
 }
+
 
 
 
@@ -100,17 +103,17 @@ let endpoint;
 let payload;
 let source;
 
-if (geoMode === "country") {
+if (geo_mode === "country") {
   // Use DataForSEO Labs Keyword Ideas
   endpoint =
     "https://api.dataforseo.com/v3/dataforseo_labs/keyword_ideas/live";
 
   payload = [
     {
-      location_code,
+      location_name: String(location_name).trim(),
       language_code,
       keywords: seeds,
-      limit: 500, // guarantees 200 safely
+      limit: 500,
       offset: 0,
       order_by: ["keyword_info.search_volume,desc"],
       include_serp_info: false,
@@ -126,7 +129,7 @@ if (geoMode === "country") {
 
   payload = [
     {
-      location_code,
+      location_name: String(location_name).trim(),
       language_code,
       keywords: seeds,
       include_adult_keywords: false,
@@ -166,9 +169,17 @@ if (geoMode === "country") {
         raw: json,
       });
     }
+    // If location_name is invalid/unresolvable, DataForSEO often returns empty/no result payload.
+if (!Array.isArray(task?.result) || task.result.length === 0) {
+  return res.status(400).json({
+    error: "Invalid or unresolvable location_name",
+    location_name: String(location_name).trim(),
+    geo_mode,
+  });
+}
+
 
 const apiCost = task?.cost ?? null;
-const apiResultCount = task?.result_count ?? null;
 
 let items = [];
 
@@ -185,6 +196,16 @@ if (source === "labs") {
       ? resultsRaw[0].items
       : resultsRaw;
 }
+    // STOP if location_name is invalid/unresolvable OR no items returned (no fallback)
+if (!Array.isArray(items) || items.length === 0) {
+  return res.status(400).json({
+    error: "Invalid or unresolvable location_name (no keyword items returned)",
+    location_name: String(location_name).trim(),
+    geo_mode,
+    source,
+  });
+}
+
 
 function competitionLabelFromFloat(v) {
   if (v == null) return null;
@@ -206,7 +227,6 @@ const parsed = items.map((item) => {
       competition: competitionLabelFromFloat(compFloat),
       competition_index: compIndex,
       cpc: ki?.cpc ?? null,
-      location_code,
       language_code,
     };
   } else {
@@ -216,7 +236,6 @@ const parsed = items.map((item) => {
       competition: item?.competition ?? null,
       competition_index: item?.competition_index ?? null,
       cpc: item?.cpc ?? null,
-      location_code,
       language_code,
     };
   }
@@ -236,15 +255,15 @@ await keywordPoolRef.set({
   topKeywords,
   generationLocked: true,
   generatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  location_code,
+  geo_mode,
+  location_name: String(location_name).trim(),
   language_code,
   seedCount: seeds.length,
   source,
-  geoMode,
-  countryName,
+  resultCount: parsed.length,
   apiCost,
-  apiResultCount,
 });
+
 
 
     return res.status(200).json({
