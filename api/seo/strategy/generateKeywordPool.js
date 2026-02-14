@@ -269,11 +269,13 @@ await keywordPoolRef.set({
   geo_mode,
   location_name: String(location_name).trim(),
   language_code,
+  seeds,                 // ✅ NEW: persist seeds for Step 4.5 + resume
   seedCount: seeds.length,
   source,
   resultCount: parsed.length,
   apiCost,
 });
+
 
 
 
