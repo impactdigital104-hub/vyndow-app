@@ -349,6 +349,8 @@ async function handleGenerateKeywordPool() {
     // Dynamic geo (India/US/etc.) based on the selected website
     const { location_code, language_code } =
       getKeywordGeoDefaultsForWebsite(selectedWebsiteId);
+    const countryName = (geography || "").trim() || null;
+
 
     const res = await fetch("/api/seo/strategy/generateKeywordPool", {
       method: "POST",
@@ -356,13 +358,14 @@ async function handleGenerateKeywordPool() {
         "content-type": "application/json",
         authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        websiteId: selectedWebsiteId,
-        seeds,
-        location_code,
-        language_code,
-        geoMode: "country",
-      }),
+body: JSON.stringify({
+  websiteId: selectedWebsiteId,
+  seeds,
+  location_code,
+  language_code,
+  geoMode: "country",
+  countryName,
+}),
     });
 
     const data = await res.json();
@@ -533,8 +536,15 @@ function getKeywordGeoDefaultsForWebsite(websiteId) {
   if (lang) return { location_code: 2840, language_code: String(lang) };
 
   // 2) Fallback: map common country names/codes (if website stores country only)
-  const countryRaw =
-    (w?.country || w?.countryName || w?.country_code || w?.countryCode || "").toString().trim();
+ const countryRaw =
+  (
+    w?.country ||
+    w?.countryName ||
+    w?.country_code ||
+    w?.countryCode ||
+    geography || ""   // ✅ use Step 1 Geography if website has no country
+  ).toString().trim();
+
 
   const countryKey = countryRaw.toLowerCase();
 
