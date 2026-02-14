@@ -45,6 +45,7 @@ const {
   location_code,
   language_code,
   geoMode = "country", // default mode
+  countryName = null,
 } = req.body || {};
 
 
@@ -240,6 +241,7 @@ await keywordPoolRef.set({
   seedCount: seeds.length,
   source,
   geoMode,
+  countryName,
   apiCost,
   apiResultCount,
 });
