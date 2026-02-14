@@ -156,6 +156,12 @@ const [keywordPoolRows, setKeywordPoolRows] = useState([]); // [{ keyword, volum
 const [keywordGeoMode, setKeywordGeoMode] = useState("country"); // "country" | "local"
 const [keywordLocationName, setKeywordLocationName] = useState(""); // location_name typed by user
 const [keywordPoolMeta, setKeywordPoolMeta] = useState(null); // { generatedAt, seedCount, geo_mode, location_name, language_code, source, resultCount, apiCost }
+const [localLocQuery, setLocalLocQuery] = useState(""); // user types short city/state e.g. "London"
+const [localLocMatches, setLocalLocMatches] = useState([]); // [{ location_name, location_type, location_code }]
+const [localLocOpen, setLocalLocOpen] = useState(false); // show/hide dropdown
+const [localLocLoading, setLocalLocLoading] = useState(false);
+const [localLocError, setLocalLocError] = useState("");
+const [localLocSelected, setLocalLocSelected] = useState(false); // TRUE only when user clicks a suggestion
 
 
 
@@ -335,6 +341,37 @@ async function loadExistingKeywordPool() {
     setKeywordPoolError(e?.message || "Failed to load keyword pool.");
   }
 }
+async function searchLocalLocations(q) {
+  try {
+    setLocalLocLoading(true);
+    setLocalLocError("");
+
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch("/api/seo/strategy/searchLocations", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ q }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || "Location search failed");
+
+    const matches = Array.isArray(data?.matches) ? data.matches : [];
+    setLocalLocMatches(matches);
+    setLocalLocOpen(true);
+    if (!matches.length) setLocalLocError("No matches found. Try adding state or country.");
+  } catch (e) {
+    setLocalLocMatches([]);
+    setLocalLocOpen(true);
+    setLocalLocError(e?.message || "Location search failed");
+  } finally {
+    setLocalLocLoading(false);
+  }
+}
 
 async function handleGenerateKeywordPool() {
   // If already exists & locked, do nothing (UI should show lock notice)
@@ -363,9 +400,17 @@ const language_code = "en";
 
 if (!location_name) {
   setKeywordPoolState("idle");
-  setKeywordPoolError("Please enter a location (location_name) before generating keywords.");
+  setKeywordPoolError("Please enter a location before generating keywords.");
   return;
 }
+
+// Idiot-proof local mode: user must pick from suggestions
+if (geo_mode === "local" && !localLocSelected) {
+  setKeywordPoolState("idle");
+  setKeywordPoolError("For Local strategy, please search and select a location from the suggestions.");
+  return;
+}
+
 
 
 
@@ -1934,17 +1979,135 @@ async function handleRunAudit() {
     <label style={labelStyle}>
       {keywordGeoMode === "country" ? "Country (location_name)" : "Local location_name"}
     </label>
-    <input
-      value={keywordLocationName}
-      onChange={(e) => setKeywordLocationName(e.target.value)}
-      placeholder={
-        keywordGeoMode === "country"
-          ? "Example: India"
-          : "Example: Mumbai,Maharashtra,India"
-      }
-      style={inputStyle}
-      disabled={keywordPoolExists && keywordPoolLocked}
-    />
+{keywordGeoMode === "country" ? (
+  <input
+    value={keywordLocationName}
+    onChange={(e) => {
+      setKeywordLocationName(e.target.value);
+    }}
+    placeholder="Example: India"
+    style={inputStyle}
+    disabled={keywordPoolExists && keywordPoolLocked}
+  />
+) : (
+  <div style={{ position: "relative" }}>
+    <div style={{ display: "flex", gap: 8 }}>
+      <input
+        value={localLocQuery}
+        onChange={(e) => {
+          const v = e.target.value;
+          setLocalLocQuery(v);
+          setLocalLocSelected(false); // reset selection if user types again
+          setKeywordLocationName(""); // clear final location_name until user selects
+        }}
+        placeholder="Type your city/state (example: London)"
+        style={{ ...inputStyle, flex: 1 }}
+        disabled={keywordPoolExists && keywordPoolLocked}
+      />
+
+      <button
+        type="button"
+        onClick={() => searchLocalLocations(localLocQuery)}
+        disabled={
+          keywordPoolExists && keywordPoolLocked
+            ? true
+            : localLocLoading || String(localLocQuery || "").trim().length < 2
+        }
+        style={{
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: "1px solid #ddd",
+          background: "white",
+          cursor: "pointer",
+          fontWeight: 800,
+          whiteSpace: "nowrap",
+        }}
+        title="Search valid Google Ads locations"
+      >
+        {localLocLoading ? "Searching…" : "Search"}
+      </button>
+    </div>
+
+    <div style={{ marginTop: 8, fontSize: 12, color: "#374151" }}>
+      Selected:{" "}
+      <b>{keywordLocationName ? keywordLocationName : "None (please select from suggestions)"}</b>
+    </div>
+
+    {localLocOpen ? (
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 54,
+          zIndex: 5,
+          border: "1px solid #e5e7eb",
+          borderRadius: 12,
+          background: "white",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+          overflow: "hidden",
+        }}
+      >
+        {localLocError ? (
+          <div style={{ padding: 12, fontSize: 13, color: "#b91c1c" }}>
+            {localLocError}
+          </div>
+        ) : null}
+
+        {localLocMatches?.length ? (
+          <div style={{ maxHeight: 220, overflow: "auto" }}>
+            {localLocMatches.map((m, idx) => (
+              <div
+                key={`${m.location_name}-${idx}`}
+                onClick={() => {
+                  setKeywordLocationName(m.location_name); // IMPORTANT: exact string
+                  setLocalLocSelected(true);
+                  setLocalLocOpen(false);
+                  setLocalLocError("");
+                }}
+                style={{
+                  padding: 12,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  borderTop: idx === 0 ? "none" : "1px solid #f3f4f6",
+                }}
+                title="Click to select"
+              >
+                <div style={{ fontWeight: 900, color: "#111827" }}>{m.location_name}</div>
+                <div style={{ marginTop: 4, color: "#6b7280", fontSize: 12 }}>
+                  {m.location_type ? `Type: ${m.location_type}` : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : !localLocError ? (
+          <div style={{ padding: 12, fontSize: 13, color: "#6b7280" }}>
+            Type a city/state and click Search.
+          </div>
+        ) : null}
+
+        <div style={{ padding: 10, borderTop: "1px solid #f3f4f6", background: "#fafafa" }}>
+          <button
+            type="button"
+            onClick={() => setLocalLocOpen(false)}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              background: "white",
+              cursor: "pointer",
+              fontWeight: 800,
+              fontSize: 12,
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    ) : null}
+  </div>
+)}
+
     <div style={helpStyle}>
       {keywordGeoMode === "country"
         ? "Type a country name exactly (e.g., India, United Kingdom, United States)."
