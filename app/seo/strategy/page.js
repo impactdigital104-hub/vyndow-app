@@ -1026,17 +1026,18 @@ function handleAddKeywordToCluster(pillarId, clusterId, rawKeyword) {
     return;
   }
 
-  const placeholderKw = {
-    keyword: kwText,
-    volume: null,
-    cpc: null,
-    competition: null,
-    competition_index: null,
-    intent: "other",
-    businessFitScore: null,
-    strategyScore: null,
-    metricsStatus: "unavailable", // IMPORTANT: we do NOT fake numbers
-  };
+const placeholderKw = {
+  keyword: kwText,
+  volume: null,
+  cpc: null,
+  competition: null,
+  competition_index: null,
+  intent: "other",
+  businessFitScore: null,
+  strategyScore: null,
+  metricsStatus: "loading", // will become "ok" or "unavailable"
+};
+
 
   const next = (kcPillars || []).map((p) => {
     if (p.pillarId !== pillarId) return p;
@@ -1054,8 +1055,87 @@ function handleAddKeywordToCluster(pillarId, clusterId, rawKeyword) {
 
   setKcPillars(next);
   setKcShortlist(rebuildShortlistFromPillars(next));
-}
+  // Fetch real metrics for this manually added keyword (same geo context as Step 4)
+(async () => {
+  try {
+    const token = await auth.currentUser.getIdToken();
 
+    const res = await fetch("/api/seo/strategy/fetchKeywordMetrics", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        websiteId: selectedWebsiteId,
+        keyword: kwText,
+      }),
+    });
+
+    const data = await res.json();
+
+    // Update the keyword row inside kcPillars
+    setKcPillars((prev) => {
+      const updated = (prev || []).map((p) => {
+        if (p.pillarId !== pillarId) return p;
+        return {
+          ...p,
+          clusters: (p.clusters || []).map((c) => {
+            if (c.clusterId !== clusterId) return c;
+            return {
+              ...c,
+              keywords: (c.keywords || []).map((kw) => {
+                if (safeKeyKc(kw.keyword) !== safeKeyKc(kwText)) return kw;
+
+                if (!data?.ok) {
+                  return { ...kw, metricsStatus: "unavailable" };
+                }
+
+                return {
+                  ...kw,
+                  volume: data.volume ?? null,
+                  cpc: data.cpc ?? null,
+                  competition: data.competition ?? null,
+                  competition_index: data.competition_index ?? null,
+                  metricsStatus: "ok",
+                };
+              }),
+            };
+          }),
+        };
+      });
+
+      // keep shortlist consistent with new metrics
+      setKcShortlist(rebuildShortlistFromPillars(updated));
+      return updated;
+    });
+  } catch (e) {
+    console.error("fetchKeywordMetrics failed:", e);
+    // Mark as unavailable
+    setKcPillars((prev) => {
+      const updated = (prev || []).map((p) => {
+        if (p.pillarId !== pillarId) return p;
+        return {
+          ...p,
+          clusters: (p.clusters || []).map((c) => {
+            if (c.clusterId !== clusterId) return c;
+            return {
+              ...c,
+              keywords: (c.keywords || []).map((kw) => {
+                if (safeKeyKc(kw.keyword) !== safeKeyKc(kwText)) return kw;
+                return { ...kw, metricsStatus: "unavailable" };
+              }),
+            };
+          }),
+        };
+      });
+      setKcShortlist(rebuildShortlistFromPillars(updated));
+      return updated;
+    });
+  }
+})();
+
+}
 
   // Feature flag (default should be false in Vercel until you enable it)
   const STRATEGY_ENABLED =
