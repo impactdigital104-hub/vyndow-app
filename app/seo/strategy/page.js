@@ -3533,8 +3533,6 @@ async function handleRunAudit() {
   )}
 </div>
 
-        </div>
-
 
         {/* WIP link (not used in this phase) */}
         <div style={{ marginTop: 14 }}>
