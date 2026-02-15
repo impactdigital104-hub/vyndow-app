@@ -101,6 +101,42 @@ function parseUrlList(raw) {
   return { valid, invalid };
 }
 
+function AddKeywordInline({ onAdd }) {
+  const [val, setVal] = useState("");
+
+  return (
+    <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <input
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        placeholder="Add a keyword (example: rehab center in pune)"
+        style={{ ...inputStyle, maxWidth: 420, padding: "8px 10px" }}
+      />
+      <button
+        type="button"
+        onClick={() => {
+          const t = String(val || "").trim();
+          if (!t) return;
+          onAdd(t);
+          setVal("");
+        }}
+        style={{
+          padding: "8px 10px",
+          borderRadius: 10,
+          border: "1px solid #ddd",
+          background: "white",
+          cursor: "pointer",
+          fontWeight: 900,
+        }}
+      >
+        Add
+      </button>
+      <div style={{ fontSize: 12, color: "#6b7280" }}>
+        Note: Metrics may be unavailable in v1 (we never fake numbers).
+      </div>
+    </div>
+  );
+}
 
 export default function SeoStrategyPage() {
   const router = useRouter();
@@ -182,6 +218,30 @@ const [businessContextGeoSource, setBusinessContextGeoSource] = useState("");
 
 const [businessContextPrimaryServices, setBusinessContextPrimaryServices] = useState([]);
 const [businessContextMismatchWarning, setBusinessContextMismatchWarning] = useState("");
+  // =========================
+// Step 5 — Keyword Clustering (resume-safe)
+// Firestore:
+// users/{effectiveUid}/websites/{effectiveWebsiteId}/modules/seo/strategy/keywordClustering
+// =========================
+const [keywordClusteringState, setKeywordClusteringState] = useState("idle"); // idle | loading | generating | ready | error
+const [keywordClusteringError, setKeywordClusteringError] = useState("");
+const [keywordClusteringExists, setKeywordClusteringExists] = useState(false);
+const [keywordClusteringApproved, setKeywordClusteringApproved] = useState(false);
+
+const [kcAiExcluded, setKcAiExcluded] = useState([]); // read-only excluded list
+const [kcPillars, setKcPillars] = useState([]); // editable pillars (userVersion)
+const [kcShortlist, setKcShortlist] = useState([]); // editable shortlist (userVersion)
+
+const [kcExpandedPillarId, setKcExpandedPillarId] = useState(null);
+const [kcExcludedOpen, setKcExcludedOpen] = useState(false);
+
+const [kcDraftState, setKcDraftState] = useState("idle"); // idle | saving | saved | error
+const [kcDraftError, setKcDraftError] = useState("");
+
+const [kcApproveState, setKcApproveState] = useState("idle"); // idle | approving | approved | blocked | error
+const [kcApproveWarning, setKcApproveWarning] = useState("");
+const [kcApproveBlockers, setKcApproveBlockers] = useState([]);
+
 
 
 
@@ -554,6 +614,104 @@ body: JSON.stringify({
   }
 }
 // -------------------------
+  // -------------------------
+// Step 5 helpers — Keyword Clustering (Firestore resume + UI wiring)
+// -------------------------
+function keywordClusteringDocRef() {
+  if (!uid || !selectedWebsiteId) return null;
+
+  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
+  if (!effectiveUid || !effectiveWebsiteId) return null;
+
+  return doc(
+    db,
+    "users",
+    effectiveUid,
+    "websites",
+    effectiveWebsiteId,
+    "modules",
+    "seo",
+    "strategy",
+    "keywordClustering"
+  );
+}
+
+function safeKeyKc(s) {
+  return String(s || "").trim().toLowerCase();
+}
+
+function rebuildShortlistFromPillars(pillars) {
+  const rows = [];
+  for (const p of pillars || []) {
+    for (const c of p?.clusters || []) {
+      for (const kw of c?.keywords || []) {
+rows.push({
+  ...kw,
+  pillarId: p.pillarId,
+  pillarName: p.name,
+  clusterId: c.clusterId,
+  clusterName: c.name,
+});
+
+      }
+    }
+  }
+  // Sort by strategyScore (desc), push nulls to bottom
+  rows.sort((a, b) => (Number(b.strategyScore ?? -1) - Number(a.strategyScore ?? -1)));
+  return rows;
+}
+
+function hydrateKeywordClusteringFromDoc(d) {
+  setKeywordClusteringExists(true);
+  setKeywordClusteringApproved(Boolean(d?.approved));
+
+  // excluded is from aiVersion only (read-only)
+  const excluded = Array.isArray(d?.aiVersion?.excluded) ? d.aiVersion.excluded : [];
+  setKcAiExcluded(excluded);
+
+  // editable working version = userVersion (if present) else aiVersion
+  const pillars =
+    Array.isArray(d?.userVersion?.pillars) ? d.userVersion.pillars :
+    Array.isArray(d?.aiVersion?.pillars) ? d.aiVersion.pillars : [];
+
+  const shortlist =
+    Array.isArray(d?.userVersion?.shortlist) ? d.userVersion.shortlist :
+    Array.isArray(d?.aiVersion?.shortlist) ? d.aiVersion.shortlist : rebuildShortlistFromPillars(pillars);
+
+  setKcPillars(pillars);
+  setKcShortlist(shortlist);
+
+  setKeywordClusteringState("ready");
+  setKeywordClusteringError("");
+}
+
+async function loadExistingKeywordClustering() {
+  const ref = keywordClusteringDocRef();
+  if (!ref) return;
+
+  try {
+    setKeywordClusteringState("loading");
+    setKeywordClusteringError("");
+
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      setKeywordClusteringExists(false);
+      setKeywordClusteringApproved(false);
+      setKcAiExcluded([]);
+      setKcPillars([]);
+      setKcShortlist([]);
+      setKeywordClusteringState("idle");
+      return;
+    }
+
+    hydrateKeywordClusteringFromDoc(snap.data() || {});
+  } catch (e) {
+    console.error("Failed to load keyword clustering:", e);
+    setKeywordClusteringState("error");
+    setKeywordClusteringError(e?.message || "Failed to load Step 5 data.");
+  }
+}
+
 // Step 4.5 handlers — Business Context (Generate / Save Edit / Approve)
 // -------------------------
 async function handleGenerateBusinessContext() {
@@ -685,6 +843,219 @@ setBusinessContextState("ready");
     setBusinessContextError(e?.message || "Failed to approve.");
   }
 }
+  // -------------------------
+// Step 5 handlers — Generate / Save Draft / Approve & Lock
+// -------------------------
+async function handleGenerateKeywordClustering() {
+  if (!selectedWebsiteId) return;
+
+  if (!businessContextApproved) {
+    setKeywordClusteringError("Step 5 is locked. Please approve Step 4.5 first.");
+    setKeywordClusteringState("error");
+    return;
+  }
+
+  setKeywordClusteringState("generating");
+  setKeywordClusteringError("");
+  setKcDraftError("");
+  setKcApproveWarning("");
+  setKcApproveBlockers([]);
+  setKcApproveState("idle");
+
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch("/api/seo/strategy/generateKeywordClustering", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ websiteId: selectedWebsiteId }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || "Step 5 generation failed.");
+
+    // If generation is locked because doc exists, hydrate from returned doc
+    if (data?.source === "existing" && data?.data) {
+      hydrateKeywordClusteringFromDoc(data.data);
+      setKeywordClusteringState("ready");
+      return;
+    }
+
+    // Newly generated: load from Firestore (resume-safe)
+    await loadExistingKeywordClustering();
+    setKeywordClusteringState("ready");
+  } catch (e) {
+    console.error("Step 5 generation failed:", e);
+    setKeywordClusteringState("error");
+    setKeywordClusteringError(e?.message || "Step 5 generation failed.");
+  }
+}
+
+function kcHasDuplicateInPillars(pillars, keyword) {
+  const k = safeKeyKc(keyword);
+  if (!k) return true;
+  for (const p of pillars || []) {
+    for (const c of p?.clusters || []) {
+      for (const kw of c?.keywords || []) {
+        if (safeKeyKc(kw?.keyword) === k) return true;
+      }
+    }
+  }
+  return false;
+}
+
+async function handleSaveKeywordClusteringDraft() {
+  if (!selectedWebsiteId) return;
+  if (!keywordClusteringExists) return;
+
+  setKcDraftState("saving");
+  setKcDraftError("");
+
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch("/api/seo/strategy/saveKeywordClusteringDraft", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        websiteId: selectedWebsiteId,
+        userVersion: {
+          pillars: kcPillars,
+          shortlist: kcShortlist,
+        },
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || "Failed to save draft.");
+
+    setKcDraftState("saved");
+    setTimeout(() => setKcDraftState("idle"), 1200);
+
+    // Reload doc for resume-safety
+    await loadExistingKeywordClustering();
+  } catch (e) {
+    console.error("Save draft failed:", e);
+    setKcDraftState("error");
+    setKcDraftError(e?.message || "Failed to save draft.");
+  }
+}
+
+async function handleApproveKeywordClustering() {
+  if (!selectedWebsiteId) return;
+  if (!keywordClusteringExists) return;
+
+  setKcApproveState("approving");
+  setKcApproveWarning("");
+  setKcApproveBlockers([]);
+
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch("/api/seo/strategy/approveKeywordClustering", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ websiteId: selectedWebsiteId }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setKcApproveState("blocked");
+      setKcApproveWarning(data?.warning || "");
+      setKcApproveBlockers(Array.isArray(data?.blockers) ? data.blockers : []);
+      return;
+    }
+
+    setKcApproveState("approved");
+    await loadExistingKeywordClustering();
+  } catch (e) {
+    console.error("Approve Step 5 failed:", e);
+    setKcApproveState("error");
+    setKcApproveWarning(e?.message || "Approve failed.");
+  }
+}
+
+// -------------------------
+// Step 5 local UI edit actions (no Firestore write until Save Draft)
+// -------------------------
+function handleRenamePillarLabel(pillarId, newName) {
+  const next = (kcPillars || []).map((p) =>
+    p.pillarId === pillarId ? { ...p, name: newName } : p
+  );
+  setKcPillars(next);
+  setKcShortlist(rebuildShortlistFromPillars(next));
+}
+
+function handleRemoveKeywordFromCluster(pillarId, clusterId, keyword) {
+  const k = safeKeyKc(keyword);
+
+  const next = (kcPillars || []).map((p) => {
+    if (p.pillarId !== pillarId) return p;
+    return {
+      ...p,
+      clusters: (p.clusters || []).map((c) => {
+        if (c.clusterId !== clusterId) return c;
+        return {
+          ...c,
+          keywords: (c.keywords || []).filter((kw) => safeKeyKc(kw?.keyword) !== k),
+        };
+      }),
+    };
+  });
+
+  setKcPillars(next);
+  setKcShortlist(rebuildShortlistFromPillars(next));
+}
+
+function handleAddKeywordToCluster(pillarId, clusterId, rawKeyword) {
+  const kwText = String(rawKeyword || "").trim();
+  if (!kwText) return;
+
+  if (kcHasDuplicateInPillars(kcPillars, kwText)) {
+    alert("Duplicate keyword: this keyword already exists in your clusters.");
+    return;
+  }
+
+  const placeholderKw = {
+    keyword: kwText,
+    volume: null,
+    cpc: null,
+    competition: null,
+    competition_index: null,
+    intent: "other",
+    businessFitScore: null,
+    strategyScore: null,
+    metricsStatus: "unavailable", // IMPORTANT: we do NOT fake numbers
+  };
+
+  const next = (kcPillars || []).map((p) => {
+    if (p.pillarId !== pillarId) return p;
+    return {
+      ...p,
+      clusters: (p.clusters || []).map((c) => {
+        if (c.clusterId !== clusterId) return c;
+        return {
+          ...c,
+          keywords: [...(c.keywords || []), placeholderKw],
+        };
+      }),
+    };
+  });
+
+  setKcPillars(next);
+  setKcShortlist(rebuildShortlistFromPillars(next));
+}
+
 
   // Feature flag (default should be false in Vercel until you enable it)
   const STRATEGY_ENABLED =
@@ -930,6 +1301,13 @@ useEffect(() => {
   loadExistingBusinessContext();
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [uid, selectedWebsiteId, websites]);
+  // Load existing Step 5 keyword clustering (resume-safe)
+useEffect(() => {
+  if (!uid || !selectedWebsiteId || !websites?.length) return;
+  loadExistingKeywordClustering();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [uid, selectedWebsiteId, websites]);
+
 
 
 
@@ -2715,28 +3093,446 @@ async function handleRunAudit() {
           {businessContextError ? (
             <div style={{ marginTop: 10, color: "#b91c1c" }}>{businessContextError}</div>
           ) : null}
-
-          {/* Step 5 placeholder button (kept disabled until approved) */}
-          <div style={{ marginTop: 14 }}>
-            <button
-              disabled={!businessContextApproved}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: "1px solid #e5e7eb",
-                background: businessContextApproved ? "#111827" : "#f3f4f6",
-                color: businessContextApproved ? "white" : "#6b7280",
-                cursor: businessContextApproved ? "pointer" : "not-allowed",
-              }}
-              title={
-                businessContextApproved
-                  ? "Step 5 will be implemented in the next phase"
-                  : "Approve Step 4.5 to unlock Step 5"
-              }
-            >
-              Continue to Step 5 (next phase)
-            </button>
           </div>
+{/* STEP 5 — Keyword Filtering, Scoring, Clustering & Pillars */}
+<div
+  style={{
+    marginTop: 14,
+    padding: 16,
+    border: "1px solid #eee",
+    borderRadius: 12,
+    background: "white",
+  }}
+>
+  <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
+    Step 5 — Pillars & Clusters (Keyword Architecture)
+  </div>
+
+  <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13, lineHeight: 1.5 }}>
+    Vyndow will filter keywords semantically, shortlist ~100, then create up to 6 pillars with clusters.
+    You can rename pillar labels (label-only), remove keywords, or add keywords (metrics may show as unavailable).
+  </div>
+
+  {/* Actions */}
+  <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+    <button
+      type="button"
+      onClick={handleGenerateKeywordClustering}
+      disabled={!businessContextApproved || keywordClusteringState === "generating" || keywordClusteringApproved}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: "1px solid #111827",
+        cursor: (!businessContextApproved || keywordClusteringApproved) ? "not-allowed" : "pointer",
+        background: (!businessContextApproved || keywordClusteringApproved) ? "#f3f4f6" : "#111827",
+        color: (!businessContextApproved || keywordClusteringApproved) ? "#6b7280" : "white",
+        opacity: keywordClusteringState === "generating" ? 0.7 : 1,
+        fontWeight: 900,
+      }}
+      title={
+        !businessContextApproved
+          ? "Approve Step 4.5 to unlock Step 5"
+          : keywordClusteringApproved
+          ? "Step 5 is approved and locked. Delete Firestore doc manually to regenerate."
+          : ""
+      }
+    >
+      {keywordClusteringState === "generating" ? "Generating…" : "Generate Step 5 Architecture"}
+    </button>
+
+    <button
+      type="button"
+      onClick={handleSaveKeywordClusteringDraft}
+      disabled={!keywordClusteringExists || keywordClusteringApproved || kcDraftState === "saving"}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: "1px solid #ddd",
+        cursor: (!keywordClusteringExists || keywordClusteringApproved) ? "not-allowed" : "pointer",
+        background: "white",
+        opacity: (!keywordClusteringExists || keywordClusteringApproved) ? 0.6 : 1,
+        fontWeight: 900,
+      }}
+      title={keywordClusteringApproved ? "Locked after approval" : ""}
+    >
+      {kcDraftState === "saving" ? "Saving…" : kcDraftState === "saved" ? "Saved ✓" : "Save Draft"}
+    </button>
+
+    <button
+      type="button"
+      onClick={handleApproveKeywordClustering}
+      disabled={!keywordClusteringExists || keywordClusteringApproved || kcApproveState === "approving"}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: "1px solid #16a34a",
+        cursor: (!keywordClusteringExists || keywordClusteringApproved) ? "not-allowed" : "pointer",
+        background: "#16a34a",
+        color: "white",
+        opacity: (!keywordClusteringExists || keywordClusteringApproved) ? 0.6 : 1,
+        fontWeight: 900,
+      }}
+      title={keywordClusteringApproved ? "Already approved" : ""}
+    >
+      {keywordClusteringApproved ? "Approved ✓" : kcApproveState === "approving" ? "Approving…" : "Approve & Lock Step 5"}
+    </button>
+
+    <div style={{ marginLeft: "auto", color: "#6b7280", fontSize: 13 }}>
+      Status:{" "}
+      <b style={{ color: keywordClusteringApproved ? "#065f46" : "#111827" }}>
+        {keywordClusteringApproved
+          ? "Locked"
+          : keywordClusteringExists
+          ? "Draft (editable)"
+          : businessContextApproved
+          ? "Ready to generate"
+          : "Locked"}
+      </b>
+    </div>
+  </div>
+
+  {keywordClusteringError ? (
+    <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>
+      {keywordClusteringError}
+    </div>
+  ) : null}
+
+  {kcDraftError ? (
+    <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>
+      {kcDraftError}
+    </div>
+  ) : null}
+
+  {/* Approval blockers */}
+  {kcApproveState === "blocked" ? (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 12,
+        borderRadius: 12,
+        border: "1px solid #fde68a",
+        background: "#fffbeb",
+        color: "#92400e",
+        fontSize: 13,
+        lineHeight: 1.5,
+      }}
+    >
+      <div style={{ fontWeight: 900 }}>Approval blocked</div>
+      <div style={{ marginTop: 6 }}>
+        {kcApproveWarning ||
+          "Please fix the issues below before locking Step 5."}
+      </div>
+      {kcApproveBlockers?.length ? (
+        <ul style={{ marginTop: 8, paddingLeft: 18 }}>
+          {kcApproveBlockers.map((b, i) => (
+            <li key={`b-${i}`}>{b?.message || "Validation issue"}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  ) : null}
+
+  {/* Pillars */}
+  {keywordClusteringExists ? (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+        Pillars (max 6)
+      </div>
+
+      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+        {(kcPillars || []).map((p) => {
+          const kwCount = (p?.clusters || []).reduce((acc, c) => acc + (c?.keywords?.length || 0), 0);
+          const expanded = kcExpandedPillarId === p.pillarId;
+
+          return (
+            <div
+              key={p.pillarId}
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                padding: 12,
+                background: "#fff",
+              }}
+            >
+              <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 900 }}>
+                    Pillar label (rename allowed — label-only)
+                  </div>
+                  <input
+                    value={p.name || ""}
+                    onChange={(e) => handleRenamePillarLabel(p.pillarId, e.target.value)}
+                    disabled={keywordClusteringApproved}
+                    style={{
+                      ...inputStyle,
+                      marginTop: 6,
+                      padding: "8px 10px",
+                      fontWeight: 900,
+                    }}
+                    title="Renaming is label-only; structure remains."
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setKcExpandedPillarId(expanded ? null : p.pillarId)}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: "1px solid #ddd",
+                    background: "white",
+                    cursor: "pointer",
+                    fontWeight: 900,
+                    height: 40,
+                  }}
+                >
+                  {expanded ? "Hide" : "View"}
+                </button>
+              </div>
+
+              {p.description ? (
+                <div style={{ marginTop: 8, fontSize: 13, color: "#374151", lineHeight: 1.5 }}>
+                  {p.description}
+                </div>
+              ) : null}
+
+              <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
+                Keywords: <b style={{ color: "#111827" }}>{kwCount}</b>
+              </div>
+
+              {/* Expanded */}
+              {expanded ? (
+                <div style={{ marginTop: 12 }}>
+                  {(p.clusters || []).map((c) => (
+                    <div key={c.clusterId} style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #f3f4f6" }}>
+                      <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
+                        Cluster: <span style={{ color: "#374151" }}>{c.name || "Cluster"}</span>{" "}
+                        <span style={{ color: "#6b7280" }}>({c?.keywords?.length || 0})</span>
+                      </div>
+
+                      {/* Add keyword */}
+                      {!keywordClusteringApproved ? (
+                        <AddKeywordInline
+                          onAdd={(val) => handleAddKeywordToCluster(p.pillarId, c.clusterId, val)}
+                        />
+                      ) : null}
+
+                      <div style={{ marginTop: 8, border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden" }}>
+                        <div style={{ maxHeight: 240, overflow: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead>
+                              <tr>
+                                {["Keyword", "Intent", "Vol", "Score", ""].map((h) => (
+                                  <th
+                                    key={h}
+                                    style={{
+                                      textAlign: "left",
+                                      padding: "8px 10px",
+                                      fontSize: 12,
+                                      color: "#374151",
+                                      fontWeight: 900,
+                                      borderBottom: "1px solid #e5e7eb",
+                                      background: "#fafafa",
+                                      position: "sticky",
+                                      top: 0,
+                                      zIndex: 1,
+                                    }}
+                                  >
+                                    {h}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(c.keywords || []).map((kw, i) => (
+                                <tr key={`${kw.keyword}-${i}`}>
+                                  <td style={{ padding: "8px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                                    {kw.keyword}
+                                    {kw.metricsStatus === "unavailable" ? (
+                                      <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+                                        Metrics unavailable (not faked)
+                                      </div>
+                                    ) : null}
+                                  </td>
+                                  <td style={{ padding: "8px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                                    {kw.intent || "—"}
+                                  </td>
+                                  <td style={{ padding: "8px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                                    {kw.volume != null ? Number(kw.volume) : "—"}
+                                  </td>
+                                  <td style={{ padding: "8px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                                    {kw.strategyScore != null ? Number(kw.strategyScore).toFixed(2) : "—"}
+                                  </td>
+                                  <td style={{ padding: "8px 10px", borderTop: "1px solid #f3f4f6" }}>
+                                    {!keywordClusteringApproved ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveKeywordFromCluster(p.pillarId, c.clusterId, kw.keyword)}
+                                        style={{
+                                          padding: "6px 10px",
+                                          borderRadius: 10,
+                                          border: "1px solid #fecaca",
+                                          background: "#fff1f2",
+                                          color: "#9f1239",
+                                          cursor: "pointer",
+                                          fontWeight: 900,
+                                          fontSize: 12,
+                                        }}
+                                      >
+                                        Remove
+                                      </button>
+                                    ) : null}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Shortlist view */}
+      <div style={{ marginTop: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+          Shortlist (~90–110)
+        </div>
+
+        <div style={{ marginTop: 10, border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ maxHeight: 360, overflow: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {["Keyword", "Pillar", "Cluster", "Volume", "Intent", "StrategyScore"].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        textAlign: "left",
+                        padding: "10px 10px",
+                        fontSize: 12,
+                        color: "#374151",
+                        fontWeight: 900,
+                        borderBottom: "1px solid #e5e7eb",
+                        background: "#fafafa",
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 1,
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(kcShortlist || []).map((row, idx) => (
+                  <tr key={`${row.keyword}-${idx}`}>
+                    <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                      {row.keyword}
+                    </td>
+                    <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                      {row.pillarName || "—"}
+                    </td>
+                    <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                      {row.clusterName || "—"}
+                    </td>
+                    <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                      {row.volume != null ? Number(row.volume) : "—"}
+                    </td>
+                    <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                      {row.intent || "—"}
+                    </td>
+                    <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                      {row.strategyScore != null ? Number(row.strategyScore).toFixed(2) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Excluded keywords (collapsed) */}
+      <div style={{ marginTop: 16 }}>
+        <button
+          type="button"
+          onClick={() => setKcExcludedOpen(!kcExcludedOpen)}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "1px solid #ddd",
+            background: "white",
+            cursor: "pointer",
+            fontWeight: 900,
+          }}
+        >
+          {kcExcludedOpen ? "Hide" : "Show"} Excluded Keywords (read-only)
+        </button>
+
+        {kcExcludedOpen ? (
+          <div style={{ marginTop: 10, border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+            <div style={{ maxHeight: 260, overflow: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    {["Keyword", "Reason", "FitScore"].map((h) => (
+                      <th
+                        key={h}
+                        style={{
+                          textAlign: "left",
+                          padding: "10px 10px",
+                          fontSize: 12,
+                          color: "#374151",
+                          fontWeight: 900,
+                          borderBottom: "1px solid #e5e7eb",
+                          background: "#fafafa",
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 1,
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(kcAiExcluded || []).map((x, idx) => (
+                    <tr key={`${x.keyword}-${idx}`}>
+                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                        {x.keyword}
+                      </td>
+                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                        {(x.reasonTags || []).join(", ") || "—"}
+                      </td>
+                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                        {x.businessFitScore != null ? Number(x.businessFitScore).toFixed(2) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  ) : (
+    <div style={{ marginTop: 12, color: "#6b7280", fontSize: 13 }}>
+      {businessContextApproved
+        ? "No Step 5 architecture generated yet for this website."
+        : "Approve Step 4.5 to unlock Step 5."}
+    </div>
+  )}
+</div>
+
         </div>
 
 
