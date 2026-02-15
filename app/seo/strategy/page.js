@@ -3319,7 +3319,15 @@ async function handleRunAudit() {
         Pillars (max 6)
       </div>
 
-      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+     <div
+  style={{
+    marginTop: 10,
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 16,
+  }}
+>
+
         {(kcPillars || []).map((p) => {
           const kwCount = (p?.clusters || []).reduce((acc, c) => acc + (c?.keywords?.length || 0), 0);
           const expanded = kcExpandedPillarId === p.pillarId;
@@ -3327,12 +3335,13 @@ async function handleRunAudit() {
           return (
             <div
               key={p.pillarId}
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 12,
-                background: "#fff",
-              }}
+style={{
+  border: "1px solid #e5e7eb",
+  borderRadius: 12,
+  padding: 12,
+  background: "#fff",
+  gridColumn: expanded ? "1 / -1" : "auto",   // expanded pillar becomes full-width
+}}
             >
               <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ flex: 1 }}>
@@ -3402,24 +3411,26 @@ async function handleRunAudit() {
                           <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
                               <tr>
-                                {["Keyword", "Intent", "Vol", "Score", ""].map((h) => (
-                                  <th
-                                    key={h}
-                                    style={{
-                                      textAlign: "left",
-                                      padding: "8px 10px",
-                                      fontSize: 12,
-                                      color: "#374151",
-                                      fontWeight: 900,
-                                      borderBottom: "1px solid #e5e7eb",
-                                      background: "#fafafa",
-                                      position: "sticky",
-                                      top: 0,
-                                      zIndex: 1,
-                                    }}
-                                  >
-                                    {h}
-                                  </th>
+                             {["Keyword", "Intent", "Vol", "Score", "Action"].map((h) => (
+<th
+  key={h}
+  style={{
+    textAlign: h === "Action" ? "right" : "left",
+    width: h === "Action" ? 110 : "auto",
+    padding: "8px 10px",
+    fontSize: 12,
+    color: "#374151",
+    fontWeight: 900,
+    borderBottom: "1px solid #e5e7eb",
+    background: "#fafafa",
+    position: "sticky",
+    top: 0,
+    zIndex: 1,
+  }}
+>
+  {h}
+</th>
+
                                 ))}
                               </tr>
                             </thead>
@@ -3443,7 +3454,7 @@ async function handleRunAudit() {
                                   <td style={{ padding: "8px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
                                     {kw.strategyScore != null ? Number(kw.strategyScore).toFixed(2) : "—"}
                                   </td>
-                                  <td style={{ padding: "8px 10px", borderTop: "1px solid #f3f4f6" }}>
+                                 <td style={{ padding: "8px 10px", borderTop: "1px solid #f3f4f6", textAlign: "right" }}>
                                     {!keywordClusteringApproved ? (
                                       <button
                                         type="button"
