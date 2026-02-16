@@ -4848,22 +4848,6 @@ style={{
 </div>
 {/* >>> STEP 6 UI SHELL (END) */}
 
-        {/* WIP link (not used in this phase) */}
-        <div style={{ marginTop: 14 }}>
-          <button
-            onClick={() => router.push("/seo/control")}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              border: "1px solid #ddd",
-              cursor: "pointer",
-              background: "white",
-            }}
-          >
-            Go to Strategy Control Center (WIP)
-          </button>
-        </div>
-      </div>
     </VyndowShell>
   );
 }
