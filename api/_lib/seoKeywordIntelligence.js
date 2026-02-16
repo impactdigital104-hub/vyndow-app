@@ -42,9 +42,15 @@ async function openaiEmbeddings({ texts }) {
   return data.map((d) => d.embedding);
 }
 
-// Chunk embeddings calls so we don’t hit payload limits.
 export async function embedTexts(texts, { batchSize = 96 } = {}) {
-  const clean = (texts || []).map((t) => String(t || "").trim());
+  // OpenAI embeddings rejects empty strings. Ensure every item is non-empty.
+  const clean = (texts || []).map((t) => {
+    const s = String(t ?? "").trim();
+    return s.length ? s : " "; // safe non-empty placeholder
+  });
+
+  if (!clean.length) return [];
+
   const out = [];
 
   for (let i = 0; i < clean.length; i += batchSize) {
@@ -55,6 +61,7 @@ export async function embedTexts(texts, { batchSize = 96 } = {}) {
 
   return out;
 }
+
 
 // -------------------- MATH --------------------
 
