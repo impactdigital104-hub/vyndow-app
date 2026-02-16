@@ -386,6 +386,13 @@ const [kmDeploymentStats, setKmDeploymentStats] = useState(null);
 const [kmDraftState, setKmDraftState] = useState("idle"); // idle | saving | saved | error
 const [kmDraftError, setKmDraftError] = useState("");
   const [kmSecondaryPicker, setKmSecondaryPicker] = useState({}); // { [rowIndex]: "keyword string" }
+  // >>> STEP 6: UI COMPAT ALIASES (START)
+// The Step 6 UI uses existingSecondaryDraft naming in JSX.
+// We alias it to the actual state kmSecondaryPicker to avoid ReferenceError crashes.
+const existingSecondaryDraft = kmSecondaryPicker;
+const setExistingSecondaryDraft = setKmSecondaryPicker;
+// >>> STEP 6: UI COMPAT ALIASES (END)
+
 
 
 const [kmApproveState, setKmApproveState] = useState("idle"); // idle | approving | approved | blocked | error
@@ -1256,6 +1263,30 @@ if (primaryHere && primaryHere === needle) {
     return arr;
   });
 }
+// >>> STEP 6: UI WRAPPER FUNCTIONS (START)
+// These names are referenced by the Step 6 JSX. They delegate to the actual helper functions.
+
+function updateExistingPrimary(pageIndex, nextKeyword) {
+  setPrimaryKeywordAtIndex(pageIndex, nextKeyword);
+}
+
+function removeExistingSecondary(pageIndex, keywordToRemove) {
+  removeSecondaryKeywordAtIndex(pageIndex, keywordToRemove);
+}
+
+function addExistingSecondary(pageIndex) {
+  const next = String(existingSecondaryDraft?.[pageIndex] || "").trim();
+  if (!next) return;
+
+  addSecondaryKeywordAtIndex(pageIndex, next);
+
+  // clear dropdown after add
+  setExistingSecondaryDraft((prev) => ({
+    ...(prev || {}),
+    [pageIndex]: "",
+  }));
+}
+// >>> STEP 6: UI WRAPPER FUNCTIONS (END)
 
 // >>> STEP 6: EDITING HELPERS (END)
 
