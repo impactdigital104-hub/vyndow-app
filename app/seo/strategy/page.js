@@ -4427,8 +4427,10 @@ style={{
               background: "white",
             }}
           >
-           {kmExistingPages.map((row, idx) => {
-              const confidence = Number(p?.mappingConfidence ?? 0);
+{kmExistingPages.map((row, idx) => {
+  const p = row;
+  const confidence = Number(p?.mappingConfidence ?? 0);
+
 
               const confBg =
                 confidence >= 75 ? "#ecfdf5" : confidence >= 55 ? "#fffbeb" : "#fef2f2";
