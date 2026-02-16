@@ -4562,47 +4562,51 @@ borderBottom: idx === kmExistingPages.length - 1 ? "none" : "1px solid #e5e7eb",
                       </div>
 
                       <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        {Array.isArray(p?.secondaryKeywords) && p.secondaryKeywords.length ? (
-                          p.secondaryKeywords.map((sk, sIdx) => (
-                            <span
-                              key={`${sk}-${sIdx}`}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 8,
-                                padding: "7px 10px",
-                                borderRadius: 999,
-                                border: "1px solid #e5e7eb",
-                                background: "#f8fafc",
-                                fontSize: 12,
-                                fontWeight: 900,
-                                color: "#111827",
-                              }}
-                            >
-                              {sk}
-                              {!keywordMappingApproved ? (
-                                <button
-                                  type="button"
-                                  onClick={() => removeExistingSecondary(idx, sk)}
-                                  style={{
-                                    border: "none",
-                                    background: "transparent",
-                                    cursor: "pointer",
-                                    fontWeight: 900,
-                                    color: "#6b7280",
-                                  }}
-                                  title="Remove"
-                                >
-                                  ×
-                                </button>
-                              ) : null}
-                            </span>
-                          ))
-                        ) : (
-                          <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 800 }}>
-                            No secondary keywords
-                          </div>
-                        )}
+{Array.isArray(p?.secondaryKeywords) && p.secondaryKeywords.length ? (
+  p.secondaryKeywords
+    .map((sk) => (typeof sk === "string" ? sk : sk?.keyword))
+    .filter(Boolean)
+    .map((sk, sIdx) => (
+      <span
+        key={`${sk}-${sIdx}`}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "7px 10px",
+          borderRadius: 999,
+          border: "1px solid #e5e7eb",
+          background: "#f8fafc",
+          fontSize: 12,
+          fontWeight: 900,
+          color: "#111827",
+        }}
+      >
+        {sk}
+        {!keywordMappingApproved ? (
+          <button
+            type="button"
+            onClick={() => removeExistingSecondary(idx, sk)}
+            style={{
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              fontWeight: 900,
+              color: "#6b7280",
+            }}
+            title="Remove"
+          >
+            ×
+          </button>
+        ) : null}
+      </span>
+    ))
+) : (
+  <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 800 }}>
+    No secondary keywords
+  </div>
+)}
+
                       </div>
 
                       {!keywordMappingApproved ? (
@@ -4632,7 +4636,14 @@ borderBottom: idx === kmExistingPages.length - 1 ? "none" : "1px solid #e5e7eb",
   .map((k) => (typeof k === "string" ? k : k?.keyword))
   .filter(Boolean)
   .filter((k) => k !== (p?.primaryKeyword?.keyword || ""))
-  .filter((k) => !(p?.secondaryKeywords || []).includes(k))
+  .filter(
+  (k) =>
+    !((p?.secondaryKeywords || [])
+      .map((x) => (typeof x === "string" ? x : x?.keyword))
+      .filter(Boolean)
+      .includes(k))
+)
+
   .map((k) => (
     <option key={k} value={k}>
       {k}
