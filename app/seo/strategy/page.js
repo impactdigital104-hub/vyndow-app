@@ -241,6 +241,25 @@ const [kcDraftError, setKcDraftError] = useState("");
 const [kcApproveState, setKcApproveState] = useState("idle"); // idle | approving | approved | blocked | error
 const [kcApproveWarning, setKcApproveWarning] = useState("");
 const [kcApproveBlockers, setKcApproveBlockers] = useState([]);
+// =========================
+// Step 6 — Keyword Mapping (resume-safe)
+// Firestore:
+// users/{effectiveUid}/websites/{effectiveWebsiteId}/modules/seo/strategy/keywordMapping
+// =========================
+const [keywordMappingState, setKeywordMappingState] = useState("idle"); // idle | loading | generating | ready | error
+const [keywordMappingError, setKeywordMappingError] = useState("");
+const [keywordMappingExists, setKeywordMappingExists] = useState(false);
+const [keywordMappingApproved, setKeywordMappingApproved] = useState(false);
+
+const [kmExistingPages, setKmExistingPages] = useState([]); // editable working version
+const [kmGapPages, setKmGapPages] = useState([]); // editable working version
+const [kmDeploymentStats, setKmDeploymentStats] = useState(null);
+
+const [kmDraftState, setKmDraftState] = useState("idle"); // idle | saving | saved | error
+const [kmDraftError, setKmDraftError] = useState("");
+
+const [kmApproveState, setKmApproveState] = useState("idle"); // idle | approving | approved | blocked | error
+const [kmApproveWarning, setKmApproveWarning] = useState("");
 
 
 
@@ -711,6 +730,209 @@ async function loadExistingKeywordClustering() {
     setKeywordClusteringError(e?.message || "Failed to load Step 5 data.");
   }
 }
+  // =========================
+// Step 6 — Firestore loader (resume-safe)
+// =========================
+function keywordMappingDocRef() {
+  if (!uid || !selectedWebsiteId) return null;
+
+  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
+  if (!effectiveUid || !effectiveWebsiteId) return null;
+
+  return doc(
+    db,
+    "users",
+    effectiveUid,
+    "websites",
+    effectiveWebsiteId,
+    "modules",
+    "seo",
+    "strategy",
+    "keywordMapping"
+  );
+}
+
+
+function hydrateKeywordMappingFromDoc(data) {
+  const km = data || {};
+
+  // if approved, lock state but still show content
+  const approved = km.approved === true;
+
+  // Prefer finalVersion if approved, else userVersion if exists, else base arrays
+  const source =
+    approved && km.finalVersion
+      ? km.finalVersion
+      : km.userVersion
+      ? km.userVersion
+      : {
+          existingPages: km.existingPages || [],
+          gapPages: km.gapPages || [],
+          deploymentStats: km.deploymentStats || null,
+        };
+
+  setKeywordMappingExists(true);
+  setKeywordMappingApproved(approved);
+
+  setKmExistingPages(Array.isArray(source.existingPages) ? source.existingPages : []);
+  setKmGapPages(Array.isArray(source.gapPages) ? source.gapPages : []);
+  setKmDeploymentStats(source.deploymentStats || km.deploymentStats || null);
+
+  setKeywordMappingState("ready");
+}
+
+async function loadExistingKeywordMapping() {
+  try {
+    setKeywordMappingState("loading");
+    setKeywordMappingError("");
+
+    const ref = keywordMappingDocRef();
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      setKeywordMappingExists(false);
+      setKeywordMappingApproved(false);
+      setKmExistingPages([]);
+      setKmGapPages([]);
+      setKmDeploymentStats(null);
+      setKeywordMappingState("idle");
+      return;
+    }
+
+    hydrateKeywordMappingFromDoc(snap.data());
+  } catch (e) {
+    console.error("loadExistingKeywordMapping error:", e);
+    setKeywordMappingError(e?.message || "Failed to load Step 6 keyword mapping.");
+    setKeywordMappingState("error");
+  }
+}
+// >>> STEP 6: GENERATE KEYWORD MAPPING (START)
+async function generateKeywordMapping() {
+  try {
+    if (keywordClusteringApproved !== true) {
+      setKeywordMappingState("error");
+      setKeywordMappingError("Step 6 is locked. Please approve Step 5 first.");
+      return;
+    }
+
+    setKeywordMappingState("generating");
+    setKeywordMappingError("");
+
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error("Missing login token.");
+
+    const res = await fetch("/api/seo/strategy/generateKeywordMapping", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ websiteId: selectedWebsiteId }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error || "Failed to generate keyword mapping.");
+    }
+
+    // If generation is locked because doc exists, still hydrate from returned data
+    if (data?.data) {
+      hydrateKeywordMappingFromDoc(data.data);
+    } else {
+      // fallback: load from firestore
+      await loadExistingKeywordMapping();
+    }
+
+    setKeywordMappingState("ready");
+  } catch (e) {
+    console.error("generateKeywordMapping error:", e);
+    setKeywordMappingState("error");
+    setKeywordMappingError(e?.message || "Failed to generate keyword mapping.");
+  }
+}
+  // >>> STEP 6: APPROVE KEYWORD MAPPING (START)
+async function approveKeywordMapping() {
+  try {
+    if (keywordMappingApproved) return;
+
+    setKmApproveState("approving");
+    setKmApproveWarning("");
+
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error("Missing login token.");
+
+    const res = await fetch("/api/seo/strategy/approveKeywordMapping", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ websiteId: selectedWebsiteId }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error || "Failed to approve keyword mapping.");
+    }
+
+    setKeywordMappingApproved(true);
+    setKmApproveState("approved");
+
+  } catch (e) {
+    console.error("approveKeywordMapping error:", e);
+    setKmApproveState("error");
+    setKmApproveWarning(e?.message || "Failed to approve mapping.");
+  }
+}
+// >>> STEP 6: APPROVE KEYWORD MAPPING (END)
+  // >>> STEP 6: SAVE KEYWORD MAPPING DRAFT (START)
+async function saveKeywordMappingDraft() {
+  try {
+    if (keywordMappingApproved) return;
+
+    if (keywordClusteringApproved !== true) {
+      setKmDraftState("error");
+      setKmDraftError("Step 6 is locked. Please approve Step 5 first.");
+      return;
+    }
+
+    if (keywordMappingExists !== true) {
+      setKmDraftState("error");
+      setKmDraftError("Nothing to save yet. Please generate the mapping first.");
+      return;
+    }
+
+    const ref = keywordMappingDocRef();
+    if (!ref) throw new Error("Missing website context (keywordMappingDocRef).");
+
+    setKmDraftState("saving");
+    setKmDraftError("");
+
+    const payload = {
+      userVersion: {
+        existingPages: Array.isArray(kmExistingPages) ? kmExistingPages : [],
+        gapPages: Array.isArray(kmGapPages) ? kmGapPages : [],
+        deploymentStats: kmDeploymentStats || null,
+      },
+      updatedAt: serverTimestamp(),
+    };
+
+    await setDoc(ref, payload, { merge: true });
+
+    setKmDraftState("saved");
+  } catch (e) {
+    console.error("saveKeywordMappingDraft error:", e);
+    setKmDraftState("error");
+    setKmDraftError(e?.message || "Failed to save Step 6 draft.");
+  }
+}
+// >>> STEP 6: SAVE KEYWORD MAPPING DRAFT (END)
+
+
+// >>> STEP 6: GENERATE KEYWORD MAPPING (END)
+
 
 // Step 4.5 handlers — Business Context (Generate / Save Edit / Approve)
 // -------------------------
@@ -1385,6 +1607,12 @@ useEffect(() => {
 useEffect(() => {
   if (!uid || !selectedWebsiteId || !websites?.length) return;
   loadExistingKeywordClustering();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [uid, selectedWebsiteId, websites]);
+// Load existing Step 6 keyword mapping (resume-safe)
+useEffect(() => {
+  if (!uid || !selectedWebsiteId || !websites?.length) return;
+  loadExistingKeywordMapping();
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [uid, selectedWebsiteId, websites]);
 
@@ -3624,6 +3852,422 @@ style={{
   )}
 </div>
 
+{/* >>> STEP 6 UI SHELL (START) */}
+<div
+  style={{
+    marginTop: 14,
+    padding: 16,
+    border: "1px solid #eee",
+    borderRadius: 12,
+    background: "white",
+  }}
+>
+  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+    <div>
+      <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
+        Step 6 — Keyword-to-URL Mapping (Deployment Blueprint)
+      </div>
+      <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13, lineHeight: 1.5 }}>
+        Map shortlisted keywords to your existing audited pages, recommend gap pages, and produce a deployable SEO blueprint.
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "6px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 800,
+        border: "1px solid #eee",
+        background: keywordMappingApproved ? "#ecfdf5" : "#fffbeb",
+        color: keywordMappingApproved ? "#047857" : "#b45309",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {keywordMappingApproved ? "Approved ✓" : "Not Approved"}
+    </div>
+  </div>
+
+  {/* Gating message */}
+  {keywordClusteringApproved !== true ? (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 12,
+        borderRadius: 10,
+        border: "1px solid #fde68a",
+        background: "#fffbeb",
+        color: "#92400e",
+        fontSize: 13,
+        lineHeight: 1.5,
+        fontWeight: 700,
+      }}
+    >
+      Step 6 is locked. Please approve Step 5 (Keyword Architecture) first.
+    </div>
+  ) : (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 12,
+        borderRadius: 10,
+        border: "1px solid #e5e7eb",
+        background: "#f9fafb",
+        color: "#374151",
+        fontSize: 13,
+        lineHeight: 1.5,
+        fontWeight: 700,
+      }}
+    >
+      Step 6 is unlocked. Next we will add the “Generate Mapping” button and show the results here.
+    </div>
+  )}
+
+  {/* Actions */}
+  <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+
+    <button
+      type="button"
+      onClick={generateKeywordMapping}
+      disabled={
+        keywordClusteringApproved !== true ||
+        keywordMappingApproved === true ||
+        keywordMappingState === "generating" ||
+        keywordMappingState === "loading"
+      }
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: "1px solid #111827",
+        cursor:
+          keywordClusteringApproved !== true ||
+          keywordMappingApproved === true ||
+          keywordMappingState === "generating" ||
+          keywordMappingState === "loading"
+            ? "not-allowed"
+            : "pointer",
+        background:
+          keywordClusteringApproved !== true || keywordMappingApproved === true
+            ? "#f3f4f6"
+            : "#111827",
+        color:
+          keywordClusteringApproved !== true || keywordMappingApproved === true
+            ? "#6b7280"
+            : "white",
+        opacity: keywordMappingState === "generating" ? 0.7 : 1,
+        fontWeight: 900,
+      }}
+      title={
+        keywordClusteringApproved !== true
+          ? "Approve Step 5 first"
+          : keywordMappingApproved
+          ? "Already approved and locked"
+          : ""
+      }
+    >
+      {keywordMappingState === "generating" ? "Generating…" : "Generate Mapping"}
+    </button>
+          <button
+      type="button"
+      onClick={saveKeywordMappingDraft}
+      disabled={
+        keywordClusteringApproved !== true ||
+        keywordMappingExists !== true ||
+        keywordMappingApproved === true ||
+        kmDraftState === "saving"
+      }
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: "1px solid #2563eb",
+        cursor:
+          keywordClusteringApproved !== true ||
+          keywordMappingExists !== true ||
+          keywordMappingApproved === true ||
+          kmDraftState === "saving"
+            ? "not-allowed"
+            : "pointer",
+        background:
+          keywordClusteringApproved !== true ||
+          keywordMappingExists !== true ||
+          keywordMappingApproved === true
+            ? "#f3f4f6"
+            : "#eff6ff",
+        color:
+          keywordClusteringApproved !== true ||
+          keywordMappingExists !== true ||
+          keywordMappingApproved === true
+            ? "#6b7280"
+            : "#1d4ed8",
+        opacity: kmDraftState === "saving" ? 0.7 : 1,
+        fontWeight: 900,
+      }}
+      title={
+        keywordClusteringApproved !== true
+          ? "Approve Step 5 first"
+          : keywordMappingExists !== true
+          ? "Generate mapping first"
+          : keywordMappingApproved
+          ? "Already approved and locked"
+          : ""
+      }
+    >
+      {kmDraftState === "saving" ? "Saving…" : kmDraftState === "saved" ? "Draft Saved ✓" : "Save Draft"}
+    </button>
+
+    <button
+      type="button"
+      onClick={approveKeywordMapping}
+      disabled={
+        keywordClusteringApproved !== true ||
+        keywordMappingExists !== true ||
+        keywordMappingApproved === true ||
+        kmApproveState === "approving"
+      }
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: "1px solid #047857",
+        cursor:
+          keywordClusteringApproved !== true ||
+          keywordMappingExists !== true ||
+          keywordMappingApproved === true ||
+          kmApproveState === "approving"
+            ? "not-allowed"
+            : "pointer",
+        background:
+          keywordClusteringApproved !== true ||
+          keywordMappingExists !== true ||
+          keywordMappingApproved === true
+            ? "#f3f4f6"
+            : "#ecfdf5",
+        color:
+          keywordClusteringApproved !== true ||
+          keywordMappingExists !== true ||
+          keywordMappingApproved === true
+            ? "#6b7280"
+            : "#047857",
+        opacity: kmApproveState === "approving" ? 0.7 : 1,
+        fontWeight: 900,
+      }}
+      title={
+        keywordClusteringApproved !== true
+          ? "Approve Step 5 first"
+          : keywordMappingExists !== true
+          ? "Generate mapping first"
+          : keywordMappingApproved
+          ? "Already approved and locked"
+          : ""
+      }
+    >
+      {kmApproveState === "approving" ? "Approving…" : "Approve Mapping"}
+    </button>
+
+    <div style={{ color: "#6b7280", fontSize: 13 }}>
+      Status:{" "}
+      <b style={{ color: keywordMappingExists ? "#065f46" : "#111827" }}>
+        {keywordMappingExists ? "Generated" : "Not generated yet"}
+      </b>
+    </div>
+  </div>
+  {kmApproveWarning ? (
+    <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>
+      {kmApproveWarning}
+    </div>
+  ) : null}
+  {kmDraftError ? (
+    <div style={{ marginTop: 8, color: "#b91c1c", fontSize: 13 }}>
+      {kmDraftError}
+    </div>
+  ) : null}
+
+
+  {keywordMappingError ? (
+    <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>
+      {keywordMappingError}
+    </div>
+  ) : null}
+
+  {/* Results */}
+  {keywordMappingExists ? (
+    <div style={{ marginTop: 14 }}>
+      <div
+        style={{
+          padding: 12,
+          borderRadius: 12,
+          border: "1px solid #f3f4f6",
+          background: "#fafafa",
+          color: "#374151",
+          fontSize: 13,
+          lineHeight: 1.5,
+        }}
+      >
+        <div style={{ fontWeight: 900, color: "#111827" }}>Mapping Summary</div>
+
+<div style={{ marginTop: 6 }}>
+  Existing pages mapped:{" "}
+  <b>{Array.isArray(kmExistingPages) ? kmExistingPages.length : 0}</b>
+  {" "}• Gap pages recommended:{" "}
+  <b>{Array.isArray(kmGapPages) ? kmGapPages.length : 0}</b>
+</div>
+
+<div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+  Total shortlisted:{" "}
+  <b>{kmDeploymentStats?.totalShortlisted ?? "—"}</b>
+  {" "}• Mapped to existing:{" "}
+  <b>{kmDeploymentStats?.mappedToExisting ?? "—"}</b>
+  {" "}• New pages suggested:{" "}
+  <b>{kmDeploymentStats?.suggestedNewPages ?? "—"}</b>
+  {" "}• Coverage:{" "}
+  <b>
+    {kmDeploymentStats?.coveragePercentage != null
+      ? `${Number(kmDeploymentStats.coveragePercentage).toFixed(0)}%`
+      : "—"}
+  </b>
+</div>
+</div>
+
+
+      {/* Existing Pages */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+          Existing Pages (with assigned keywords)
+        </div>
+
+        {(kmExistingPages || []).length ? (
+          <div style={{ marginTop: 10, border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+            <div style={{ maxHeight: 320, overflow: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    {["URL", "Primary Keyword", "Secondary Keywords"].map((h) => (
+                      <th
+                        key={h}
+                        style={{
+                          textAlign: "left",
+                          padding: "10px 10px",
+                          fontSize: 12,
+                          color: "#374151",
+                          fontWeight: 900,
+                          borderBottom: "1px solid #e5e7eb",
+                          background: "#fafafa",
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 1,
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(kmExistingPages || []).map((p, idx) => (
+                    <tr key={`${p?.url || "u"}-${idx}`}>
+                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                        <div style={{ fontWeight: 800, wordBreak: "break-all" }}>{p?.url || "—"}</div>
+                      </td>
+                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                      {p?.primaryKeyword?.keyword ? (
+  <div>
+    <div style={{ fontWeight: 800 }}>{p.primaryKeyword.keyword}</div>
+    <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+      Sim: <b>{Number(p.primaryKeyword.similarity || 0).toFixed(2)}</b>
+      {" "}• Score: <b>{Number(p.primaryKeyword.strategyScore || 0).toFixed(2)}</b>
+    </div>
+  </div>
+) : (
+  "—"
+)}
+
+                      </td>
+                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                        {Array.isArray(p?.secondaryKeywords) && p.secondaryKeywords.length
+                         ? p.secondaryKeywords.map((x) => x?.keyword).filter(Boolean).join(", ")
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginTop: 8, color: "#6b7280", fontSize: 13 }}>No existing pages found in mapping.</div>
+        )}
+      </div>
+
+      {/* Gap Pages */}
+      <div style={{ marginTop: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+          Gap Pages (recommended new pages)
+        </div>
+
+        {(kmGapPages || []).length ? (
+          <div style={{ marginTop: 10, border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+            <div style={{ maxHeight: 320, overflow: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    {["Suggested Page", "Primary Keyword", "Secondary Keywords"].map((h) => (
+                      <th
+                        key={h}
+                        style={{
+                          textAlign: "left",
+                          padding: "10px 10px",
+                          fontSize: 12,
+                          color: "#374151",
+                          fontWeight: 900,
+                          borderBottom: "1px solid #e5e7eb",
+                          background: "#fafafa",
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 1,
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(kmGapPages || []).map((g, idx) => (
+                    <tr key={`${g?.suggestedSlug || g?.primaryKeyword || "gap"}-${idx}`}>
+                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                        <div style={{ fontWeight: 800 }}>{g?.suggestedTitle || "—"}</div>
+{g?.suggestedSlug ? (
+  <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+    Slug: <b>{g.suggestedSlug}</b>
+  </div>
+) : null}
+                      </td>
+                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
+                        {g?.primaryKeyword || "—"}
+                      </td>
+                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+                        {Array.isArray(g?.secondaryKeywords) && g.secondaryKeywords.length
+                          ? g.secondaryKeywords.join(", ")
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginTop: 8, color: "#6b7280", fontSize: 13 }}>No gap pages found in mapping.</div>
+        )}
+      </div>
+    </div>
+  ) : (
+    <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>
+      No mapping generated yet for this website.
+    </div>
+  )}
+  </div>
+</div>
+{/* >>> STEP 6 UI SHELL (END) */}
 
         {/* WIP link (not used in this phase) */}
         <div style={{ marginTop: 14 }}>
