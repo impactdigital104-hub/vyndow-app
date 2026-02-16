@@ -4925,7 +4925,6 @@ style={{
       No mapping generated yet for this website.
     </div>
   )}
-  </div>
 </StepCard>
 
 
