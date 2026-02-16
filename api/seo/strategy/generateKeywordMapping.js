@@ -272,14 +272,18 @@ export default async function handler(req, res) {
       let bestSim = -Infinity;
 
       const sims = [];
-      for (let j = 0; j < pageEmbeddings.length; j++) {
-        const sim = cosineSimilarity(vec, pageEmbeddings[j]);
-        sims.push({ pageIdx: j, sim });
-        if (sim > bestSim) {
-          bestSim = sim;
-          bestIdx = j;
-        }
-      }
+for (let j = 0; j < pageEmbeddings.length; j++) {
+  const cos = cosineSimilarity(vec, pageEmbeddings[j]); // -1..+1
+  const sim01 = clamp01((Number(cos) + 1) / 2);          // 0..1
+
+  sims.push({ pageIdx: j, sim: sim01 });
+
+  if (sim01 > bestSim) {
+    bestSim = sim01;
+    bestIdx = j;
+  }
+}
+
 
       const confidence = classifyConfidence(bestSim);
       const bestPage = bestIdx >= 0 ? pages[bestIdx] : null;
@@ -354,7 +358,7 @@ export default async function handler(req, res) {
         }
       }
 
-      const confPct = primary ? clamp01((Number(primary.bestSimilarity) + 1) / 2) : 0; // display-friendly
+     const confPct = primary ? clamp01(Number(primary.bestSimilarity)) : 0;
       existingPages.push({
         url: p.url,
         primaryKeyword: primary
