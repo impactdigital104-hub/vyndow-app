@@ -229,15 +229,28 @@ export default async function handler(req, res) {
     // -------------------- PHASE 1: Page embeddings (Title + H1 + H2) --------------------
     const pages = auditDocs
       .map((d) => d.data() || {})
-      .map((p) => ({
-        url: String(p.url || "").trim(),
-        title: p.title || "",
-        h1: p.h1 || "",
-        h2List: Array.isArray(p.h2List) ? p.h2List : [],
-      }))
+      .map((p) => {
+        const ex = p.extracted || {};
+        return {
+          url: String(p.url || "").trim(),
+          title: ex.title || "",
+          h1: ex.h1 || "",
+          h2List: Array.isArray(ex.h2List) ? ex.h2List : [],
+        };
+      })
       .filter((p) => Boolean(p.url));
 
+
     const pageTexts = pages.map((p) => buildPageText(p));
+        console.log("[Step6] pages count:", pages.length);
+    console.log(
+      "[Step6] pageTexts sample:",
+      pageTexts.slice(0, 3).map((t) => ({
+        len: (t || "").length,
+        preview: String(t || "").slice(0, 140),
+      }))
+    );
+
     const pageEmbeddings = await embedTexts(pageTexts);
 
     // collect existing slugs to avoid duplication for gap pages
@@ -260,6 +273,12 @@ export default async function handler(req, res) {
       .filter((k) => Boolean(k.keyword));
 
     const keywordStrings = keywords.map((k) => k.keyword);
+        console.log("[Step6] keywords count:", keywords.length);
+    console.log(
+      "[Step6] keyword sample:",
+      keywordStrings.slice(0, 10)
+    );
+
     const keywordEmbeddings = await embedTexts(keywordStrings);
 
     // For each keyword, compute best match and also keep all sims for internal-linking logic
