@@ -4417,7 +4417,7 @@ style={{
           Existing Pages (with assigned keywords)
         </div>
 
-        {Array.isArray(mappingData?.existingPages) && mappingData.existingPages.length ? (
+        {Array.isArray(kmExistingPages) && kmExistingPages.length > 0 ? (
           <div
             style={{
               marginTop: 10,
@@ -4427,7 +4427,7 @@ style={{
               background: "white",
             }}
           >
-            {mappingData.existingPages.map((p, idx) => {
+           {kmExistingPages.map((row, idx) => {
               const confidence = Number(p?.mappingConfidence ?? 0);
 
               const confBg =
@@ -4440,8 +4440,7 @@ style={{
                   key={`${p?.url || "url"}-${idx}`}
                   style={{
                     padding: 16,
-                    borderBottom:
-                      idx === mappingData.existingPages.length - 1 ? "none" : "1px solid #e5e7eb",
+borderBottom: idx === kmExistingPages.length - 1 ? "none" : "1px solid #e5e7eb",
                     background: idx % 2 === 0 ? "white" : "#fbfdff",
                   }}
                 >
