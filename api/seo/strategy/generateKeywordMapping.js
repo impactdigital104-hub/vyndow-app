@@ -274,7 +274,7 @@ export default async function handler(req, res) {
       const sims = [];
 for (let j = 0; j < pageEmbeddings.length; j++) {
   const cos = cosineSimilarity(vec, pageEmbeddings[j]); // -1..+1
-  const sim01 = clamp01((Number(cos) + 1) / 2);          // 0..1
+  const sim01 = clamp01((Number(cos) + 1) / 2);         // 0..1
 
   sims.push({ pageIdx: j, sim: sim01 });
 
@@ -283,6 +283,7 @@ for (let j = 0; j < pageEmbeddings.length; j++) {
     bestIdx = j;
   }
 }
+
 
 
       const confidence = classifyConfidence(bestSim);
