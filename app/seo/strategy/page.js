@@ -4928,7 +4928,6 @@ style={{
   </div>
 </StepCard>
 
-{/* >>> STEP 6 UI SHELL (END) */}
 
     </VyndowShell>
   );
