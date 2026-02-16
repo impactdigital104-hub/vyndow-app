@@ -4506,12 +4506,16 @@ borderBottom: idx === kmExistingPages.length - 1 ? "none" : "1px solid #e5e7eb",
                             color: "#111827",
                           }}
                         >
-                          <option value="">— No primary —</option>
-                          {(shortlistedKeywords || []).map((k) => (
-                            <option key={k?.keyword || k} value={k?.keyword || k}>
-                              {k?.keyword || k}
-                            </option>
-                          ))}
+<option value="">— No primary —</option>
+                          {(Array.isArray(kcShortlist) ? kcShortlist : [])
+                            .map((k) => (typeof k === "string" ? k : k?.keyword))
+                            .filter(Boolean)
+                            .map((k) => (
+                              <option key={k} value={k}>
+                                {k}
+                              </option>
+                            ))}
+
                         </select>
                       )}
 
@@ -4593,16 +4597,17 @@ borderBottom: idx === kmExistingPages.length - 1 ? "none" : "1px solid #e5e7eb",
                             }}
                           >
                             <option value="">— Add secondary —</option>
-                            {(shortlistedKeywords || [])
-                              .map((k) => k?.keyword || k)
-                              .filter(Boolean)
-                              .filter((k) => k !== (p?.primaryKeyword?.keyword || ""))
-                              .filter((k) => !(p?.secondaryKeywords || []).includes(k))
-                              .map((k) => (
-                                <option key={k} value={k}>
-                                  {k}
-                                </option>
-                              ))}
+{(Array.isArray(kcShortlist) ? kcShortlist : [])
+  .map((k) => (typeof k === "string" ? k : k?.keyword))
+  .filter(Boolean)
+  .filter((k) => k !== (p?.primaryKeyword?.keyword || ""))
+  .filter((k) => !(p?.secondaryKeywords || []).includes(k))
+  .map((k) => (
+    <option key={k} value={k}>
+      {k}
+    </option>
+  ))}
+
                           </select>
 
                           <button
