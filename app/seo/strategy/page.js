@@ -23,6 +23,132 @@ import { auth, db } from "../../firebaseClient";
 // users/{uid}/websites/{websiteId}/modules/seo/strategy/businessProfile
 // =========================
 
+// =========================
+// House palette + Step accordion UI helpers (Option B)
+// =========================
+const HOUSE = {
+  primaryBlue: "#1E66FF",     // Deep SaaS Blue (primary)
+  primaryPurple: "#6D28D9",   // Brand purple
+  accentTeal: "#06B6D4",      // Brand teal (used lightly)
+  success: "#16A34A",         // Muted green
+  warning: "#F59E0B",         // Amber
+  bgSoft: "#FFF7ED",          // Very soft neutral (warm)
+  cardBorder: "#E6E6EB",
+  text: "#0F172A",
+  subtext: "#475569",
+};
+
+const STEP_CARD_STYLE = {
+  marginTop: 14,
+  background: "white",
+  borderRadius: 16,
+  border: `1px solid ${HOUSE.cardBorder}`,
+  boxShadow: "0 10px 30px rgba(15,23,42,0.06)",
+  overflow: "hidden",
+};
+
+const STEP_HEADER_STYLE = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "16px 18px",
+  cursor: "pointer",
+  userSelect: "none",
+  background: `linear-gradient(90deg, rgba(109,40,217,0.10), rgba(30,102,255,0.08))`,
+  borderBottom: `1px solid ${HOUSE.cardBorder}`,
+};
+
+const STEP_TITLE_STYLE = {
+  fontWeight: 900,
+  fontSize: 20,
+  color: HOUSE.primaryPurple,
+  letterSpacing: "-0.2px",
+};
+
+const STEP_SUBTITLE_STYLE = {
+  marginTop: 4,
+  fontSize: 13,
+  color: HOUSE.subtext,
+  lineHeight: 1.35,
+};
+
+const PILL_BASE = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "7px 10px",
+  borderRadius: 999,
+  fontWeight: 800,
+  fontSize: 12,
+  border: "1px solid transparent",
+  whiteSpace: "nowrap",
+};
+
+function StatusPill({ tone = "neutral", children }) {
+  const toneStyle =
+    tone === "success"
+      ? { background: "rgba(22,163,74,0.12)", color: HOUSE.success, borderColor: "rgba(22,163,74,0.25)" }
+      : tone === "warning"
+      ? { background: "rgba(245,158,11,0.12)", color: HOUSE.warning, borderColor: "rgba(245,158,11,0.25)" }
+      : { background: "rgba(30,102,255,0.08)", color: HOUSE.primaryBlue, borderColor: "rgba(30,102,255,0.18)" };
+
+  return <span style={{ ...PILL_BASE, border: `1px solid ${toneStyle.borderColor}`, ...toneStyle }}>{children}</span>;
+}
+
+function StepCard({
+  id,
+  step,
+  title,
+  subtitle,
+  statusTone,
+  statusText,
+  openStep,
+  setOpenStep,
+  children,
+}) {
+  const isOpen = openStep === id;
+
+  return (
+    <div style={STEP_CARD_STYLE}>
+      <div
+        style={STEP_HEADER_STYLE}
+        onClick={() => setOpenStep(isOpen ? null : id)}
+        role="button"
+        aria-expanded={isOpen}
+      >
+        <div style={{ flex: 1, paddingRight: 12 }}>
+          <div style={STEP_TITLE_STYLE}>
+            {step}: {title}
+          </div>
+          {subtitle ? <div style={STEP_SUBTITLE_STYLE}>{subtitle}</div> : null}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {statusText ? <StatusPill tone={statusTone}>{statusText}</StatusPill> : null}
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              border: `1px solid ${HOUSE.cardBorder}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: HOUSE.text,
+              background: "white",
+              fontWeight: 900,
+            }}
+          >
+            {isOpen ? "–" : "+"}
+          </div>
+        </div>
+      </div>
+
+      {isOpen ? <div style={{ padding: 18 }}>{children}</div> : null}
+    </div>
+  );
+}
+
 const inputStyle = {
   width: "100%",
   padding: "10px 12px",
@@ -250,6 +376,8 @@ const [keywordMappingState, setKeywordMappingState] = useState("idle"); // idle 
 const [keywordMappingError, setKeywordMappingError] = useState("");
 const [keywordMappingExists, setKeywordMappingExists] = useState(false);
 const [keywordMappingApproved, setKeywordMappingApproved] = useState(false);
+  const [openStep, setOpenStep] = useState("step1"); // Option B accordion: one step open at a time
+
 
 const [kmExistingPages, setKmExistingPages] = useState([]); // editable working version
 const [kmGapPages, setKmGapPages] = useState([]); // editable working version
@@ -2131,7 +2259,7 @@ async function handleRunAudit() {
 
   return (
     <VyndowShell>
-      <div style={{ padding: 24, maxWidth: 900 }}>
+      <div style={{ padding: 32, maxWidth: 1100 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0 }}>
             Build SEO Strategy
@@ -2256,23 +2384,18 @@ async function handleRunAudit() {
           </div>
         ) : null}
 
-        {/* Step 1 form */}
-        <div
-          style={{
-            marginTop: 14,
-            padding: 16,
-            border: "1px solid #eee",
-            borderRadius: 12,
-            background: "white",
-          }}
-        >
-          <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
-            Step 1 — Business Profile
-          </div>
-          <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-            We will use this to build a revenue-aligned SEO strategy. Do not add
-            keywords here.
-          </div>
+{/* Step 1 form */}
+<StepCard
+  id="step1"
+  step="Step 1"
+  title="Business Profile"
+  subtitle="We will use this to build a revenue-aligned SEO strategy. Do not add keywords here."
+  statusTone={profileExists ? "success" : "neutral"}
+  statusText={profileExists ? "Saved" : "Not started"}
+  openStep={openStep}
+  setOpenStep={setOpenStep}
+>
+
 
           {loadingProfile ? (
             <div style={{ marginTop: 12, color: "#374151" }}>
@@ -2454,24 +2577,19 @@ async function handleRunAudit() {
           {saveError ? (
             <div style={{ marginTop: 12, color: "#b91c1c" }}>{saveError}</div>
           ) : null}
-        </div>
-{/* STEP 2 */}
-<div
-  style={{
-    marginTop: 14,
-    padding: 16,
-    border: "1px solid #eee",
-    borderRadius: 12,
-    background: "white",
-  }}
+      </StepCard>
+{/* Step 2 */}
+<StepCard
+  id="step2"
+  step="Step 2"
+  title="Page Discovery"
+  subtitle="Add the key URLs you want to include in this SEO strategy. This step only saves URLs — no audit, no AI calls, no fixes."
+  statusTone={pageDiscoveryExists ? "success" : "neutral"}
+  statusText={pageDiscoveryExists ? "Saved" : "Not started"}
+  openStep={openStep}
+  setOpenStep={setOpenStep}
 >
-  <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
-    Step 2 — Page Discovery
-  </div>
-  <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-    Add the key URLs you want to include in this SEO strategy. This step only
-    saves URLs — no audit, no AI calls, no fixes.
-  </div>
+
 
   <div
     style={{
@@ -2659,25 +2777,18 @@ async function handleRunAudit() {
       <div style={{ marginTop: 12, color: "#b91c1c" }}>{savePagesError}</div>
     ) : null}
   </div>
-</div>
+</StepCard>
 {/* STEP 3 */}
-<div
-  style={{
-    marginTop: 14,
-    padding: 16,
-    border: "1px solid #eee",
-    borderRadius: 12,
-    background: "white",
-  }}
+<StepCard
+  id="step3"
+  step="Step 3"
+  title="Pure On-Page Audit (Diagnostics)"
+  subtitle="This runs a diagnostics audit only (no AI, no fixes). It audits only the URLs saved in Step 2. It is resume-safe and skips URLs already audited."
+  statusTone={auditProgress?.done > 0 ? "success" : "neutral"}
+  statusText={auditProgress?.done > 0 ? `${auditProgress.done} audited` : "Not started"}
+  openStep={openStep}
+  setOpenStep={setOpenStep}
 >
-  <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
-    Step 3 — Pure On-Page Audit (Diagnostics)
-  </div>
-
-  <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-    This runs a diagnostics audit only (no AI, no fixes). It audits only the URLs saved in Step 2.
-    It is resume-safe and skips URLs already audited.
-  </div>
 
   <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
     <button
@@ -2742,24 +2853,19 @@ async function handleRunAudit() {
       <div style={{ marginTop: 10, color: "#b91c1c" }}>{auditError}</div>
     ) : null}
   </div>
-</div>
-{/* STEP 3.5 — Audit Results Viewer */}
-<div
-  style={{
-    marginTop: 14,
-    padding: 16,
-    border: "1px solid #eee",
-    borderRadius: 12,
-    background: "white",
-  }}
+</StepCard>
+{/* STEP 3.5 */}
+<StepCard
+  id="step3_5"
+  step="Step 3.5"
+  title="Audit Results Viewer"
+  subtitle="Resume-safe: results render automatically if audits already exist. Click a row to expand details."
+  statusTone={auditProgress?.done > 0 ? "success" : "neutral"}
+  statusText={auditProgress?.done > 0 ? "Ready" : "Waiting"}
+  openStep={openStep}
+  setOpenStep={setOpenStep}
 >
-  <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
-    Step 3.5 — Audit Results Viewer
-  </div>
 
-  <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-    Resume-safe: results render automatically if audits already exist. Click a row to expand details.
-  </div>
 
   {/* Dot helper */}
   {(() => {
@@ -3070,21 +3176,21 @@ async function handleRunAudit() {
       </div>
     );
   })()}
-</div>
+</StepCard>
 
-        {/* STEP 4B — Keyword Pool (Seed Keywords → Generate → Top 200) */}
-        <div
-          style={{
-            marginTop: 14,
-            padding: 16,
-            border: "1px solid #eee",
-            borderRadius: 12,
-            background: "white",
-          }}
-        >
-          <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
-           Step 4B — Keyword Pool
-          </div>
+
+{/* STEP 4B */}
+<StepCard
+  id="step4b"
+  step="Step 4B"
+  title="Keyword Pool"
+  subtitle="Enter 3–10 seed keywords (comma or newline separated). Generate is locked per website once created."
+  statusTone={keywordPoolExists ? "success" : "neutral"}
+  statusText={keywordPoolExists ? "Generated" : "Not started"}
+  openStep={openStep}
+  setOpenStep={setOpenStep}
+>
+
 
           <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
             Enter 3–10 seed keywords (comma or newline separated). Generate is locked per website once created.
@@ -3401,20 +3507,19 @@ async function handleRunAudit() {
               </div>
             )}
           </div>
-        </div>
-        {/* STEP 4.5 — Business Context Intelligence Layer */}
-        <div
-          style={{
-            marginTop: 14,
-            padding: 16,
-            border: "1px solid #eee",
-            borderRadius: 12,
-            background: "white",
-          }}
-        >
-          <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
-            Step 4.5 — AI Business Understanding
-          </div>
+</StepCard>
+
+{/* STEP 4.5 */}
+<StepCard
+  id="step4_5"
+  step="Step 4.5"
+  title="AI Business Understanding"
+  subtitle="This is a neutral, factual summary used for keyword relevance scoring and clustering. Please edit if needed and approve to unlock Step 5."
+  statusTone={businessContextApproved ? "success" : "warning"}
+  statusText={businessContextApproved ? "Approved" : "Not approved"}
+  openStep={openStep}
+  setOpenStep={setOpenStep}
+>
 
           <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
             This is a neutral, factual summary used for keyword relevance scoring and clustering.
@@ -3603,20 +3708,19 @@ async function handleRunAudit() {
           {businessContextError ? (
             <div style={{ marginTop: 10, color: "#b91c1c" }}>{businessContextError}</div>
           ) : null}
-          </div>
-{/* STEP 5 — Keyword Filtering, Scoring, Clustering & Pillars */}
-<div
-  style={{
-    marginTop: 14,
-    padding: 16,
-    border: "1px solid #eee",
-    borderRadius: 12,
-    background: "white",
-  }}
+         </StepCard>
+{/* STEP 5 */}
+<StepCard
+  id="step5"
+  step="Step 5"
+  title="Pillars & Clusters (Keyword Architecture)"
+  subtitle="Vyndow will filter keywords semantically, shortlist ~100, then create up to 6 pillars with clusters. You can rename pillar labels, remove keywords, or add keywords."
+  statusTone={keywordClusteringApproved ? "success" : "warning"}
+  statusText={keywordClusteringApproved ? "Locked" : "Unlocked"}
+  openStep={openStep}
+  setOpenStep={setOpenStep}
 >
-  <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
-    Step 5 — Pillars & Clusters (Keyword Architecture)
-  </div>
+
 
   <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13, lineHeight: 1.5 }}>
     Vyndow will filter keywords semantically, shortlist ~100, then create up to 6 pillars with clusters.
@@ -4052,43 +4156,20 @@ style={{
         : "Approve Step 4.5 to unlock Step 5."}
     </div>
   )}
-</div>
+</StepCard>
 
 {/* >>> STEP 6 UI SHELL (START) */}
-<div
-  style={{
-    marginTop: 14,
-    padding: 16,
-    border: "1px solid #eee",
-    borderRadius: 12,
-    background: "white",
-  }}
+<StepCard
+  id="step6"
+  step="Step 6"
+  title="Keyword-to-URL Mapping (Deployment Blueprint)"
+  subtitle="Map shortlisted keywords to your existing audited pages, recommend gap pages, and produce a deployable SEO blueprint."
+  statusTone={keywordMappingApproved ? "success" : "warning"}
+  statusText={keywordMappingApproved ? "Approved" : "Not approved"}
+  openStep={openStep}
+  setOpenStep={setOpenStep}
 >
-  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-    <div>
-      <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
-        Step 6 — Keyword-to-URL Mapping (Deployment Blueprint)
-      </div>
-      <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13, lineHeight: 1.5 }}>
-        Map shortlisted keywords to your existing audited pages, recommend gap pages, and produce a deployable SEO blueprint.
-      </div>
-    </div>
 
-    <div
-      style={{
-        padding: "6px 10px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 800,
-        border: "1px solid #eee",
-        background: keywordMappingApproved ? "#ecfdf5" : "#fffbeb",
-        color: keywordMappingApproved ? "#047857" : "#b45309",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {keywordMappingApproved ? "Approved ✓" : "Not Approved"}
-    </div>
-  </div>
 
   {/* Gating message */}
   {keywordClusteringApproved !== true ? (
@@ -4845,7 +4926,8 @@ style={{
     </div>
   )}
   </div>
-</div>
+</StepCard>
+
 {/* >>> STEP 6 UI SHELL (END) */}
 
     </VyndowShell>
