@@ -257,6 +257,8 @@ const [kmDeploymentStats, setKmDeploymentStats] = useState(null);
 
 const [kmDraftState, setKmDraftState] = useState("idle"); // idle | saving | saved | error
 const [kmDraftError, setKmDraftError] = useState("");
+  const [kmSecondaryPicker, setKmSecondaryPicker] = useState({}); // { [rowIndex]: "keyword string" }
+
 
 const [kmApproveState, setKmApproveState] = useState("idle"); // idle | approving | approved | blocked | error
 const [kmApproveWarning, setKmApproveWarning] = useState("");
@@ -929,6 +931,206 @@ async function saveKeywordMappingDraft() {
   }
 }
 // >>> STEP 6: SAVE KEYWORD MAPPING DRAFT (END)
+  // >>> STEP 6: EDITING HELPERS (START)
+function getPrimaryKeywordString(p) {
+  if (!p) return "";
+  if (typeof p.primaryKeyword === "string") return p.primaryKeyword;
+  if (typeof p.primaryKeyword === "object" && p.primaryKeyword?.keyword) return String(p.primaryKeyword.keyword);
+  return "";
+}
+
+function getSecondaryKeywordStrings(p) {
+  const s = p?.secondaryKeywords;
+  if (!Array.isArray(s)) return [];
+  // can be string[] or object[]
+  return s
+    .map((x) => (typeof x === "string" ? x : x?.keyword))
+    .filter(Boolean)
+    .map(String);
+}
+
+function buildAllShortlistedKeywordStrings(existingPages) {
+  const pool = new Set();
+
+  (kcShortlist || [])
+    .map((x) => (typeof x === "string" ? x : x?.keyword))
+    .filter(Boolean)
+    .forEach((k) => pool.add(String(k).trim()));
+
+  (existingPages || []).forEach((p) => {
+    const pk = getPrimaryKeywordString(p);
+    if (pk) pool.add(pk);
+
+    getSecondaryKeywordStrings(p).forEach((k) => pool.add(k));
+  });
+
+  return Array.from(pool).sort((a, b) => a.localeCompare(b));
+}
+
+function buildPrimaryOptionsForPage(pageIndex) {
+  const all = buildAllShortlistedKeywordStrings(kmExistingPages);
+
+  const usedByOthers = new Set(
+    (kmExistingPages || [])
+      .map((p, idx) => (idx === pageIndex ? "" : getPrimaryKeywordString(p)))
+      .filter(Boolean)
+      .map((s) => String(s).trim().toLowerCase())
+  );
+
+  const current = getPrimaryKeywordString((kmExistingPages || [])[pageIndex] || "");
+  const currentNorm = String(current || "").trim().toLowerCase();
+
+  const filtered = all.filter((kw) => {
+    const n = String(kw || "").trim().toLowerCase();
+    if (!n) return false;
+    if (n === currentNorm) return true;
+    return !usedByOthers.has(n);
+  });
+
+  return filtered;
+}
+
+function buildCandidateKeywordPool(existingPages) {
+  return buildAllShortlistedKeywordStrings(existingPages);
+}
+function hasDuplicatePrimary(existingPages, nextKeyword, exceptIndex) {
+  const needle = String(nextKeyword || "").trim().toLowerCase();
+  if (!needle) return false;
+
+  for (let i = 0; i < (existingPages || []).length; i++) {
+    if (i === exceptIndex) continue;
+    const pk = getPrimaryKeywordString(existingPages[i]).trim().toLowerCase();
+    if (pk && pk === needle) return true;
+  }
+  return false;
+}
+
+
+function setPrimaryKeywordAtIndex(pageIndex, nextKeyword) {
+  const next = String(nextKeyword || "").trim();
+
+  setKmExistingPages((prev) => {
+    const arr = Array.isArray(prev) ? [...prev] : [];
+    if (!arr[pageIndex]) return arr;
+
+    if (hasDuplicatePrimary(arr, next, pageIndex)) {
+      setKeywordMappingError(`Duplicate primary keyword not allowed: "${next}" is already used on another page.`);
+      return arr;
+    }
+
+    setKeywordMappingError("");
+
+    const current = { ...(arr[pageIndex] || {}) };
+
+    // Keep object shape for consistency with API
+    current.primaryKeyword = next
+      ? { keyword: next } // minimal; similarity/score not recomputed in UI
+      : null;
+
+    arr[pageIndex] = current;
+    return arr;
+  });
+}
+
+function removeSecondaryKeywordAtIndex(pageIndex, keywordToRemove) {
+  const rm = String(keywordToRemove || "").trim().toLowerCase();
+  if (!rm) return;
+
+  setKmExistingPages((prev) => {
+    const arr = Array.isArray(prev) ? [...prev] : [];
+    if (!arr[pageIndex]) return arr;
+
+    const current = { ...(arr[pageIndex] || {}) };
+    const sec = current.secondaryKeywords;
+
+    if (!Array.isArray(sec)) return arr;
+
+    const filtered = sec.filter((x) => {
+      const k = (typeof x === "string" ? x : x?.keyword) || "";
+      return String(k).trim().toLowerCase() !== rm;
+    });
+
+    current.secondaryKeywords = filtered;
+    arr[pageIndex] = current;
+    return arr;
+  });
+}
+  function setGapFieldAtIndex(gapIndex, field, value) {
+  setKmGapPages((prev) => {
+    const arr = Array.isArray(prev) ? [...prev] : [];
+    if (!arr[gapIndex]) return arr;
+
+    arr[gapIndex] = {
+      ...arr[gapIndex],
+      [field]: value,
+    };
+
+    return arr;
+  });
+}
+
+function toggleGapAccepted(gapIndex) {
+  setKmGapPages((prev) => {
+    const arr = Array.isArray(prev) ? [...prev] : [];
+    if (!arr[gapIndex]) return arr;
+
+    const current = arr[gapIndex];
+    const nextAccepted = !(current?.accepted ?? true);
+
+    arr[gapIndex] = {
+      ...current,
+      accepted: nextAccepted,
+    };
+
+    return arr;
+  });
+}
+
+
+  function addSecondaryKeywordAtIndex(pageIndex, nextKeyword) {
+  const next = String(nextKeyword || "").trim();
+  if (!next) return;
+
+  setKmExistingPages((prev) => {
+    const arr = Array.isArray(prev) ? [...prev] : [];
+    if (!arr[pageIndex]) return arr;
+
+    const current = { ...(arr[pageIndex] || {}) };
+    const sec = Array.isArray(current.secondaryKeywords) ? [...current.secondaryKeywords] : [];
+
+    // normalize existing strings
+    const existing = sec
+      .map((x) => (typeof x === "string" ? x : x?.keyword))
+      .filter(Boolean)
+      .map((s) => String(s).trim().toLowerCase());
+
+    const needle = next.toLowerCase();
+    const primaryHere = String(getPrimaryKeywordString(current) || "").trim().toLowerCase();
+if (primaryHere && primaryHere === needle) {
+  setKeywordMappingError("Secondary keyword cannot be the same as the primary keyword for this page.");
+  return arr;
+}
+
+
+    if (existing.includes(needle)) return arr;
+
+    if (sec.length >= 5) {
+      setKeywordMappingError("You can add a maximum of 5 secondary keywords per page.");
+      return arr;
+    }
+
+    setKeywordMappingError("");
+
+    // Store as string for simplicity (API can handle string[] or object[])
+    sec.push(next);
+    current.secondaryKeywords = sec;
+    arr[pageIndex] = current;
+    return arr;
+  });
+}
+
+// >>> STEP 6: EDITING HELPERS (END)
+
 
 
 // >>> STEP 6: GENERATE KEYWORD MAPPING (END)
@@ -4140,7 +4342,7 @@ style={{
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
-                    {["URL", "Primary Keyword", "Secondary Keywords"].map((h) => (
+                    {["URL", "Primary Keyword", "Secondary Keywords", "Pillar", "Confidence", "Internal Links"].map((h) => (
                       <th
                         key={h}
                         style={{
@@ -4168,24 +4370,276 @@ style={{
                         <div style={{ fontWeight: 800, wordBreak: "break-all" }}>{p?.url || "—"}</div>
                       </td>
                       <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
-                      {p?.primaryKeyword?.keyword ? (
+{keywordMappingApproved ? (
+  p?.primaryKeyword?.keyword ? (
+    <div>
+      <div style={{ fontWeight: 800 }}>{p.primaryKeyword.keyword}</div>
+      <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+        Sim: <b>{Number(p.primaryKeyword.similarity || 0).toFixed(2)}</b>
+        {" "}• Score: <b>{Number(p.primaryKeyword.strategyScore || 0).toFixed(2)}</b>
+      </div>
+    </div>
+  ) : (
+    "—"
+  )
+) : (
   <div>
-    <div style={{ fontWeight: 800 }}>{p.primaryKeyword.keyword}</div>
-    <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
-      Sim: <b>{Number(p.primaryKeyword.similarity || 0).toFixed(2)}</b>
-      {" "}• Score: <b>{Number(p.primaryKeyword.strategyScore || 0).toFixed(2)}</b>
+    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6, fontWeight: 800 }}>
+      Primary (unique)
+    </div>
+
+    <select
+      value={getPrimaryKeywordString(p)}
+      onChange={(e) => setPrimaryKeywordAtIndex(idx, e.target.value)}
+      style={{
+        width: "100%",
+        padding: "10px 10px",
+        borderRadius: 10,
+        border: "1px solid #e5e7eb",
+        background: "white",
+        fontSize: 13,
+        fontWeight: 800,
+        color: "#111827",
+      }}
+    >
+      <option value="">— No primary —</option>
+    {buildPrimaryOptionsForPage(idx).map((kw) => (
+        <option key={kw} value={kw}>
+          {kw}
+        </option>
+      ))}
+    </select>
+
+    <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+      Note: this does not recompute similarity; it only changes assignment.
+    </div>
+  </div>
+)}
+
+
+
+                      </td>
+                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
+{Array.isArray(p?.secondaryKeywords) && p.secondaryKeywords.length ? (
+  <div>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      {p.secondaryKeywords
+        .map((x) => (typeof x === "string" ? x : x?.keyword))
+        .filter(Boolean)
+        .map((kw) => (
+          <span
+            key={`${p?.url || "u"}-${kw}`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 10px",
+              borderRadius: 999,
+              border: "1px solid #e5e7eb",
+              background: "#fafafa",
+              fontSize: 12,
+              fontWeight: 800,
+              color: "#111827",
+            }}
+          >
+            {kw}
+
+            {!keywordMappingApproved ? (
+              <button
+                type="button"
+                onClick={() => removeSecondaryKeywordAtIndex(idx, kw)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  lineHeight: 1,
+                  fontWeight: 900,
+                  color: "#6b7280",
+                }}
+                title="Remove"
+              >
+                ×
+              </button>
+            ) : null}
+          </span>
+        ))}
+    </div>
+
+    {!keywordMappingApproved ? (
+      <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center" }}>
+        <select
+          value={kmSecondaryPicker[idx] || ""}
+          onChange={(e) =>
+            setKmSecondaryPicker((prev) => ({ ...(prev || {}), [idx]: e.target.value }))
+          }
+          style={{
+            flex: 1,
+            padding: "10px 10px",
+            borderRadius: 10,
+            border: "1px solid #e5e7eb",
+            background: "white",
+            fontSize: 13,
+            fontWeight: 800,
+            color: "#111827",
+          }}
+        >
+          <option value="">— Add secondary —</option>
+        {buildAllShortlistedKeywordStrings(kmExistingPages).map((kw) => (
+            <option key={kw} value={kw}>
+              {kw}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          onClick={() => {
+            const chosen = kmSecondaryPicker[idx] || "";
+            addSecondaryKeywordAtIndex(idx, chosen);
+            setKmSecondaryPicker((prev) => ({ ...(prev || {}), [idx]: "" }));
+          }}
+          style={{
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid #e5e7eb",
+            background: "white",
+            fontSize: 13,
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          Add
+        </button>
+      </div>
+    ) : null}
+  </div>
+) : !keywordMappingApproved ? (
+  <div>
+    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8, fontWeight: 800 }}>
+      No secondary keywords
+    </div>
+
+    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <select
+        value={kmSecondaryPicker[idx] || ""}
+        onChange={(e) =>
+          setKmSecondaryPicker((prev) => ({ ...(prev || {}), [idx]: e.target.value }))
+        }
+        style={{
+          flex: 1,
+          padding: "10px 10px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+          fontSize: 13,
+          fontWeight: 800,
+          color: "#111827",
+        }}
+      >
+        <option value="">— Add secondary —</option>
+        {buildCandidateKeywordPool(kmExistingPages).map((kw) => (
+          <option key={kw} value={kw}>
+            {kw}
+          </option>
+        ))}
+      </select>
+
+      <button
+        type="button"
+        onClick={() => {
+          const chosen = kmSecondaryPicker[idx] || "";
+          addSecondaryKeywordAtIndex(idx, chosen);
+          setKmSecondaryPicker((prev) => ({ ...(prev || {}), [idx]: "" }));
+        }}
+        style={{
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+          fontSize: 13,
+          fontWeight: 900,
+          cursor: "pointer",
+        }}
+      >
+        Add
+      </button>
     </div>
   </div>
 ) : (
   "—"
 )}
 
+
                       </td>
-                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
-                        {Array.isArray(p?.secondaryKeywords) && p.secondaryKeywords.length
-                         ? p.secondaryKeywords.map((x) => x?.keyword).filter(Boolean).join(", ")
-                          : "—"}
-                      </td>
+  {/* Pillar */}
+<td
+  style={{
+    padding: "10px 10px",
+    borderTop: "1px solid #f3f4f6",
+    fontSize: 12,
+    color: "#374151",
+    verticalAlign: "top",
+  }}
+>
+  <div style={{ fontWeight: 800, color: "#111827" }}>
+    {p?.pillar || "—"}
+  </div>
+  {p?.cluster ? (
+    <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+      Cluster: <b>{p.cluster}</b>
+    </div>
+  ) : null}
+</td>
+
+{/* Confidence */}
+<td
+  style={{
+    padding: "10px 10px",
+    borderTop: "1px solid #f3f4f6",
+    fontSize: 12,
+    color: "#374151",
+    verticalAlign: "top",
+    whiteSpace: "nowrap",
+  }}
+>
+  {typeof p?.mappingConfidence === "number" ? (
+    <div>
+      <div style={{ fontWeight: 900, color: "#111827" }}>
+        {p.mappingConfidence}%
+      </div>
+    </div>
+  ) : (
+    "—"
+  )}
+</td>
+
+{/* Internal Links */}
+<td
+  style={{
+    padding: "10px 10px",
+    borderTop: "1px solid #f3f4f6",
+    fontSize: 12,
+    color: "#374151",
+    verticalAlign: "top",
+  }}
+>
+  {Array.isArray(p?.internalLinkTargets) && p.internalLinkTargets.length ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {p.internalLinkTargets.slice(0, 6).map((u) => (
+        <div
+          key={`${p?.url || "u"}-ilt-${u}`}
+          style={{ color: "#111827", fontWeight: 700, wordBreak: "break-all" }}
+        >
+          {u}
+        </div>
+      ))}
+    </div>
+  ) : (
+    "—"
+  )}
+</td>
+
                     </tr>
                   ))}
                 </tbody>
@@ -4203,61 +4657,186 @@ style={{
           Gap Pages (recommended new pages)
         </div>
 
-        {(kmGapPages || []).length ? (
-          <div style={{ marginTop: 10, border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ maxHeight: 320, overflow: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    {["Suggested Page", "Primary Keyword", "Secondary Keywords"].map((h) => (
-                      <th
-                        key={h}
-                        style={{
-                          textAlign: "left",
-                          padding: "10px 10px",
-                          fontSize: 12,
-                          color: "#374151",
-                          fontWeight: 900,
-                          borderBottom: "1px solid #e5e7eb",
-                          background: "#fafafa",
-                          position: "sticky",
-                          top: 0,
-                          zIndex: 1,
-                        }}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(kmGapPages || []).map((g, idx) => (
-                    <tr key={`${g?.suggestedSlug || g?.primaryKeyword || "gap"}-${idx}`}>
-                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
-                        <div style={{ fontWeight: 800 }}>{g?.suggestedTitle || "—"}</div>
-{g?.suggestedSlug ? (
-  <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
-    Slug: <b>{g.suggestedSlug}</b>
+{(kmGapPages || []).length ? (
+  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+    {(kmGapPages || []).map((g, idx) => {
+      const accepted = g?.accepted ?? true;
+
+      return (
+        <div
+          key={`${g?.suggestedSlug || g?.primaryKeyword || "gap"}-${idx}`}
+          style={{
+            border: "1px solid #e5e7eb",
+            borderRadius: 12,
+            padding: 12,
+            background: accepted ? "white" : "#fafafa",
+            opacity: accepted ? 1 : 0.75,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 900, fontSize: 14, color: "#111827" }}>
+                {g?.suggestedTitle || "—"}
+              </div>
+
+              <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+                Primary: <b style={{ color: "#111827" }}>{g?.primaryKeyword || "—"}</b>
+              </div>
+
+              <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+                Pillar: <b style={{ color: "#111827" }}>{g?.pillar || "—"}</b>
+              </div>
+
+<div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 220px 160px", gap: 10 }}>
+  {/* Slug */}
+  <div>
+    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 800, marginBottom: 6 }}>
+      Slug
+    </div>
+
+    {keywordMappingApproved ? (
+      <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+        {g?.suggestedSlug || "—"}
+      </div>
+    ) : (
+      <input
+        value={g?.suggestedSlug || ""}
+        onChange={(e) => setGapFieldAtIndex(idx, "suggestedSlug", e.target.value)}
+        placeholder="/example-slug/"
+        style={{
+          width: "100%",
+          padding: "10px 10px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+          fontSize: 13,
+          fontWeight: 900,
+          color: "#111827",
+        }}
+      />
+    )}
   </div>
-) : null}
-                      </td>
-                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 13, color: "#111827" }}>
-                        {g?.primaryKeyword || "—"}
-                      </td>
-                      <td style={{ padding: "10px 10px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#374151" }}>
-                        {Array.isArray(g?.secondaryKeywords) && g.secondaryKeywords.length
-                          ? g.secondaryKeywords.join(", ")
-                          : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+  {/* Page Type */}
+  <div>
+    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 800, marginBottom: 6 }}>
+      Page Type
+    </div>
+
+    {keywordMappingApproved ? (
+      <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+        {g?.pageType || "—"}
+      </div>
+    ) : (
+      <select
+        value={g?.pageType || ""}
+        onChange={(e) => setGapFieldAtIndex(idx, "pageType", e.target.value)}
+        style={{
+          width: "100%",
+          padding: "10px 10px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+          fontSize: 13,
+          fontWeight: 900,
+          color: "#111827",
+        }}
+      >
+        <option value="">— Select —</option>
+        <option value="Core Service Page">Core Service Page</option>
+        <option value="Service / Comparison Page">Service / Comparison Page</option>
+        <option value="Pillar Guide">Pillar Guide</option>
+        <option value="Supporting Blog">Supporting Blog</option>
+        <option value="Location Page">Location Page</option>
+      </select>
+    )}
+  </div>
+
+  {/* Word Count */}
+  <div>
+    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 800, marginBottom: 6 }}>
+      Word Count
+    </div>
+
+    {keywordMappingApproved ? (
+      <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+        {g?.recommendedWordCount ?? "—"}
+      </div>
+    ) : (
+      <input
+        type="number"
+        value={g?.recommendedWordCount ?? ""}
+        onChange={(e) =>
+          setGapFieldAtIndex(
+            idx,
+            "recommendedWordCount",
+            e.target.value === "" ? "" : Number(e.target.value)
+          )
+        }
+        placeholder="1200"
+        style={{
+          width: "100%",
+          padding: "10px 10px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+          fontSize: 13,
+          fontWeight: 900,
+          color: "#111827",
+        }}
+      />
+    )}
+  </div>
+</div>
+
+              <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>
+                Secondary:{" "}
+                <b style={{ color: "#111827" }}>
+                  {Array.isArray(g?.secondaryKeywords) && g.secondaryKeywords.length
+                    ? g.secondaryKeywords.join(", ")
+                    : "—"}
+                </b>
+              </div>
+            </div>
+
+            <div style={{ width: 220 }}>
+              <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 800, marginBottom: 8 }}>
+                Recommendation
+              </div>
+
+              {keywordMappingApproved ? (
+                <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+                  {accepted ? "Accepted" : "Rejected"}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => toggleGapAccepted(idx)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #e5e7eb",
+                    background: accepted ? "#ecfdf5" : "#fef2f2",
+                    color: accepted ? "#047857" : "#b91c1c",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                  title={accepted ? "Click to reject this gap page" : "Click to accept this gap page"}
+                >
+                  {accepted ? "Accepted ✓ (click to reject)" : "Rejected ✕ (click to accept)"}
+                </button>
+              )}
             </div>
           </div>
-        ) : (
-          <div style={{ marginTop: 8, color: "#6b7280", fontSize: 13 }}>No gap pages found in mapping.</div>
-        )}
+        </div>
+      );
+    })}
+  </div>
+) : (
+  <div style={{ marginTop: 8, color: "#6b7280", fontSize: 13 }}>No gap pages found in mapping.</div>
+)}
+
       </div>
     </div>
   ) : (
