@@ -242,14 +242,6 @@ export default async function handler(req, res) {
 
 
     const pageTexts = pages.map((p) => buildPageText(p));
-        console.log("[Step6] pages count:", pages.length);
-    console.log(
-      "[Step6] pageTexts sample:",
-      pageTexts.slice(0, 3).map((t) => ({
-        len: (t || "").length,
-        preview: String(t || "").slice(0, 140),
-      }))
-    );
 
     const pageEmbeddings = await embedTexts(pageTexts);
 
@@ -273,11 +265,6 @@ export default async function handler(req, res) {
       .filter((k) => Boolean(k.keyword));
 
     const keywordStrings = keywords.map((k) => k.keyword);
-        console.log("[Step6] keywords count:", keywords.length);
-    console.log(
-      "[Step6] keyword sample:",
-      keywordStrings.slice(0, 10)
-    );
 
     const keywordEmbeddings = await embedTexts(keywordStrings);
 
