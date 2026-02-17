@@ -4520,12 +4520,13 @@ style={{
 
                     {/* Primary */}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 900 }}>
+                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
                         Primary keyword (unique)
                       </div>
 
+
                       {keywordMappingApproved ? (
-                        <div style={{ marginTop: 6, fontSize: 13, fontWeight: 900, color: "#111827" }}>
+                        <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: "#111827" }}>
                           {p?.primaryKeyword?.keyword || "—"}
                         </div>
                       ) : (
@@ -4564,7 +4565,7 @@ style={{
 
                     {/* Secondary */}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 900 }}>
+                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
                         Secondary keywords (optional)
                       </div>
 
@@ -4585,8 +4586,8 @@ style={{
           border: "1px solid #e5e7eb",
           background: "#f8fafc",
           fontSize: 12,
-          fontWeight: 900,
-          color: "#111827",
+                                      fontWeight: 700,
+                            color: "#111827",
         }}
       >
         {sk}
@@ -4598,7 +4599,7 @@ style={{
               border: "none",
               background: "transparent",
               cursor: "pointer",
-              fontWeight: 900,
+              fontWeight: 700,
               color: "#6b7280",
             }}
             title="Remove"
@@ -4609,9 +4610,10 @@ style={{
       </span>
     ))
 ) : (
-  <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 800 }}>
-    No secondary keywords
-  </div>
+	  <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
+	    No secondary keywords
+	  </div>
+
 )}
 
                       </div>
@@ -4634,7 +4636,7 @@ style={{
                               border: "1px solid #e5e7eb",
                               background: "white",
                               fontSize: 13,
-                              fontWeight: 900,
+                              fontWeight: 700,
                               color: "#111827",
                             }}
                           >
@@ -4668,7 +4670,7 @@ style={{
                               border: "1px solid #e5e7eb",
                               background: "white",
                               fontSize: 13,
-                              fontWeight: 900,
+                              fontWeight: 700,
                               cursor: "pointer",
                             }}
                           >
