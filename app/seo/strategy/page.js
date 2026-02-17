@@ -5488,7 +5488,7 @@ style={{
                 <>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                     <div>
-                      <div style={{ fontWeight: 900, color: HOUSE.text, fontSize: 16 }}>
+                      <div style={{ fontWeight: 900, color: HOUSE.primaryBlue, fontSize: 16 }}>
                         {page.url || "(new page)"}
                       </div>
                       <div style={{ marginTop: 6, color: HOUSE.subtext, fontWeight: 800 }}>
@@ -5496,28 +5496,29 @@ style={{
                       </div>
                     </div>
 
-                    <button
+<button
                       onClick={() => approveStep7Page(poActivePageId)}
                       disabled={isPageLocked === true}
                       style={{
                         padding: "10px 14px",
                         borderRadius: 12,
                         border: "0",
-                        background: isPageLocked ? "rgba(22,163,74,0.25)" : HOUSE.success,
+                        background: isPageLocked ? "rgba(30,102,255,0.25)" : HOUSE.primaryBlue,
                         color: "white",
                         fontWeight: 900,
                         cursor: isPageLocked ? "not-allowed" : "pointer",
                       }}
                       title={isPageLocked ? "This page is already approved (or Step 7 is locked)." : ""}
                     >
-                      {page.approved ? "Approved" : "Approve Page"}
+                      {page.approved ? "Approved ✓" : "Approve Page"}
                     </button>
+
                   </div>
 
                   <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
                     {/* Title */}
                     <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
-                      <div style={{ fontWeight: 900, marginBottom: 6 }}>Title Optimization</div>
+                      <div style={{ fontWeight: 900, marginBottom: 6, color: HOUSE.primaryPurple }}>Title Optimization</div>
                       <input
                         value={page.title || ""}
                         onChange={(e) => setField("title", e.target.value)}
@@ -5536,7 +5537,7 @@ style={{
 
                     {/* Meta */}
                     <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
-                      <div style={{ fontWeight: 900, marginBottom: 6 }}>Meta Description</div>
+                   <div style={{ fontWeight: 900, marginBottom: 6, color: HOUSE.primaryPurple }}>Meta Description</div>
                       <textarea
                         value={page.metaDescription || ""}
                         onChange={(e) => setField("metaDescription", e.target.value)}
@@ -5557,7 +5558,7 @@ style={{
 
                     {/* H1 */}
                     <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
-                      <div style={{ fontWeight: 900, marginBottom: 6 }}>H1 Recommendation</div>
+                   <div style={{ fontWeight: 900, marginBottom: 6, color: HOUSE.primaryPurple }}>H1 Recommendation</div>
                       <input
                         value={page.h1 || ""}
                         onChange={(e) => setField("h1", e.target.value)}
@@ -5573,7 +5574,7 @@ style={{
 
                     {/* H2 plan */}
                     <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
-                      <div style={{ fontWeight: 900, marginBottom: 6 }}>H2 Structure Plan</div>
+                      <div style={{ fontWeight: 900, marginBottom: 6, color: HOUSE.primaryPurple }}>H2 Structure Plan</div>
                       <textarea
                         value={h2Text}
                         onChange={(e) => setH2FromTextarea(e.target.value)}
@@ -5592,7 +5593,7 @@ style={{
 
                     {/* Content blocks */}
                     <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
-                      <div style={{ fontWeight: 900, marginBottom: 10 }}>Content Expansion Blocks</div>
+            <div style={{ fontWeight: 900, marginBottom: 10, color: HOUSE.primaryPurple }}>Content Expansion Blocks</div>
                       {(Array.isArray(page.contentBlocks) ? page.contentBlocks : []).length === 0 ? (
                         <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>No blocks suggested.</div>
                       ) : (
@@ -5608,15 +5609,16 @@ style={{
                                 style={{
                                   padding: "8px 10px",
                                   borderRadius: 10,
-                                  border: `1px solid ${HOUSE.cardBorder}`,
-                                  background: b.status === "approved" ? "rgba(22,163,74,0.12)" : "white",
+                                  border: b.status === "approved" ? `1px solid ${HOUSE.primaryBlue}` : `1px solid ${HOUSE.cardBorder}`,
+                                  background: b.status === "approved" ? "rgba(30,102,255,0.12)" : "white",
                                   color: HOUSE.text,
                                   fontWeight: 900,
                                   cursor: isPageLocked ? "not-allowed" : "pointer",
                                 }}
                               >
-                                Approve
+                                {b.status === "approved" ? "Approved ✓" : "Approve"}
                               </button>
+
                               <button
                                 disabled={isPageLocked}
                                 onClick={() => setContentBlockStatus(b.heading, "rejected")}
@@ -5640,7 +5642,7 @@ style={{
 
                     {/* Schema suggestions */}
                     <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
-                      <div style={{ fontWeight: 900, marginBottom: 10 }}>Schema Suggestions</div>
+<div style={{ fontWeight: 900, marginBottom: 10, color: HOUSE.primaryPurple }}>Schema Suggestions</div>
                       {(Array.isArray(page.schemaSuggestions) ? page.schemaSuggestions : []).length === 0 ? (
                         <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>No schema suggested.</div>
                       ) : (
@@ -5706,7 +5708,7 @@ style={{
                     {/* Internal linking */}
                     <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                        <div style={{ fontWeight: 900 }}>Internal Linking Plan</div>
+                       <div style={{ fontWeight: 900, color: HOUSE.primaryPurple }}>Internal Linking Plan</div>
                         <button
                           disabled={isPageLocked}
                           onClick={() => {
@@ -5782,7 +5784,7 @@ style={{
 
                     {/* Advisory blocks */}
                     <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
-                      <div style={{ fontWeight: 900, marginBottom: 10 }}>Advisory Blocks</div>
+                     <div style={{ fontWeight: 900, marginBottom: 10, color: HOUSE.primaryPurple }}>Advisory Blocks</div>
                       {(Array.isArray(page.advisoryBlocks) ? page.advisoryBlocks : []).length === 0 ? (
                         <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>No advisories suggested.</div>
                       ) : (
@@ -5792,21 +5794,22 @@ style={{
                             <div style={{ marginTop: 6, color: HOUSE.subtext, fontWeight: 700 }}>{a.rationale}</div>
 
                             <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                              <button
+
+       <button
                                 disabled={isPageLocked}
                                 onClick={() => setAdvisoryStatus(a.message, a.rationale, "approved")}
                                 style={{
                                   padding: "8px 10px",
                                   borderRadius: 10,
-                                  border: `1px solid ${HOUSE.cardBorder}`,
-                                  background: a.status === "approved" ? "rgba(22,163,74,0.12)" : "white",
+                                  border: a.status === "approved" ? `1px solid ${HOUSE.primaryBlue}` : `1px solid ${HOUSE.cardBorder}`,
+                                  background: a.status === "approved" ? "rgba(30,102,255,0.12)" : "white",
                                   fontWeight: 900,
                                   cursor: isPageLocked ? "not-allowed" : "pointer",
                                 }}
                               >
-                                Approve
+                                {a.status === "approved" ? "Approved ✓" : "Approve"}
                               </button>
-                              <button
+                       <button
                                 disabled={isPageLocked}
                                 onClick={() => setAdvisoryStatus(a.message, a.rationale, "rejected")}
                                 style={{
