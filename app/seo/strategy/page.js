@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -397,6 +397,26 @@ const setExistingSecondaryDraft = setKmSecondaryPicker;
 
 const [kmApproveState, setKmApproveState] = useState("idle"); // idle | approving | approved | blocked | error
 const [kmApproveWarning, setKmApproveWarning] = useState("");
+// =========================
+// Step 7 — Page Optimization Blueprint (resume-safe)
+// Firestore:
+// users/{effectiveUid}/websites/{effectiveWebsiteId}/modules/seo/strategy/pageOptimization
+// =========================
+const [pageOptimizationState, setPageOptimizationState] = useState("idle"); // idle | loading | generating | ready | error
+const [pageOptimizationError, setPageOptimizationError] = useState("");
+const [pageOptimizationExists, setPageOptimizationExists] = useState(false);
+
+const [poLocked, setPoLocked] = useState(false);
+const [poAllPagesApproved, setPoAllPagesApproved] = useState(false);
+
+const [poPages, setPoPages] = useState({}); // { [pageId]: pageData }
+const [poActivePageId, setPoActivePageId] = useState("");
+
+const [poSaveState, setPoSaveState] = useState("idle"); // idle | saving | saved | error
+const [poSaveError, setPoSaveError] = useState("");
+
+const poSaveTimerRef = useRef(null);
+const poLastSavedAtRef = useRef(0);
 
 
 
@@ -1066,6 +1086,282 @@ async function saveKeywordMappingDraft() {
   }
 }
 // >>> STEP 6: SAVE KEYWORD MAPPING DRAFT (END)
+	// =========================
+// Step 7 — Firestore docRef + loader (resume-safe)
+// =========================
+function pageOptimizationDocRef() {
+  if (!uid || !selectedWebsiteId) return null;
+
+  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
+  if (!effectiveUid || !effectiveWebsiteId) return null;
+
+  return doc(
+    db,
+    "users",
+    effectiveUid,
+    "websites",
+    effectiveWebsiteId,
+    "modules",
+    "seo",
+    "strategy",
+    "pageOptimization"
+  );
+}
+
+function hydratePageOptimizationFromDoc(d) {
+  const data = d || {};
+  const pages = data.pages && typeof data.pages === "object" ? data.pages : {};
+
+  setPageOptimizationExists(true);
+  setPoLocked(data.locked === true);
+  setPoAllPagesApproved(data.allPagesApproved === true);
+
+  setPoPages(pages);
+
+  // pick a stable active page
+  const keys = Object.keys(pages);
+  if (keys.length) {
+    setPoActivePageId((prev) => (prev && pages[prev] ? prev : keys[0]));
+  } else {
+    setPoActivePageId("");
+  }
+
+  setPageOptimizationState("ready");
+  setPageOptimizationError("");
+}
+
+async function loadExistingPageOptimization() {
+  try {
+    setPageOptimizationState("loading");
+    setPageOptimizationError("");
+
+    const ref = pageOptimizationDocRef();
+    if (!ref) {
+      setPageOptimizationState("idle");
+      return;
+    }
+
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      setPageOptimizationExists(false);
+      setPoLocked(false);
+      setPoAllPagesApproved(false);
+      setPoPages({});
+      setPoActivePageId("");
+      setPageOptimizationState("idle");
+      return;
+    }
+
+    hydratePageOptimizationFromDoc(snap.data() || {});
+  } catch (e) {
+    console.error("loadExistingPageOptimization error:", e);
+    setPageOptimizationState("error");
+    setPageOptimizationError(e?.message || "Failed to load Step 7 pageOptimization.");
+  }
+}
+
+async function generatePageOptimization() {
+  try {
+    // Hard gate: Step 7 only after Step 6 approved (repo truth)
+    if (keywordMappingApproved !== true) {
+      setPageOptimizationState("error");
+      setPageOptimizationError("Step 7 is locked. Please approve Step 6 (Keyword Mapping) first.");
+      return;
+    }
+
+    setPageOptimizationState("generating");
+    setPageOptimizationError("");
+
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error("Missing login token.");
+
+    const res = await fetch("/api/seo/strategy/generatePageOptimization", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ websiteId: selectedWebsiteId }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.error || "Failed to generate page optimization.");
+    }
+
+    // Always load from Firestore after generation
+    await loadExistingPageOptimization();
+    setPageOptimizationState("ready");
+  } catch (e) {
+    console.error("generatePageOptimization error:", e);
+    setPageOptimizationState("error");
+    setPageOptimizationError(e?.message || "Failed to generate Step 7 blueprint.");
+  }
+}
+
+function computePageStatus(p) {
+  if (!p) return { tone: "warning", text: "Draft" };
+  if (p.approved === true) return { tone: "success", text: "Approved" };
+  const ok = Boolean((p.title || "").trim()) && Boolean((p.metaDescription || "").trim()) && Boolean((p.h1 || "").trim());
+  return ok ? { tone: "neutral", text: "Optimized" } : { tone: "warning", text: "Draft" };
+}
+
+function buildStep7SavePayloadFromPage(p) {
+  const page = p || {};
+
+  // IMPORTANT: do not send schema json back; server ignores it but keep payload clean.
+  const schemaSuggestions = Array.isArray(page.schemaSuggestions)
+    ? page.schemaSuggestions.map((s) => ({ type: s?.type, status: s?.status }))
+    : [];
+
+  const advisoryBlocks = Array.isArray(page.advisoryBlocks)
+    ? page.advisoryBlocks.map((a) => ({ message: a?.message, rationale: a?.rationale, status: a?.status }))
+    : [];
+
+  const contentBlocks = Array.isArray(page.contentBlocks)
+    ? page.contentBlocks.map((c) => ({ heading: c?.heading, status: c?.status }))
+    : [];
+
+  return {
+    title: page.title || "",
+    metaDescription: page.metaDescription || "",
+    h1: page.h1 || "",
+    h2Structure: Array.isArray(page.h2Structure) ? page.h2Structure : [],
+    internalLinks: Array.isArray(page.internalLinks) ? page.internalLinks : [],
+    advisoryBlocks,
+    schemaSuggestions,
+    contentBlocks,
+  };
+}
+
+function scheduleStep7Autosave(pageId) {
+  try {
+    if (!pageId) return;
+    if (poLocked === true) return;
+
+    const current = poPages?.[pageId];
+    if (!current) return;
+    if (current.approved === true) return;
+
+    // debounce 700ms
+    if (poSaveTimerRef.current) {
+      clearTimeout(poSaveTimerRef.current);
+      poSaveTimerRef.current = null;
+    }
+
+    setPoSaveState("saving");
+    setPoSaveError("");
+
+    poSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) throw new Error("Missing login token.");
+
+        const payload = buildStep7SavePayloadFromPage(poPages?.[pageId] || {});
+        const res = await fetch("/api/seo/strategy/savePageOptimizationDraft", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            websiteId: selectedWebsiteId,
+            action: "autosave",
+            pageId,
+            ...payload,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Auto-save failed.");
+
+        poLastSavedAtRef.current = Date.now();
+        setPoSaveState("saved");
+      } catch (e) {
+        console.error("Step 7 autosave error:", e);
+        setPoSaveState("error");
+        setPoSaveError(e?.message || "Auto-save failed.");
+      }
+    }, 700);
+  } catch (e) {
+    console.error("scheduleStep7Autosave error:", e);
+  }
+}
+
+async function approveStep7Page(pageId) {
+  try {
+    if (!pageId) return;
+    if (poLocked === true) return;
+
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error("Missing login token.");
+
+    const res = await fetch("/api/seo/strategy/savePageOptimizationDraft", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        websiteId: selectedWebsiteId,
+        action: "approvePage",
+        pageId,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || "Approve page failed.");
+
+    // optimistic UI update
+    setPoPages((prev) => ({
+      ...(prev || {}),
+      [pageId]: { ...(prev?.[pageId] || {}), approved: true, approvedAt: new Date() },
+    }));
+
+    // reload to pick up allPagesApproved flag accurately
+    await loadExistingPageOptimization();
+  } catch (e) {
+    console.error("approveStep7Page error:", e);
+    setPoSaveState("error");
+    setPoSaveError(e?.message || "Failed to approve page.");
+  }
+}
+
+async function lockStep7() {
+  try {
+    if (poLocked === true) return;
+    if (poAllPagesApproved !== true) {
+      setPoSaveState("error");
+      setPoSaveError("Approve all pages before locking Step 7.");
+      return;
+    }
+
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error("Missing login token.");
+
+    const res = await fetch("/api/seo/strategy/savePageOptimizationDraft", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        websiteId: selectedWebsiteId,
+        action: "lockStep",
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || "Lock Step 7 failed.");
+
+    await loadExistingPageOptimization();
+  } catch (e) {
+    console.error("lockStep7 error:", e);
+    setPoSaveState("error");
+    setPoSaveError(e?.message || "Failed to lock Step 7.");
+  }
+}
+
   // >>> STEP 6: EDITING HELPERS (START)
 function getPrimaryKeywordString(p) {
   if (!p) return "";
@@ -1974,6 +2270,12 @@ useEffect(() => {
 useEffect(() => {
   if (!uid || !selectedWebsiteId || !websites?.length) return;
   loadExistingKeywordMapping();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [uid, selectedWebsiteId, websites]);
+// Load existing Step 7 page optimization (resume-safe)
+useEffect(() => {
+  if (!uid || !selectedWebsiteId || !websites?.length) return;
+  loadExistingPageOptimization();
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [uid, selectedWebsiteId, websites]);
 
@@ -4939,6 +5241,608 @@ style={{
     </div>
   )}
 </StepCard>
+	{/* >>> STEP 7 UI SHELL (START) */}
+<StepCard
+  id="step7"
+  step="Step 7"
+  title="On-Page Optimization Blueprint"
+  subtitle="Generate a page-by-page SEO blueprint (editable, auto-saved, approval-based). Not content writing."
+  statusTone={poLocked ? "success" : poAllPagesApproved ? "neutral" : "warning"}
+  statusText={poLocked ? "Locked" : poAllPagesApproved ? "All pages approved" : "In progress"}
+  openStep={openStep}
+  setOpenStep={setOpenStep}
+>
+  <div style={{ padding: 18 }}>
+    {/* Gate on Step 6 approval */}
+    {keywordMappingApproved !== true ? (
+      <div
+        style={{
+          padding: 14,
+          borderRadius: 12,
+          border: `1px solid ${HOUSE.cardBorder}`,
+          background: "rgba(245,158,11,0.10)",
+          color: HOUSE.text,
+          fontWeight: 700,
+        }}
+      >
+        Step 7 is locked. Please approve <b>Step 6 (Keyword Mapping)</b> first.
+      </div>
+    ) : (
+      <>
+        {/* Generate / Resume row */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <StatusPill tone={pageOptimizationExists ? "neutral" : "warning"}>
+              {pageOptimizationExists ? "Blueprint exists" : "Not generated"}
+            </StatusPill>
+
+            <StatusPill tone={poSaveState === "saved" ? "success" : poSaveState === "error" ? "warning" : "neutral"}>
+              {poSaveState === "saving"
+                ? "Saving…"
+                : poSaveState === "saved"
+                ? "Saved"
+                : poSaveState === "error"
+                ? "Save error"
+                : "Auto-save"}
+            </StatusPill>
+
+            {poSaveState === "error" && poSaveError ? (
+              <span style={{ color: HOUSE.warning, fontWeight: 700, fontSize: 12 }}>{poSaveError}</span>
+            ) : null}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <button
+              onClick={loadExistingPageOptimization}
+              style={{
+                padding: "10px 12px",
+                borderRadius: 12,
+                border: `1px solid ${HOUSE.cardBorder}`,
+                background: "white",
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+            >
+              Refresh
+            </button>
+
+            <button
+              onClick={generatePageOptimization}
+              disabled={
+                pageOptimizationState === "generating" ||
+                pageOptimizationState === "loading" ||
+                pageOptimizationExists === true
+              }
+              style={{
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "0",
+                background:
+                  pageOptimizationState === "generating" || pageOptimizationExists === true
+                    ? "rgba(30,102,255,0.25)"
+                    : HOUSE.primaryBlue,
+                color: "white",
+                fontWeight: 900,
+                cursor:
+                  pageOptimizationState === "generating" || pageOptimizationExists === true
+                    ? "not-allowed"
+                    : "pointer",
+              }}
+              title={pageOptimizationExists ? "Blueprint already exists. Delete Firestore doc to regenerate." : ""}
+            >
+              {pageOptimizationState === "generating" ? "Generating…" : "Generate Blueprint"}
+            </button>
+
+            {poAllPagesApproved === true && poLocked !== true ? (
+              <button
+                onClick={lockStep7}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 12,
+                  border: "0",
+                  background: HOUSE.primaryPurple,
+                  color: "white",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Approve &amp; Lock Step 7
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Error */}
+        {pageOptimizationState === "error" && pageOptimizationError ? (
+          <div style={{ marginTop: 12, color: "#b91c1c", fontWeight: 800 }}>
+            {pageOptimizationError}
+          </div>
+        ) : null}
+
+        {/* Page selector pills */}
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontWeight: 900, color: HOUSE.text, marginBottom: 8 }}>
+            Pages
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              overflowX: "auto",
+              paddingBottom: 6,
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
+            {Object.keys(poPages || {}).length === 0 ? (
+              <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>
+                No pages loaded yet. Click “Generate Blueprint”.
+              </div>
+            ) : (
+              Object.entries(poPages || {}).map(([pid, p]) => {
+                const st = computePageStatus(p);
+                const isActive = pid === poActivePageId;
+                const urlLabel = (p?.url || "").trim() || "(new page)";
+                const pk = (p?.primaryKeyword || "").trim();
+
+                return (
+                  <button
+                    key={pid}
+                    onClick={() => setPoActivePageId(pid)}
+                    style={{
+                      minWidth: 240,
+                      textAlign: "left",
+                      padding: "10px 12px",
+                      borderRadius: 14,
+                      border: isActive ? `2px solid ${HOUSE.primaryBlue}` : `1px solid ${HOUSE.cardBorder}`,
+                      background: isActive ? "rgba(30,102,255,0.06)" : "white",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ fontWeight: 900, color: HOUSE.text, fontSize: 12, lineHeight: 1.2 }}>
+                      {urlLabel}
+                    </div>
+                    <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <div style={{ color: HOUSE.subtext, fontWeight: 800, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 155 }}>
+                        {pk || "—"}
+                      </div>
+                      <StatusPill tone={st.tone}>{st.text}</StatusPill>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Active page workspace */}
+        {poActivePageId && poPages?.[poActivePageId] ? (
+          <div
+            style={{
+              marginTop: 14,
+              borderRadius: 16,
+              border: `1px solid ${HOUSE.cardBorder}`,
+              background: "white",
+              padding: 16,
+              boxShadow: "0 10px 30px rgba(15,23,42,0.06)",
+            }}
+          >
+            {(() => {
+              const page = poPages[poActivePageId];
+              const isPageLocked = poLocked === true || page?.approved === true;
+
+              const setField = (field, value) => {
+                setPoPages((prev) => {
+                  const next = { ...(prev || {}) };
+                  next[poActivePageId] = { ...(next[poActivePageId] || {}), [field]: value };
+                  return next;
+                });
+                scheduleStep7Autosave(poActivePageId);
+              };
+
+              const setH2FromTextarea = (txt) => {
+                const arr = String(txt || "")
+                  .split("\n")
+                  .map((x) => x.trim())
+                  .filter(Boolean);
+                setField("h2Structure", arr);
+              };
+
+              const setInternalLinks = (links) => {
+                setField("internalLinks", links);
+              };
+
+              const setSchemaStatus = (type, status) => {
+                const list = Array.isArray(page.schemaSuggestions) ? page.schemaSuggestions : [];
+                const next = list.map((s) =>
+                  String(s?.type || "").toLowerCase() === String(type || "").toLowerCase()
+                    ? { ...s, status }
+                    : s
+                );
+                setField("schemaSuggestions", next);
+              };
+
+              const setAdvisoryStatus = (message, rationale, status) => {
+                const list = Array.isArray(page.advisoryBlocks) ? page.advisoryBlocks : [];
+                const next = list.map((a) => {
+                  const k1 = `${String(a?.message || "")}||${String(a?.rationale || "")}`.toLowerCase();
+                  const k2 = `${String(message || "")}||${String(rationale || "")}`.toLowerCase();
+                  return k1 === k2 ? { ...a, status } : a;
+                });
+                setField("advisoryBlocks", next);
+              };
+
+              const setContentBlockStatus = (heading, status) => {
+                const list = Array.isArray(page.contentBlocks) ? page.contentBlocks : [];
+                const next = list.map((c) =>
+                  String(c?.heading || "").toLowerCase() === String(heading || "").toLowerCase()
+                    ? { ...c, status }
+                    : c
+                );
+                setField("contentBlocks", next);
+              };
+
+              const internalLinks = Array.isArray(page.internalLinks) ? page.internalLinks : [];
+              const h2Text = Array.isArray(page.h2Structure) ? page.h2Structure.join("\n") : "";
+
+              return (
+                <>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontWeight: 900, color: HOUSE.text, fontSize: 16 }}>
+                        {page.url || "(new page)"}
+                      </div>
+                      <div style={{ marginTop: 6, color: HOUSE.subtext, fontWeight: 800 }}>
+                        Primary: {page.primaryKeyword || "—"}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => approveStep7Page(poActivePageId)}
+                      disabled={isPageLocked === true}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 12,
+                        border: "0",
+                        background: isPageLocked ? "rgba(22,163,74,0.25)" : HOUSE.success,
+                        color: "white",
+                        fontWeight: 900,
+                        cursor: isPageLocked ? "not-allowed" : "pointer",
+                      }}
+                      title={isPageLocked ? "This page is already approved (or Step 7 is locked)." : ""}
+                    >
+                      {page.approved ? "Approved" : "Approve Page"}
+                    </button>
+                  </div>
+
+                  <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
+                    {/* Title */}
+                    <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
+                      <div style={{ fontWeight: 900, marginBottom: 6 }}>Title Optimization</div>
+                      <input
+                        value={page.title || ""}
+                        onChange={(e) => setField("title", e.target.value)}
+                        disabled={isPageLocked}
+                        style={{
+                          width: "100%",
+                          padding: 10,
+                          borderRadius: 10,
+                          border: `1px solid ${HOUSE.cardBorder}`,
+                        }}
+                      />
+                      <div style={{ marginTop: 6, color: HOUSE.subtext, fontWeight: 700, fontSize: 12 }}>
+                        Target ~55–60 characters.
+                      </div>
+                    </div>
+
+                    {/* Meta */}
+                    <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
+                      <div style={{ fontWeight: 900, marginBottom: 6 }}>Meta Description</div>
+                      <textarea
+                        value={page.metaDescription || ""}
+                        onChange={(e) => setField("metaDescription", e.target.value)}
+                        disabled={isPageLocked}
+                        rows={3}
+                        style={{
+                          width: "100%",
+                          padding: 10,
+                          borderRadius: 10,
+                          border: `1px solid ${HOUSE.cardBorder}`,
+                          resize: "vertical",
+                        }}
+                      />
+                      <div style={{ marginTop: 6, color: HOUSE.subtext, fontWeight: 700, fontSize: 12 }}>
+                        Target ~150–160 characters.
+                      </div>
+                    </div>
+
+                    {/* H1 */}
+                    <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
+                      <div style={{ fontWeight: 900, marginBottom: 6 }}>H1 Recommendation</div>
+                      <input
+                        value={page.h1 || ""}
+                        onChange={(e) => setField("h1", e.target.value)}
+                        disabled={isPageLocked}
+                        style={{
+                          width: "100%",
+                          padding: 10,
+                          borderRadius: 10,
+                          border: `1px solid ${HOUSE.cardBorder}`,
+                        }}
+                      />
+                    </div>
+
+                    {/* H2 plan */}
+                    <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
+                      <div style={{ fontWeight: 900, marginBottom: 6 }}>H2 Structure Plan</div>
+                      <textarea
+                        value={h2Text}
+                        onChange={(e) => setH2FromTextarea(e.target.value)}
+                        disabled={isPageLocked}
+                        rows={7}
+                        style={{
+                          width: "100%",
+                          padding: 10,
+                          borderRadius: 10,
+                          border: `1px solid ${HOUSE.cardBorder}`,
+                          resize: "vertical",
+                        }}
+                        placeholder={"One H2 per line"}
+                      />
+                    </div>
+
+                    {/* Content blocks */}
+                    <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
+                      <div style={{ fontWeight: 900, marginBottom: 10 }}>Content Expansion Blocks</div>
+                      {(Array.isArray(page.contentBlocks) ? page.contentBlocks : []).length === 0 ? (
+                        <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>No blocks suggested.</div>
+                      ) : (
+                        (page.contentBlocks || []).map((b, idx) => (
+                          <div key={idx} style={{ padding: 10, borderRadius: 12, border: `1px solid ${HOUSE.cardBorder}`, marginBottom: 10 }}>
+                            <div style={{ fontWeight: 900 }}>{b.heading}</div>
+                            <div style={{ marginTop: 6, color: HOUSE.subtext, fontWeight: 700 }}>{b.purpose}</div>
+
+                            <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                              <button
+                                disabled={isPageLocked}
+                                onClick={() => setContentBlockStatus(b.heading, "approved")}
+                                style={{
+                                  padding: "8px 10px",
+                                  borderRadius: 10,
+                                  border: `1px solid ${HOUSE.cardBorder}`,
+                                  background: b.status === "approved" ? "rgba(22,163,74,0.12)" : "white",
+                                  color: HOUSE.text,
+                                  fontWeight: 900,
+                                  cursor: isPageLocked ? "not-allowed" : "pointer",
+                                }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                disabled={isPageLocked}
+                                onClick={() => setContentBlockStatus(b.heading, "rejected")}
+                                style={{
+                                  padding: "8px 10px",
+                                  borderRadius: 10,
+                                  border: `1px solid ${HOUSE.cardBorder}`,
+                                  background: b.status === "rejected" ? "rgba(245,158,11,0.12)" : "white",
+                                  color: HOUSE.text,
+                                  fontWeight: 900,
+                                  cursor: isPageLocked ? "not-allowed" : "pointer",
+                                }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Schema suggestions */}
+                    <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
+                      <div style={{ fontWeight: 900, marginBottom: 10 }}>Schema Suggestions</div>
+                      {(Array.isArray(page.schemaSuggestions) ? page.schemaSuggestions : []).length === 0 ? (
+                        <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>No schema suggested.</div>
+                      ) : (
+                        (page.schemaSuggestions || []).map((s, idx) => (
+                          <div key={idx} style={{ padding: 10, borderRadius: 12, border: `1px solid ${HOUSE.cardBorder}`, marginBottom: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                              <div style={{ fontWeight: 900 }}>{s.type}</div>
+                              <div style={{ display: "flex", gap: 10 }}>
+                                <button
+                                  disabled={isPageLocked}
+                                  onClick={() => setSchemaStatus(s.type, "accepted")}
+                                  style={{
+                                    padding: "8px 10px",
+                                    borderRadius: 10,
+                                    border: `1px solid ${HOUSE.cardBorder}`,
+                                    background: s.status === "accepted" ? "rgba(22,163,74,0.12)" : "white",
+                                    fontWeight: 900,
+                                    cursor: isPageLocked ? "not-allowed" : "pointer",
+                                  }}
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  disabled={isPageLocked}
+                                  onClick={() => setSchemaStatus(s.type, "rejected")}
+                                  style={{
+                                    padding: "8px 10px",
+                                    borderRadius: 10,
+                                    border: `1px solid ${HOUSE.cardBorder}`,
+                                    background: s.status === "rejected" ? "rgba(245,158,11,0.12)" : "white",
+                                    fontWeight: 900,
+                                    cursor: isPageLocked ? "not-allowed" : "pointer",
+                                  }}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+
+                            <div style={{ marginTop: 10 }}>
+                              <div style={{ color: HOUSE.subtext, fontWeight: 800, fontSize: 12, marginBottom: 6 }}>
+                                JSON (read-only)
+                              </div>
+                              <pre
+                                style={{
+                                  margin: 0,
+                                  padding: 10,
+                                  borderRadius: 12,
+                                  border: `1px solid ${HOUSE.cardBorder}`,
+                                  background: "rgba(15,23,42,0.04)",
+                                  overflowX: "auto",
+                                  fontSize: 12,
+                                }}
+                              >
+                                {JSON.stringify(s.json || {}, null, 2)}
+                              </pre>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Internal linking */}
+                    <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 900 }}>Internal Linking Plan</div>
+                        <button
+                          disabled={isPageLocked}
+                          onClick={() => {
+                            const next = [...internalLinks, { anchorText: "", targetUrl: "" }];
+                            setInternalLinks(next);
+                            scheduleStep7Autosave(poActivePageId);
+                          }}
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 10,
+                            border: `1px solid ${HOUSE.cardBorder}`,
+                            background: "white",
+                            fontWeight: 900,
+                            cursor: isPageLocked ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          + Add Link
+                        </button>
+                      </div>
+
+                      <div style={{ marginTop: 10 }}>
+                        {internalLinks.length === 0 ? (
+                          <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>No internal links suggested.</div>
+                        ) : (
+                          internalLinks.map((l, idx) => (
+                            <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, marginBottom: 10 }}>
+                              <input
+                                value={l.anchorText || ""}
+                                disabled={isPageLocked}
+                                onChange={(e) => {
+                                  const next = internalLinks.map((x, i) => (i === idx ? { ...x, anchorText: e.target.value } : x));
+                                  setInternalLinks(next);
+                                  scheduleStep7Autosave(poActivePageId);
+                                }}
+                                placeholder="Anchor text"
+                                style={{ padding: 10, borderRadius: 10, border: `1px solid ${HOUSE.cardBorder}` }}
+                              />
+                              <input
+                                value={l.targetUrl || ""}
+                                disabled={isPageLocked}
+                                onChange={(e) => {
+                                  const next = internalLinks.map((x, i) => (i === idx ? { ...x, targetUrl: e.target.value } : x));
+                                  setInternalLinks(next);
+                                  scheduleStep7Autosave(poActivePageId);
+                                }}
+                                placeholder="Target URL"
+                                style={{ padding: 10, borderRadius: 10, border: `1px solid ${HOUSE.cardBorder}` }}
+                              />
+                              <button
+                                disabled={isPageLocked}
+                                onClick={() => {
+                                  const next = internalLinks.filter((_, i) => i !== idx);
+                                  setInternalLinks(next);
+                                  scheduleStep7Autosave(poActivePageId);
+                                }}
+                                style={{
+                                  padding: "10px 12px",
+                                  borderRadius: 10,
+                                  border: `1px solid ${HOUSE.cardBorder}`,
+                                  background: "white",
+                                  fontWeight: 900,
+                                  cursor: isPageLocked ? "not-allowed" : "pointer",
+                                }}
+                                title="Remove"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Advisory blocks */}
+                    <div style={{ border: `1px solid ${HOUSE.cardBorder}`, borderRadius: 14, padding: 12 }}>
+                      <div style={{ fontWeight: 900, marginBottom: 10 }}>Advisory Blocks</div>
+                      {(Array.isArray(page.advisoryBlocks) ? page.advisoryBlocks : []).length === 0 ? (
+                        <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>No advisories suggested.</div>
+                      ) : (
+                        (page.advisoryBlocks || []).map((a, idx) => (
+                          <div key={idx} style={{ padding: 10, borderRadius: 12, border: `1px solid ${HOUSE.cardBorder}`, marginBottom: 10 }}>
+                            <div style={{ fontWeight: 900 }}>{a.message}</div>
+                            <div style={{ marginTop: 6, color: HOUSE.subtext, fontWeight: 700 }}>{a.rationale}</div>
+
+                            <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                              <button
+                                disabled={isPageLocked}
+                                onClick={() => setAdvisoryStatus(a.message, a.rationale, "approved")}
+                                style={{
+                                  padding: "8px 10px",
+                                  borderRadius: 10,
+                                  border: `1px solid ${HOUSE.cardBorder}`,
+                                  background: a.status === "approved" ? "rgba(22,163,74,0.12)" : "white",
+                                  fontWeight: 900,
+                                  cursor: isPageLocked ? "not-allowed" : "pointer",
+                                }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                disabled={isPageLocked}
+                                onClick={() => setAdvisoryStatus(a.message, a.rationale, "rejected")}
+                                style={{
+                                  padding: "8px 10px",
+                                  borderRadius: 10,
+                                  border: `1px solid ${HOUSE.cardBorder}`,
+                                  background: a.status === "rejected" ? "rgba(245,158,11,0.12)" : "white",
+                                  fontWeight: 900,
+                                  cursor: isPageLocked ? "not-allowed" : "pointer",
+                                }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {isPageLocked ? (
+                    <div style={{ marginTop: 12, color: HOUSE.subtext, fontWeight: 800 }}>
+                      This page is locked (approved) or Step 7 is locked.
+                    </div>
+                  ) : null}
+                </>
+              );
+            })()}
+          </div>
+        ) : null}
+      </>
+    )}
+  </div>
+</StepCard>
+{/* >>> STEP 7 UI SHELL (END) */}
+
 
       </div>
     </VyndowShell>
