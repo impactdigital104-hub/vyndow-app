@@ -414,6 +414,9 @@ const [poActivePageId, setPoActivePageId] = useState("");
 
 const [poSaveState, setPoSaveState] = useState("idle"); // idle | saving | saved | error
 const [poSaveError, setPoSaveError] = useState("");
+	const [poExportState, setPoExportState] = useState("idle"); // idle | exporting | error
+const [poExportError, setPoExportError] = useState("");
+
 
 const poSaveTimerRef = useRef(null);
 const poLastSavedAtRef = useRef(0);
@@ -1361,6 +1364,65 @@ async function lockStep7() {
     setPoSaveError(e?.message || "Failed to lock Step 7.");
   }
 }
+	async function exportOnPageBlueprint() {
+  try {
+    setPoExportState("exporting");
+    setPoExportError("");
+
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error("Missing login token.");
+
+    // website label for filename
+    const ws = Array.isArray(websites) ? websites.find((w) => w?.id === selectedWebsiteId) : null;
+    const websiteLabel =
+      (ws?.name || ws?.websiteName || ws?.domain || ws?.url || ws?.websiteUrl || ws?.siteUrl || "").toString().trim() ||
+      "Website";
+
+    // geo header info (does NOT change Firestore; only for Excel header row)
+    const geoMode =
+      (keywordPoolMeta?.geo_mode || keywordGeoMode || "").toString().trim() || "";
+    const locationName =
+      (keywordPoolMeta?.location_name || keywordLocationName || "").toString().trim() || "";
+
+    const res = await fetch("/api/seo/strategy/exportPageOptimization", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        websiteId: selectedWebsiteId,
+        websiteName: websiteLabel,
+        geoMode,
+        locationName,
+      }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error || "Export failed.");
+    }
+
+    const blob = await res.blob();
+
+    // download without refresh
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${websiteLabel}_OnPage_Blueprint.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+
+    setPoExportState("idle");
+  } catch (e) {
+    console.error("exportOnPageBlueprint error:", e);
+    setPoExportState("error");
+    setPoExportError(e?.message || "Export failed.");
+  }
+}
+
 
   // >>> STEP 6: EDITING HELPERS (START)
 function getPrimaryKeywordString(p) {
@@ -5332,6 +5394,27 @@ style={{
             >
               {pageOptimizationState === "generating" ? "Generating…" : "Generate Blueprint"}
             </button>
+<button
+  onClick={exportOnPageBlueprint}
+  disabled={poLocked !== true || poExportState === "exporting"}
+  style={{
+    padding: "10px 14px",
+    borderRadius: 12,
+    border: `1px solid ${HOUSE.cardBorder}`,
+    background: poLocked === true ? "white" : "rgba(229,231,235,0.8)",
+    fontWeight: 900,
+    cursor: poLocked === true ? "pointer" : "not-allowed",
+  }}
+  title={
+    poLocked === true
+      ? "Download Excel blueprint (final locked version)."
+      : "Lock Step 7 to enable export."
+  }
+>
+  {poExportState === "exporting"
+    ? "Exporting…"
+    : "Export On-Page Blueprint"}
+</button>
 
             {poAllPagesApproved === true && poLocked !== true ? (
               <button
