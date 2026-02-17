@@ -4444,7 +4444,7 @@ style={{
 
       {/* Existing Pages */}
       <div style={{ marginTop: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>
           Existing Pages (with assigned keywords)
         </div>
 
@@ -4493,24 +4493,26 @@ style={{
                   >
                     {/* URL */}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 900 }}>
+                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
                         URL
                       </div>
+
                       <a
                         href={p?.url || "#"}
                         target="_blank"
                         rel="noreferrer"
-                        style={{
+                         style={{
                           display: "block",
                           marginTop: 6,
                           fontSize: 13,
-                          fontWeight: 900,
-                          color: "#111827",
+                          fontWeight: 700,
+                          color: HOUSE.primaryBlue,
                           textDecoration: "none",
                           wordBreak: "break-word",
                           lineHeight: 1.35,
                         }}
                         title={p?.url || ""}
+
                       >
                         {p?.url || "—"}
                       </a>
