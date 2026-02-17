@@ -4452,12 +4452,13 @@ style={{
           <div
             style={{
               marginTop: 10,
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              overflow: "hidden",
-              background: "white",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              background: "transparent",
             }}
           >
+
 {kmExistingPages.map((row, idx) => {
   const p = row;
   const confidence = Number(p?.mappingConfidence ?? 0);
@@ -4472,10 +4473,14 @@ style={{
                 <div
                   key={`${p?.url || "url"}-${idx}`}
                   style={{
-                    padding: 16,
-borderBottom: idx === kmExistingPages.length - 1 ? "none" : "1px solid #e5e7eb",
-                    background: idx % 2 === 0 ? "white" : "#fbfdff",
+                    padding: 18,
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 14,
+                    background: "white",
+                    boxShadow: "0 1px 2px rgba(16, 24, 40, 0.06)",
                   }}
+
+
                 >
                   {/* Row 1: URL + Primary + Secondary */}
                   <div
