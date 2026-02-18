@@ -229,8 +229,11 @@ function applyWebsiteProfile(w) {
   setReadingLevel(p.readingLevel || "Accessible (Grade 7–9)");
 
   // LOCKED fields (set from website profile only)
+if (!loadedFromStrategy) {
   setGeoTarget(p.geoTarget || "India");
-setIndustry(p.industry || "general");
+  setIndustry(p.industry || "general");
+}
+
 
 }
 
@@ -292,6 +295,17 @@ useEffect(() => {
       }
 
       const d = snap.data() || {};
+        // =============================
+// Apply Strategy business context from draft
+// =============================
+if (d.businessGeography) {
+  setGeoTarget(String(d.businessGeography));
+}
+
+if (d.industryKey) {
+  setIndustry(String(d.industryKey));
+}
+
 
       // Prefill fields that exist in this generator UI
       setPrimaryKeyword(String(d.primaryKeyword || ""));
