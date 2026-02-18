@@ -6758,36 +6758,19 @@ style={{
                     <StatusPill tone="neutral">{String(r?.impactTag || "")}</StatusPill>
                   </td>
 
-                  <td style={{ padding: "14px 8px" }}>
-                    <button
-                      disabled
-                      style={{
-                        padding: "8px 10px",
-                        borderRadius: 12,
-                        border: `1px solid ${HOUSE.cardBorder}`,
-                        background: "#f3f4f6",
-                        color: "#6b7280",
-                        fontWeight: 900,
-                        cursor: "not-allowed",
-                      }}
-                      title="This will be enabled in Step 8B"
-                    >
-                      Generate (Step 8B)
-                    </button>
-                  </td>
-                </tr>
-              ))}
-
-              {!filteredRows.length ? (
-                <tr>
-<td style={{ padding: "14px 8px" }}>
+              <td style={{ padding: "14px 8px" }}>
   {(() => {
     const rowId = String(
       r?.id ||
         `${authorityActiveMonth}|${r?.pillarName || ""}|${r?.primaryKeyword || ""}|${r?.blogTitle || ""}`
     );
     const isCreating = blogDraftCreatingRowId === rowId;
+
+    // Hard gating:
+    // 1) website must be selected
+    // 2) Step 8A plan must exist
     const canUse = Boolean(selectedWebsiteId) && authorityPlanExists === true;
+
     const err = rowId ? String(blogDraftRowErrors?.[rowId] || "") : "";
 
     return (
@@ -6804,16 +6787,37 @@ style={{
             fontWeight: 900,
             cursor: !canUse ? "not-allowed" : "pointer",
           }}
-          title={!selectedWebsiteId ? "Select a website first" : authorityPlanExists !== true ? "Generate Step 8A plan first" : ""}
+          title={
+            !selectedWebsiteId
+              ? "Select a website first"
+              : authorityPlanExists !== true
+              ? "Generate Step 8A plan first"
+              : ""
+          }
         >
-          {isCreating ? "Creating…" : "Generate in Vyndow SEO"}
+          {isCreating ? "Creating…" : "Generate blog in Vyndow SEO"}
         </button>
 
         {err ? (
-          <div style={{ fontSize: 12, color: "#b91c1c", fontWeight: 800, lineHeight: 1.35 }}>
+          <div
+            style={{
+              fontSize: 12,
+              color: "#b91c1c",
+              fontWeight: 800,
+              lineHeight: 1.35,
+            }}
+          >
             {err}
           </div>
         ) : null}
+      </div>
+    );
+  })()}
+</td>
+
+                </tr>
+              ))}
+
       </div>
     );
   })()}
