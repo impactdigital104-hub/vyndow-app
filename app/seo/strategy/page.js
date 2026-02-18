@@ -6318,12 +6318,13 @@ style={{
       {/* Section 2 — Reasoning Summary (collapsible) */}
       <div style={{ padding: 14, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "white" }}>
         <details>
-          <summary style={{ cursor: "pointer", fontWeight: 900, color: HOUSE.text }}>
-            Reasoning Summary (click to open)
-          </summary>
+<summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 13, color: HOUSE.text, lineHeight: 1.4 }}>
+  Reasoning Summary (click to open)
+</summary>
+
 
           <div style={{ marginTop: 10 }}>
-            <ul style={{ margin: 0, paddingLeft: 18, color: HOUSE.text, fontWeight: 800, lineHeight: 1.6 }}>
+          <ul style={{ margin: 0, paddingLeft: 18, color: HOUSE.subtext, fontWeight: 600, fontSize: 13, lineHeight: 1.65 }}>
               {(authorityReasoning?.bullets || []).map((b, idx) => (
                 <li key={idx}>{String(b || "")}</li>
               ))}
@@ -6595,7 +6596,7 @@ style={{
       {r?.slug ? (
         <>
           <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>Slug</div>
-          <div style={{ color: HOUSE.primaryBlue, fontWeight: 800, wordBreak: "break-word" }}>
+          <div style={{ color: HOUSE.primaryBlue, fontWeight: 700, wordBreak: "break-word" }}>
             {String(r.slug)}
           </div>
         </>
@@ -6629,7 +6630,7 @@ style={{
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {r.internalLinkTargets.map((x, i) => (
               <div key={i} style={{ fontWeight: 700 }}>
-                <span style={{ fontWeight: 800, color: HOUSE.text }}>
+                <span style={{ fontWeight: 700, color: HOUSE.text }}>
                   {String(x?.anchor || "")}
                 </span>{" "}
                 <span style={{ color: HOUSE.subtext }}>→</span>{" "}
@@ -6652,46 +6653,6 @@ style={{
       ) : null}
     </div>
 
-
-    {Array.isArray(r?.secondaryKeywords) && r.secondaryKeywords.length ? (
-      <div style={{ marginBottom: 8 }}>
-        <span style={{ fontWeight: 900, color: HOUSE.text }}>Secondary:</span>{" "}
-        {r.secondaryKeywords.map((k, i) => (
-          <span key={i} style={{ marginRight: 6 }}>
-            <StatusPill tone="neutral">{String(k)}</StatusPill>
-          </span>
-        ))}
-      </div>
-    ) : null}
-
-    {r?.synopsis ? (
-      <div style={{ marginBottom: 8 }}>
-        <span style={{ fontWeight: 900, color: HOUSE.text }}>Synopsis:</span>{" "}
-        {String(r.synopsis)}
-      </div>
-    ) : null}
-
-    {Array.isArray(r?.internalLinkTargets) && r.internalLinkTargets.length ? (
-      <div style={{ marginBottom: 8 }}>
-        <span style={{ fontWeight: 900, color: HOUSE.text }}>Internal links:</span>
-        <div style={{ marginTop: 6 }}>
-          {r.internalLinkTargets.map((x, i) => (
-            <div key={i} style={{ fontWeight: 700 }}>
-              <span style={{ fontWeight: 900, color: HOUSE.text }}>{String(x?.anchor || "")}</span>{" "}
-              <span style={{ color: HOUSE.subtext }}>→</span>{" "}
-              <span style={{ color: HOUSE.primaryBlue, fontWeight: 800 }}>{String(x?.url || "")}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    ) : null}
-
-    {r?.ctaFocus ? (
-      <div>
-        <span style={{ fontWeight: 900, color: HOUSE.text }}>CTA focus:</span>{" "}
-        {String(r.ctaFocus)}
-      </div>
-    ) : null}
   </div>
 </details>
 
