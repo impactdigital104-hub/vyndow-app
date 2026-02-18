@@ -443,6 +443,12 @@ const [authorityReasoning, setAuthorityReasoning] = useState({ bullets: [], note
 const [authorityActiveMonth, setAuthorityActiveMonth] = useState(1);
 const [authorityFilterPillar, setAuthorityFilterPillar] = useState("all");
 const [authoritySearch, setAuthoritySearch] = useState("");
+	// =========================
+// Step 8B — Blog Draft Bridge (UI-only state)
+// =========================
+const [blogDraftCreatingRowId, setBlogDraftCreatingRowId] = useState(null);
+const [blogDraftRowErrors, setBlogDraftRowErrors] = useState({}); // { [rowId]: "error" }
+
 
 
 const poSaveTimerRef = useRef(null);
@@ -1280,6 +1286,76 @@ async function generateOrUpdateAuthorityPlan({ useAdjustedTotal }) {
     console.error("generateOrUpdateAuthorityPlan error:", e);
     setAuthorityPlanState("error");
     setAuthorityPlanError(e?.message || "Failed to generate Step 8A plan.");
+  }
+}
+// =========================
+// Step 8B — Create Blog Draft + Redirect to /seo
+// =========================
+async function createBlogDraftAndOpenSeo(row) {
+  try {
+    const rowId = String(
+      row?.id ||
+        `${authorityActiveMonth}|${row?.pillarName || ""}|${row?.primaryKeyword || ""}|${row?.blogTitle || ""}`
+    );
+
+    // Hard gates (UI): must have a website selected + Step 8A plan exists
+    if (!selectedWebsiteId) throw new Error("Please select a website first.");
+    if (authorityPlanExists !== true) throw new Error("Please generate Step 8A plan first.");
+
+    setBlogDraftCreatingRowId(rowId);
+    setBlogDraftRowErrors((prev) => ({ ...prev, [rowId]: "" }));
+
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error("Missing login token.");
+
+    const month = Number(authorityActiveMonth || 1);
+
+    const payload = {
+      websiteId: selectedWebsiteId,
+      month,
+      pillarName: row?.pillarName || "",
+      blogTitle: row?.blogTitle || "",
+      slug: row?.slug || "",
+      intent: row?.intent || "",
+      targetAudience: row?.targetAudience || "",
+      synopsis: row?.synopsis || "",
+      primaryKeyword: row?.primaryKeyword || "",
+      secondaryKeywords: Array.isArray(row?.secondaryKeywords) ? row.secondaryKeywords : [],
+      internalLinks: Array.isArray(row?.internalLinkTargets) ? row.internalLinkTargets : [],
+      ctaFocus: row?.ctaFocus || "",
+      impactTag: row?.impactTag || "",
+    };
+
+    const res = await fetch("/api/seo/strategy/createBlogDraft", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.error || "Failed to create blog draft.");
+    }
+
+    const draftId = String(data?.draftId || "").trim();
+    if (!draftId) throw new Error("Draft created but draftId missing.");
+
+    // Redirect user into the existing /seo generator flow with draftId
+    router.push(`/seo?draftId=${encodeURIComponent(draftId)}&from=strategy`);
+  } catch (e) {
+    const rowId = String(
+      row?.id ||
+        `${authorityActiveMonth}|${row?.pillarName || ""}|${row?.primaryKeyword || ""}|${row?.blogTitle || ""}`
+    );
+    const msg = e?.message || "Failed to create blog draft.";
+    if (rowId) {
+      setBlogDraftRowErrors((prev) => ({ ...prev, [rowId]: msg }));
+    }
+  } finally {
+    setBlogDraftCreatingRowId(null);
   }
 }
 
@@ -6704,9 +6780,45 @@ style={{
 
               {!filteredRows.length ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: "14px 8px", color: HOUSE.subtext, fontWeight: 900 }}>
-                    No rows match the current filter/search.
-                  </td>
+<td style={{ padding: "14px 8px" }}>
+  {(() => {
+    const rowId = String(
+      r?.id ||
+        `${authorityActiveMonth}|${r?.pillarName || ""}|${r?.primaryKeyword || ""}|${r?.blogTitle || ""}`
+    );
+    const isCreating = blogDraftCreatingRowId === rowId;
+    const canUse = Boolean(selectedWebsiteId) && authorityPlanExists === true;
+    const err = rowId ? String(blogDraftRowErrors?.[rowId] || "") : "";
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <button
+          disabled={!canUse || isCreating}
+          onClick={() => createBlogDraftAndOpenSeo(r)}
+          style={{
+            padding: "8px 10px",
+            borderRadius: 12,
+            border: `1px solid ${HOUSE.cardBorder}`,
+            background: !canUse ? "#f3f4f6" : HOUSE.primaryBlue,
+            color: !canUse ? "#6b7280" : "white",
+            fontWeight: 900,
+            cursor: !canUse ? "not-allowed" : "pointer",
+          }}
+          title={!selectedWebsiteId ? "Select a website first" : authorityPlanExists !== true ? "Generate Step 8A plan first" : ""}
+        >
+          {isCreating ? "Creating…" : "Generate in Vyndow SEO"}
+        </button>
+
+        {err ? (
+          <div style={{ fontSize: 12, color: "#b91c1c", fontWeight: 800, lineHeight: 1.35 }}>
+            {err}
+          </div>
+        ) : null}
+      </div>
+    );
+  })()}
+</td>
+
                 </tr>
               ) : null}
             </tbody>
