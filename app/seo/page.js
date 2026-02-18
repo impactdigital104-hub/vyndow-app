@@ -280,7 +280,6 @@ useEffect(() => {
         effectiveWebsiteId,
         "modules",
         "seo",
-        "strategy",
         "blogDrafts",
         draftId
       );
