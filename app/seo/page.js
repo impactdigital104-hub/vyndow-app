@@ -1,9 +1,9 @@
 "use client";
-export const dynamic = "force-dynamic";
+
 
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs, orderBy, query, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 
@@ -22,11 +22,24 @@ const [websites, setWebsites] = useState([]);
     const [jsonLdCopied, setJsonLdCopied] = useState(false);
 const [websitesLoading, setWebsitesLoading] = useState(true);
     const [websitesError, setWebsitesError] = useState("");
-    const router = useRouter();
-    const searchParams = useSearchParams();
-const draftIdFromUrl = searchParams?.get("draftId") || "";
+const router = useRouter();
+
+// Step 8B: draftId must be read ONLY in the browser after the page loads (export-safe)
+const [draftIdFromUrl, setDraftIdFromUrl] = useState("");
+
 
   const [authReady, setAuthReady] = useState(false);
+    // Step 8B: read draftId from the browser URL safely (no build-time dependency)
+useEffect(() => {
+  try {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search || "");
+    setDraftIdFromUrl(params.get("draftId") || "");
+  } catch (e) {
+    setDraftIdFromUrl("");
+  }
+}, []);
+
     // Step 8B draft banner/state
 const [loadedFromStrategy, setLoadedFromStrategy] = useState(false);
 const [draftLoadError, setDraftLoadError] = useState("");
