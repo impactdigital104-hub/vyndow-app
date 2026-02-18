@@ -155,11 +155,12 @@ export default async function handler(req, res) {
     const location_name = asStr(authorityPlan?.location_name);
     const language_code = asStr(authorityPlan?.language_code) || "en";
 
-    const draftRef = db
-      .collection(
-        `users/${effectiveUid}/websites/${effectiveWebsiteId}/modules/seo/strategy/blogDrafts`
-      )
-      .doc();
+const draftRef = db
+  .collection(
+    `users/${effectiveUid}/websites/${effectiveWebsiteId}/modules/seo/blogDrafts`
+  )
+  .doc();
+
 
     const draftId = draftRef.id;
 
