@@ -416,6 +416,33 @@ const [poSaveState, setPoSaveState] = useState("idle"); // idle | saving | saved
 const [poSaveError, setPoSaveError] = useState("");
 	const [poExportState, setPoExportState] = useState("idle"); // idle | exporting | error
 const [poExportError, setPoExportError] = useState("");
+// =========================
+// Step 8A — Authority Plan (resume-safe)
+// Firestore:
+// users/{effectiveUid}/websites/{effectiveWebsiteId}/modules/seo/strategy/authorityPlan
+// =========================
+const [authorityPlanState, setAuthorityPlanState] = useState("idle"); // idle | loading | generating | ready | error
+const [authorityPlanError, setAuthorityPlanError] = useState("");
+const [authorityPlanExists, setAuthorityPlanExists] = useState(false);
+
+const [authorityPlanLocked, setAuthorityPlanLocked] = useState(false);
+
+const [authorityRecommendedTotal, setAuthorityRecommendedTotal] = useState(0);
+const [authorityAdjustedTotal, setAuthorityAdjustedTotal] = useState(0);
+const [authoritySliderMin, setAuthoritySliderMin] = useState(0);
+const [authoritySliderMax, setAuthoritySliderMax] = useState(0);
+
+const [authorityGeoMode, setAuthorityGeoMode] = useState("");
+const [authorityLocationName, setAuthorityLocationName] = useState("");
+const [authorityLanguageCode, setAuthorityLanguageCode] = useState("");
+
+const [authorityPillarAllocations, setAuthorityPillarAllocations] = useState([]);
+const [authorityMonths, setAuthorityMonths] = useState({ month1: [], month2: [], month3: [] });
+const [authorityReasoning, setAuthorityReasoning] = useState({ bullets: [], notes: "" });
+
+const [authorityActiveMonth, setAuthorityActiveMonth] = useState(1);
+const [authorityFilterPillar, setAuthorityFilterPillar] = useState("all");
+const [authoritySearch, setAuthoritySearch] = useState("");
 
 
 const poSaveTimerRef = useRef(null);
@@ -1110,6 +1137,99 @@ function pageOptimizationDocRef() {
     "pageOptimization"
   );
 }
+	// =========================
+// Step 8A — Firestore docRef + loader (resume-safe)
+// =========================
+function authorityPlanDocRef() {
+  if (!uid || !selectedWebsiteId) return null;
+
+  const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
+  if (!effectiveUid || !effectiveWebsiteId) return null;
+
+  return doc(
+    db,
+    "users",
+    effectiveUid,
+    "websites",
+    effectiveWebsiteId,
+    "modules",
+    "seo",
+    "strategy",
+    "authorityPlan"
+  );
+}
+
+function hydrateAuthorityPlanFromDoc(d) {
+  const data = d || {};
+
+  setAuthorityPlanExists(true);
+  setAuthorityPlanLocked(data.locked === true);
+
+  setAuthorityGeoMode(String(data.geoMode ?? ""));
+  setAuthorityLocationName(String(data.location_name ?? ""));
+  setAuthorityLanguageCode(String(data.language_code ?? ""));
+
+  setAuthorityRecommendedTotal(Number(data.recommendedTotalBlogs || 0));
+  setAuthorityAdjustedTotal(Number(data.adjustedTotalBlogs || 0));
+  setAuthoritySliderMin(Number(data.sliderMin || 0));
+  setAuthoritySliderMax(Number(data.sliderMax || 0));
+
+  setAuthorityPillarAllocations(Array.isArray(data.pillarAllocations) ? data.pillarAllocations : []);
+
+  const m = data.months && typeof data.months === "object" ? data.months : {};
+  setAuthorityMonths({
+    month1: Array.isArray(m.month1) ? m.month1 : [],
+    month2: Array.isArray(m.month2) ? m.month2 : [],
+    month3: Array.isArray(m.month3) ? m.month3 : [],
+  });
+
+  const r = data.reasoningSummary && typeof data.reasoningSummary === "object" ? data.reasoningSummary : {};
+  setAuthorityReasoning({
+    bullets: Array.isArray(r.bullets) ? r.bullets : [],
+    notes: String(r.notes ?? ""),
+  });
+
+  setAuthorityPlanState("ready");
+  setAuthorityPlanError("");
+}
+
+async function loadExistingAuthorityPlan() {
+  try {
+    setAuthorityPlanState("loading");
+    setAuthorityPlanError("");
+
+    const ref = authorityPlanDocRef();
+    if (!ref) {
+      setAuthorityPlanState("idle");
+      return;
+    }
+
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      setAuthorityPlanExists(false);
+      setAuthorityPlanLocked(false);
+
+      setAuthorityRecommendedTotal(0);
+      setAuthorityAdjustedTotal(0);
+      setAuthoritySliderMin(0);
+      setAuthoritySliderMax(0);
+
+      setAuthorityPillarAllocations([]);
+      setAuthorityMonths({ month1: [], month2: [], month3: [] });
+      setAuthorityReasoning({ bullets: [], notes: "" });
+
+      setAuthorityPlanState("idle");
+      return;
+    }
+
+    hydrateAuthorityPlanFromDoc(snap.data() || {});
+  } catch (e) {
+    console.error("loadExistingAuthorityPlan error:", e);
+    setAuthorityPlanState("error");
+    setAuthorityPlanError(e?.message || "Failed to load Step 8A authorityPlan.");
+  }
+}
+
 
 function hydratePageOptimizationFromDoc(d) {
   const data = d || {};
@@ -2338,6 +2458,12 @@ useEffect(() => {
 useEffect(() => {
   if (!uid || !selectedWebsiteId || !websites?.length) return;
   loadExistingPageOptimization();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [uid, selectedWebsiteId, websites]);
+// Load existing Step 8A authority plan (resume-safe)
+useEffect(() => {
+  if (!uid || !selectedWebsiteId || !websites?.length) return;
+  loadExistingAuthorityPlan();
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [uid, selectedWebsiteId, websites]);
 
