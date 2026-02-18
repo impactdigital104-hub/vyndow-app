@@ -6340,23 +6340,79 @@ style={{
 
       {/* Section 3 — Pillar Allocation Table (always visible) */}
       <div style={{ padding: 14, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "white" }}>
-        <div style={{ fontWeight: 900, color: HOUSE.text, marginBottom: 10 }}>
-          Pillar Allocation
-        </div>
+<div style={{ fontWeight: 900, color: HOUSE.primaryPurple, marginBottom: 10 }}>
+  Pillar Allocation
+</div>
+
 
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: `1px solid ${HOUSE.cardBorder}` }}>
-                <th style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.subtext }}>Pillar</th>
-                <th style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.subtext }}>Authority Score</th>
-                <th style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.subtext }}>Allocated Blogs</th>
+                <th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext }}>Pillar</th>
+<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <span>Authority Score</span>
+
+    <details>
+      <summary
+        style={{
+          listStyle: "none",
+          cursor: "pointer",
+          display: "inline-block",
+          padding: "0px 8px",
+          borderRadius: 999,
+          border: `1px solid ${HOUSE.cardBorder}`,
+          background: "rgba(30,102,255,0.08)",
+          color: HOUSE.primaryBlue,
+          fontWeight: 900,
+          fontSize: 12,
+          lineHeight: "18px",
+        }}
+      >
+        ?
+      </summary>
+
+      <div
+        style={{
+          marginTop: 8,
+          padding: 10,
+          borderRadius: 12,
+          border: `1px solid ${HOUSE.cardBorder}`,
+          background: "white",
+          color: HOUSE.subtext,
+          fontWeight: 700,
+          maxWidth: 420,
+        }}
+      >
+        <div style={{ fontWeight: 900, color: HOUSE.text, marginBottom: 6 }}>
+          What is Authority Score?
+        </div>
+        <div>
+          A normalized score (0 to 1) based on:
+          <ul style={{ margin: "8px 0 0 18px", padding: 0, lineHeight: 1.6 }}>
+            <li>Volume (40%)</li>
+            <li>Intent diversity (25%)</li>
+            <li>Commercial density (15%)</li>
+            <li>Cluster depth (10%)</li>
+            <li>Opportunity (10%)</li>
+          </ul>
+          <div style={{ marginTop: 8 }}>
+            Higher score = higher demand + stronger opportunity.
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+</th>
+
+                <th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext }}>Allocated Blogs</th>
               </tr>
             </thead>
             <tbody>
               {(authorityPillarAllocations || []).map((p, idx) => (
                 <tr key={idx} style={{ borderBottom: `1px solid ${HOUSE.cardBorder}` }}>
-                  <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text }}>
+                  <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
                     {String(p?.pillarName || "")}
                   </td>
                   <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text }}>
@@ -6418,18 +6474,21 @@ style={{
             Month 3
           </button>
 
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", maxWidth: 720 }}>
+
             {/* Pillar filter */}
             <select
               value={authorityFilterPillar}
               onChange={(e) => setAuthorityFilterPillar(e.target.value)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 12,
-                border: `1px solid ${HOUSE.cardBorder}`,
-                fontWeight: 900,
-                background: "white",
-              }}
+style={{
+  padding: "8px 10px",
+  borderRadius: 12,
+  border: `1px solid ${HOUSE.cardBorder}`,
+  fontWeight: 900,
+  background: "white",
+  minWidth: 220,
+}}
+
             >
               <option value="all">All pillars</option>
               {pillarOptions.map((pn) => (
@@ -6449,7 +6508,7 @@ style={{
                 borderRadius: 12,
                 border: `1px solid ${HOUSE.cardBorder}`,
                 fontWeight: 800,
-                minWidth: 240,
+                minWidth: 320,
               }}
             />
           </div>
@@ -6457,87 +6516,115 @@ style={{
 
         {/* Month table */}
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+         <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+
             <thead>
               <tr style={{ textAlign: "left", borderBottom: `1px solid ${HOUSE.cardBorder}` }}>
-                <th style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.subtext }}>Pillar</th>
-                <th style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.subtext }}>Title</th>
-                <th style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.subtext }}>Primary KW</th>
-                <th style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.subtext }}>Intent</th>
-                <th style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.subtext }}>Audience</th>
-                <th style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.subtext }}>Impact</th>
-                <th style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.subtext }}>Action</th>
+<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 190 }}>Pillar</th>
+<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 460 }}>Title</th>
+<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 180 }}>Primary KW</th>
+<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 130 }}>Intent</th>
+<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 220 }}>Audience</th>
+<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 170 }}>Impact</th>
+<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 160 }}>Action</th>
+
               </tr>
             </thead>
             <tbody>
               {filteredRows.map((r, idx) => (
                 <tr key={String(r?.id || idx)} style={{ borderBottom: `1px solid ${HOUSE.cardBorder}` }}>
-                  <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text }}>
+                  <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
                     {String(r?.pillarName || "")}
                   </td>
 
                   <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text, maxWidth: 520 }}>
-                    <details>
-                      <summary style={{ cursor: "pointer" }}>
-                        {String(r?.blogTitle || "")}
-                      </summary>
+<details>
+  <summary
+    style={{
+      cursor: "pointer",
+      fontWeight: 800,
+      color: HOUSE.text,
+      lineHeight: 1.4,
+    }}
+  >
+    {String(r?.blogTitle || "")}
+    <span style={{ marginLeft: 8, color: HOUSE.primaryBlue, fontWeight: 900, fontSize: 12 }}>
+      View details
+    </span>
+  </summary>
 
-                      <div style={{ marginTop: 10, color: HOUSE.subtext, fontWeight: 800, lineHeight: 1.6 }}>
-                        {r?.slug ? (
-                          <div style={{ marginBottom: 6 }}>
-                            <span style={{ fontWeight: 900, color: HOUSE.text }}>Slug:</span>{" "}
-                            {String(r.slug)}
-                          </div>
-                        ) : null}
+  <div
+    style={{
+      marginTop: 10,
+      padding: 12,
+      borderRadius: 12,
+      border: `1px solid ${HOUSE.cardBorder}`,
+      background: "rgba(30,102,255,0.03)",
+      color: HOUSE.subtext,
+      fontWeight: 700,
+      lineHeight: 1.6,
+    }}
+  >
+    {r?.slug ? (
+      <div style={{ marginBottom: 8 }}>
+        <span style={{ fontWeight: 900, color: HOUSE.text }}>Slug:</span>{" "}
+        <span style={{ color: HOUSE.primaryBlue, fontWeight: 800 }}>{String(r.slug)}</span>
+      </div>
+    ) : null}
 
-                        {Array.isArray(r?.secondaryKeywords) && r.secondaryKeywords.length ? (
-                          <div style={{ marginBottom: 6 }}>
-                            <span style={{ fontWeight: 900, color: HOUSE.text }}>Secondary keywords:</span>{" "}
-                            {r.secondaryKeywords.map((k, i) => (
-                              <span key={i} style={{ marginRight: 8 }}>
-                                <StatusPill tone="neutral">{String(k)}</StatusPill>
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
+    {Array.isArray(r?.secondaryKeywords) && r.secondaryKeywords.length ? (
+      <div style={{ marginBottom: 8 }}>
+        <span style={{ fontWeight: 900, color: HOUSE.text }}>Secondary:</span>{" "}
+        {r.secondaryKeywords.map((k, i) => (
+          <span key={i} style={{ marginRight: 6 }}>
+            <StatusPill tone="neutral">{String(k)}</StatusPill>
+          </span>
+        ))}
+      </div>
+    ) : null}
 
-                        {r?.synopsis ? (
-                          <div style={{ marginBottom: 6 }}>
-                            <span style={{ fontWeight: 900, color: HOUSE.text }}>Synopsis:</span>{" "}
-                            {String(r.synopsis)}
-                          </div>
-                        ) : null}
+    {r?.synopsis ? (
+      <div style={{ marginBottom: 8 }}>
+        <span style={{ fontWeight: 900, color: HOUSE.text }}>Synopsis:</span>{" "}
+        {String(r.synopsis)}
+      </div>
+    ) : null}
 
-                        {Array.isArray(r?.internalLinkTargets) && r.internalLinkTargets.length ? (
-                          <div style={{ marginBottom: 6 }}>
-                            <span style={{ fontWeight: 900, color: HOUSE.text }}>Internal links:</span>{" "}
-                            {r.internalLinkTargets.map((x, i) => (
-                              <span key={i} style={{ marginRight: 10 }}>
-                                {String(x?.anchor || "")} → {String(x?.url || "")}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
+    {Array.isArray(r?.internalLinkTargets) && r.internalLinkTargets.length ? (
+      <div style={{ marginBottom: 8 }}>
+        <span style={{ fontWeight: 900, color: HOUSE.text }}>Internal links:</span>
+        <div style={{ marginTop: 6 }}>
+          {r.internalLinkTargets.map((x, i) => (
+            <div key={i} style={{ fontWeight: 700 }}>
+              <span style={{ fontWeight: 900, color: HOUSE.text }}>{String(x?.anchor || "")}</span>{" "}
+              <span style={{ color: HOUSE.subtext }}>→</span>{" "}
+              <span style={{ color: HOUSE.primaryBlue, fontWeight: 800 }}>{String(x?.url || "")}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : null}
 
-                        {r?.ctaFocus ? (
-                          <div>
-                            <span style={{ fontWeight: 900, color: HOUSE.text }}>CTA focus:</span>{" "}
-                            {String(r.ctaFocus)}
-                          </div>
-                        ) : null}
-                      </div>
-                    </details>
+    {r?.ctaFocus ? (
+      <div>
+        <span style={{ fontWeight: 900, color: HOUSE.text }}>CTA focus:</span>{" "}
+        {String(r.ctaFocus)}
+      </div>
+    ) : null}
+  </div>
+</details>
+
                   </td>
 
-                  <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text }}>
+                  <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
                     {String(r?.primaryKeyword || "")}
                   </td>
 
-                  <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text }}>
+                  <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
                     {String(r?.intent || "")}
                   </td>
 
-                  <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text }}>
+                  <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
                     {String(r?.targetAudience || "")}
                   </td>
 
