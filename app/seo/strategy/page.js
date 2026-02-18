@@ -6818,13 +6818,14 @@ style={{
                 </tr>
               ))}
 
-      </div>
-    );
-  })()}
-</td>
+ {!filteredRows.length ? (
+  <tr>
+    <td colSpan={7} style={{ padding: "16px 10px", color: HOUSE.subtext, fontWeight: 700 }}>
+      No rows found for this filter.
+    </td>
+  </tr>
+) : null}
 
-                </tr>
-              ) : null}
             </tbody>
           </table>
         </div>
