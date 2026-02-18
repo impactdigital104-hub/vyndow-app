@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, orderBy, query, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 
 
@@ -21,7 +21,14 @@ const [websites, setWebsites] = useState([]);
 const [websitesLoading, setWebsitesLoading] = useState(true);
     const [websitesError, setWebsitesError] = useState("");
     const router = useRouter();
+    const searchParams = useSearchParams();
+const draftIdFromUrl = searchParams?.get("draftId") || "";
+
   const [authReady, setAuthReady] = useState(false);
+    // Step 8B draft banner/state
+const [loadedFromStrategy, setLoadedFromStrategy] = useState(false);
+const [draftLoadError, setDraftLoadError] = useState("");
+
 useEffect(() => {
   const unsub = onAuthStateChanged(auth, (user) => {
     if (!user) {
@@ -229,6 +236,102 @@ setIndustry(p.industry || "general");
 
   return { effectiveUid, effectiveWebsiteId };
 }
+    // =========================
+// Step 8B — If URL has ?draftId=..., load draft and prefill the generator
+// =========================
+useEffect(() => {
+  async function loadDraftIfPresent() {
+    const draftId = String(draftIdFromUrl || "").trim();
+    if (!draftId) {
+      setLoadedFromStrategy(false);
+      setDraftLoadError("");
+      return;
+    }
+
+    if (!uid) return;
+    if (!selectedWebsite) return;
+
+    try {
+      setDraftLoadError("");
+
+      const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsite);
+      if (!effectiveWebsiteId) return;
+
+      const draftRef = doc(
+        db,
+        "users",
+        effectiveUid,
+        "websites",
+        effectiveWebsiteId,
+        "modules",
+        "seo",
+        "strategy",
+        "blogDrafts",
+        draftId
+      );
+
+      const snap = await getDoc(draftRef);
+      if (!snap.exists()) {
+        setLoadedFromStrategy(false);
+        setDraftLoadError("Draft not found. Please go back to SEO Strategy and click Generate again.");
+        return;
+      }
+
+      const d = snap.data() || {};
+
+      // Prefill fields that exist in this generator UI
+      setPrimaryKeyword(String(d.primaryKeyword || ""));
+      setSecondaryKeywordsRaw(
+        Array.isArray(d.secondaryKeywords) ? d.secondaryKeywords.filter(Boolean).join(", ") : ""
+      );
+      setTopic(String(d.blogTitle || ""));
+
+      // Intent is topic-level; safe to prefill
+      if (d.intent) setSeoIntent(String(d.intent));
+
+      // Internal URLs (one per line)
+      const internalUrls = Array.isArray(d.internalLinks)
+        ? d.internalLinks.map((x) => String(x?.url || "").trim()).filter(Boolean)
+        : [];
+      if (internalUrls.length) setExistingBlogs(internalUrls.join("\n"));
+
+      // Notes/context: keep everything (even if this UI doesn't have dedicated fields)
+      const parts = [];
+      parts.push("Loaded from SEO Strategy Plan ✓");
+      if (d.pillarName) parts.push(`Pillar: ${String(d.pillarName)}`);
+      if (d.impactTag) parts.push(`Impact tag: ${String(d.impactTag)}`);
+      if (d.synopsis) parts.push(`Synopsis: ${String(d.synopsis)}`);
+      if (d.targetAudience) parts.push(`Target audience (from plan): ${String(d.targetAudience)}`);
+      if (d.ctaFocus) parts.push(`CTA focus: ${String(d.ctaFocus)}`);
+      if (Array.isArray(d.internalLinks) && d.internalLinks.length) {
+        parts.push("Internal links (anchor → URL):");
+        d.internalLinks.forEach((x) => {
+          const a = String(x?.anchor || "").trim();
+          const u = String(x?.url || "").trim();
+          if (a || u) parts.push(`- ${a}${a && u ? " → " : ""}${u}`);
+        });
+      }
+
+      setNotes(parts.join("\n"));
+
+      setLoadedFromStrategy(true);
+
+      // Lifecycle update (non-blocking)
+      try {
+        await updateDoc(draftRef, { lastOpenedAt: serverTimestamp() });
+      } catch (e) {
+        // ignore
+      }
+    } catch (e) {
+      console.error("Failed to load draft:", e);
+      setLoadedFromStrategy(false);
+      setDraftLoadError(e?.message || "Failed to load draft.");
+    }
+  }
+
+  loadDraftIfPresent();
+}, [draftIdFromUrl, uid, selectedWebsite, websites]);
+
     function getMonthKeyClient() {
   const d = new Date();
   const y = d.getFullYear();
@@ -578,6 +681,39 @@ if (baseLimit > 0 && used >= totalAllowed) {
     inputs, and Vyndow takes care of generating structured, publishing-ready SEO content.
   </p>
 </header>
+{/* Step 8B: Draft-loaded banner */}
+{loadedFromStrategy ? (
+  <div
+    style={{
+      marginBottom: 14,
+      padding: "10px 12px",
+      borderRadius: 12,
+      border: "1px solid #e5e7eb",
+      background: "rgba(34,197,94,0.08)",
+      color: "#065f46",
+      fontWeight: 800,
+    }}
+  >
+    Loaded from SEO Strategy Plan ✓
+  </div>
+) : null}
+
+{draftLoadError ? (
+  <div
+    style={{
+      marginBottom: 14,
+      padding: "10px 12px",
+      borderRadius: 12,
+      border: "1px solid #fecaca",
+      background: "rgba(239,68,68,0.08)",
+      color: "#991b1b",
+      fontWeight: 800,
+    }}
+  >
+    {draftLoadError}
+  </div>
+) : null}
+
 
 
       {/* STEP 1 – INPUTS (2-column grid of cards) */}
