@@ -6331,7 +6331,7 @@ style={{
             </ul>
 
             {authorityReasoning?.notes ? (
-              <div style={{ marginTop: 10, color: HOUSE.subtext, fontWeight: 800, lineHeight: 1.6 }}>
+             <div style={{ marginTop: 10, color: HOUSE.subtext, fontWeight: 600, fontSize: 13, lineHeight: 1.65 }}>
                 {String(authorityReasoning.notes)}
               </div>
             ) : null}
@@ -6361,14 +6361,15 @@ style={{
           listStyle: "none",
           cursor: "pointer",
           display: "inline-block",
-          padding: "0px 8px",
+          padding: "0px 6px",
           borderRadius: 999,
           border: `1px solid ${HOUSE.cardBorder}`,
           background: "rgba(30,102,255,0.08)",
           color: HOUSE.primaryBlue,
-          fontWeight: 900,
-          fontSize: 12,
-          lineHeight: "18px",
+          fontWeight: 700,
+fontSize: 10,
+lineHeight: "16px",
+
         }}
       >
         ?
@@ -6386,7 +6387,7 @@ style={{
           maxWidth: 420,
         }}
       >
-        <div style={{ fontWeight: 900, color: HOUSE.text, marginBottom: 6 }}>
+        <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.text, marginBottom: 6 }}>
           What is Authority Score?
         </div>
         <div>
@@ -6416,10 +6417,10 @@ style={{
                   <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
                     {String(p?.pillarName || "")}
                   </td>
-                  <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text }}>
+                  <td style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.text }}>
                     {typeof p?.authorityScore === "number" ? p.authorityScore.toFixed(2) : "—"}
                   </td>
-                  <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text }}>
+                  <td style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.text }}>
                     {Number(p?.allocatedBlogs || 0)}
                   </td>
                 </tr>
@@ -6559,7 +6560,7 @@ style={{
   <summary
    style={{
   cursor: "pointer",
-  fontWeight: 700,
+  fontWeight: 600,
   fontSize: 13,
   color: HOUSE.text,
   lineHeight: 1.45,
@@ -6567,7 +6568,7 @@ style={{
 
   >
     {String(r?.blogTitle || "")}
-    <span style={{ marginLeft: 8, color: HOUSE.primaryBlue, fontWeight: 800, fontSize: 12 }}>
+    <span style={{ marginLeft: 8, color: HOUSE.primaryBlue, fontWeight: 600, fontSize: 12 }}>
       View details
     </span>
   </summary>
@@ -6580,7 +6581,7 @@ style={{
       border: `1px solid ${HOUSE.cardBorder}`,
       background: "rgba(30,102,255,0.03)",
       color: HOUSE.subtext,
-      fontWeight: 700,
+      fontWeight: 500,
       lineHeight: 1.6,
     }}
   >
@@ -6618,7 +6619,7 @@ style={{
       {r?.synopsis ? (
         <>
          <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>Synopsis</div>
-          <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>
+          <div style={{ color: HOUSE.subtext, fontWeight: 500 }}>
             {String(r.synopsis)}
           </div>
         </>
@@ -6646,7 +6647,7 @@ style={{
       {r?.ctaFocus ? (
         <>
           <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>CTA focus</div>
-          <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>
+          <div style={{ color: HOUSE.subtext, fontWeight: 500 }}>
             {String(r.ctaFocus)}
           </div>
         </>
