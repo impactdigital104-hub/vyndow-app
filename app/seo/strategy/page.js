@@ -6540,20 +6540,30 @@ style={{
   }}
 >
 
-                  <td style={{ padding: "14px 8px", fontWeight: 800, color: HOUSE.text }}>
-                    {String(r?.pillarName || "")}
-                  </td>
+<td
+  style={{
+    padding: "12px 8px",
+    fontWeight: 700,
+    fontSize: 13,
+    color: HOUSE.primaryPurple,
+  }}
+>
+  {String(r?.pillarName || "")}
+</td>
 
-                  <td style={{ padding: "14px 8px", fontWeight: 800, color: HOUSE.text, maxWidth: 520 }}>
+
+                 <td style={{ padding: "12px 8px", fontWeight: 600, fontSize: 13, color: HOUSE.text, maxWidth: 520 }}>
 
 <details>
   <summary
-    style={{
-      cursor: "pointer",
-      fontWeight: 800,
-      color: HOUSE.text,
-      lineHeight: 1.4,
-    }}
+   style={{
+  cursor: "pointer",
+  fontWeight: 700,
+  fontSize: 13,
+  color: HOUSE.text,
+  lineHeight: 1.45,
+}}
+
   >
     {String(r?.blogTitle || "")}
     <span style={{ marginLeft: 8, color: HOUSE.primaryBlue, fontWeight: 800, fontSize: 12 }}>
@@ -6584,7 +6594,7 @@ style={{
     >
       {r?.slug ? (
         <>
-          <div style={{ fontWeight: 800, color: HOUSE.text }}>Slug</div>
+          <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>Slug</div>
           <div style={{ color: HOUSE.primaryBlue, fontWeight: 800, wordBreak: "break-word" }}>
             {String(r.slug)}
           </div>
@@ -6593,7 +6603,7 @@ style={{
 
       {Array.isArray(r?.secondaryKeywords) && r.secondaryKeywords.length ? (
         <>
-          <div style={{ fontWeight: 800, color: HOUSE.text }}>Secondary</div>
+          <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>Secondary</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {r.secondaryKeywords.map((k, i) => (
               <span key={i}>
@@ -6606,7 +6616,7 @@ style={{
 
       {r?.synopsis ? (
         <>
-          <div style={{ fontWeight: 800, color: HOUSE.text }}>Synopsis</div>
+         <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>Synopsis</div>
           <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>
             {String(r.synopsis)}
           </div>
@@ -6615,7 +6625,7 @@ style={{
 
       {Array.isArray(r?.internalLinkTargets) && r.internalLinkTargets.length ? (
         <>
-          <div style={{ fontWeight: 800, color: HOUSE.text }}>Internal links</div>
+         <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>Internal links</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {r.internalLinkTargets.map((x, i) => (
               <div key={i} style={{ fontWeight: 700 }}>
@@ -6634,7 +6644,7 @@ style={{
 
       {r?.ctaFocus ? (
         <>
-          <div style={{ fontWeight: 800, color: HOUSE.text }}>CTA focus</div>
+          <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>CTA focus</div>
           <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>
             {String(r.ctaFocus)}
           </div>
@@ -6687,17 +6697,20 @@ style={{
 
                   </td>
 
-<td style={{ padding: "14px 8px", fontWeight: 700, color: HOUSE.text }}>
+<td style={{ padding: "12px 8px", fontWeight: 600, fontSize: 13, color: HOUSE.text }}>
   {String(r?.primaryKeyword || "")}
 </td>
 
-<td style={{ padding: "14px 8px", fontWeight: 700, color: HOUSE.subtext }}>
+
+<td style={{ padding: "12px 8px", fontWeight: 600, fontSize: 13, color: HOUSE.subtext }}>
   {String(r?.intent || "")}
 </td>
 
-<td style={{ padding: "14px 8px", fontWeight: 700, color: HOUSE.text }}>
+
+<td style={{ padding: "12px 8px", fontWeight: 600, fontSize: 13, color: HOUSE.text }}>
   {String(r?.targetAudience || "")}
 </td>
+
 
 
                   <td style={{ padding: "14px 8px" }}>
