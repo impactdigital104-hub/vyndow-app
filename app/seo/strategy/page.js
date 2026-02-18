@@ -6357,49 +6357,52 @@ style={{
 
     <details>
       <summary
-        style={{
-          listStyle: "none",
-          cursor: "pointer",
-          display: "inline-block",
-          padding: "0px 6px",
-          borderRadius: 999,
-          border: `1px solid ${HOUSE.cardBorder}`,
-          background: "rgba(30,102,255,0.08)",
-          color: HOUSE.primaryBlue,
-          fontWeight: 700,
-fontSize: 10,
-lineHeight: "16px",
+      style={{
+  listStyle: "none",
+  cursor: "pointer",
+  display: "inline-block",
+  padding: "0px 5px",
+  borderRadius: 999,
+  border: `1px solid ${HOUSE.cardBorder}`,
+  background: "rgba(30,102,255,0.08)",
+  color: HOUSE.primaryBlue,
+  fontWeight: 600,
+  fontSize: 9,
+  lineHeight: "14px",
+}}
 
-        }}
       >
         ?
       </summary>
 
       <div
-        style={{
-          marginTop: 8,
-          padding: 10,
-          borderRadius: 12,
-          border: `1px solid ${HOUSE.cardBorder}`,
-          background: "white",
-          color: HOUSE.subtext,
-          fontWeight: 700,
-          maxWidth: 420,
-        }}
+style={{
+  marginTop: 8,
+  padding: 8,
+  borderRadius: 10,
+  border: `1px solid ${HOUSE.cardBorder}`,
+  background: "white",
+  color: HOUSE.subtext,
+  fontWeight: 500,
+  fontSize: 11,
+  lineHeight: 1.45,
+  maxWidth: 320,
+}}
+
       >
-        <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.text, marginBottom: 6 }}>
+       <div style={{ fontWeight: 600, fontSize: 11, color: HOUSE.text, marginBottom: 4 }}>
           What is Authority Score?
         </div>
         <div>
           A normalized score (0 to 1) based on:
-          <ul style={{ margin: "8px 0 0 18px", padding: 0, lineHeight: 1.6 }}>
+         <ul style={{ margin: "6px 0 0 16px", padding: 0, lineHeight: 1.45, fontSize: 11 }}>
             <li>Volume (40%)</li>
             <li>Intent diversity (25%)</li>
             <li>Commercial density (15%)</li>
             <li>Cluster depth (10%)</li>
             <li>Opportunity (10%)</li>
           </ul>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 6, fontSize: 11, fontWeight: 500 }}>
             Higher score = higher demand + stronger opportunity.
           </div>
         </div>
@@ -6414,7 +6417,7 @@ lineHeight: "16px",
             <tbody>
               {(authorityPillarAllocations || []).map((p, idx) => (
                 <tr key={idx} style={{ borderBottom: `1px solid ${HOUSE.cardBorder}` }}>
-                  <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
+                 <td style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: HOUSE.text }}>
                     {String(p?.pillarName || "")}
                   </td>
                   <td style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.text }}>
