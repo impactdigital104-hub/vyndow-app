@@ -1229,6 +1229,59 @@ async function loadExistingAuthorityPlan() {
     setAuthorityPlanError(e?.message || "Failed to load Step 8A authorityPlan.");
   }
 }
+async function generateOrUpdateAuthorityPlan({ useAdjustedTotal }) {
+  try {
+    // Gate on UI also (backend will enforce again)
+    const gateOk =
+      businessContextApproved === true &&
+      keywordClusteringApproved === true &&
+      keywordMappingApproved === true &&
+      poLocked === true;
+
+    if (!gateOk) {
+      setAuthorityPlanState("error");
+      setAuthorityPlanError("Step 8A is locked until Steps 4.5, 5, 6 are approved and Step 7 is locked.");
+      return;
+    }
+
+    if (authorityPlanLocked === true) {
+      setAuthorityPlanState("error");
+      setAuthorityPlanError("This plan is locked and cannot be regenerated.");
+      return;
+    }
+
+    setAuthorityPlanState("generating");
+    setAuthorityPlanError("");
+
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error("Missing login token.");
+
+    const res = await fetch("/api/seo/strategy/generateAuthorityPlan", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        websiteId: selectedWebsiteId,
+        adjustedTotalBlogs: useAdjustedTotal ? authorityAdjustedTotal : null,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.error || "Failed to generate Step 8A plan.");
+    }
+
+    // Always re-load from Firestore
+    await loadExistingAuthorityPlan();
+    setAuthorityPlanState("ready");
+  } catch (e) {
+    console.error("generateOrUpdateAuthorityPlan error:", e);
+    setAuthorityPlanState("error");
+    setAuthorityPlanError(e?.message || "Failed to generate Step 8A plan.");
+  }
+}
 
 
 function hydratePageOptimizationFromDoc(d) {
@@ -6054,6 +6107,205 @@ style={{
   </div>
 </StepCard>
 {/* >>> STEP 7 UI SHELL (END) */}
+{/* >>> STEP 8A UI SHELL (START) */}
+<StepCard
+  id="step8a"
+  step="Step 8A"
+  title="Authority Growth Plan (90-Day Blueprint)"
+  subtitle="Create a 90-day blog plan distributed across pillars using an authority demand score model. (Step 8B drafting comes later.)"
+  statusTone={
+    businessContextApproved === true &&
+    keywordClusteringApproved === true &&
+    keywordMappingApproved === true &&
+    poLocked === true
+      ? authorityPlanExists
+        ? "success"
+        : "neutral"
+      : "warning"
+  }
+  statusText={
+    businessContextApproved === true &&
+    keywordClusteringApproved === true &&
+    keywordMappingApproved === true &&
+    poLocked === true
+      ? authorityPlanExists
+        ? "Ready"
+        : "Not generated"
+      : "Locked"
+  }
+  openStep={openStep}
+  setOpenStep={setOpenStep}
+>
+  {(() => {
+    const gateOk =
+      businessContextApproved === true &&
+      keywordClusteringApproved === true &&
+      keywordMappingApproved === true &&
+      poLocked === true;
+
+    const missing = [];
+    if (businessContextApproved !== true) missing.push("Step 4.5 (Business Context) must be approved");
+    if (keywordClusteringApproved !== true) missing.push("Step 5 (Keyword Clustering) must be approved");
+    if (keywordMappingApproved !== true) missing.push("Step 6 (Keyword Mapping) must be approved");
+    if (poLocked !== true) missing.push("Step 7 (Page Optimization) must be locked");
+
+    const geoModeChip =
+      (authorityPlanExists ? authorityGeoMode : (keywordPoolMeta?.geo_mode || keywordGeoMode || "")) || "";
+    const locationChip =
+      (authorityPlanExists ? authorityLocationName : (keywordPoolMeta?.location_name || keywordLocationName || "")) || "";
+
+    return (
+      <div>
+        {/* Header row strip */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: 12,
+            borderRadius: 14,
+            border: `1px solid ${HOUSE.cardBorder}`,
+            background: "rgba(30,102,255,0.03)",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 260 }}>
+            <div style={{ fontWeight: 900, color: HOUSE.text }}>
+              Recommended:{" "}
+              <span style={{ color: HOUSE.primaryPurple }}>
+                {authorityPlanExists ? authorityRecommendedTotal : "—"}
+              </span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ fontWeight: 900, color: HOUSE.text }}>
+                Adjusted:{" "}
+                <span style={{ color: HOUSE.primaryBlue }}>
+                  {authorityPlanExists ? authorityAdjustedTotal : "—"}
+                </span>
+              </div>
+
+              <div style={{ color: HOUSE.subtext, fontWeight: 800, fontSize: 12 }}>
+                {authorityPlanExists ? `(${authoritySliderMin} … ${authoritySliderMax})` : ""}
+              </div>
+            </div>
+
+            {/* Slider (enabled only after plan exists) */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <input
+                type="range"
+                min={authoritySliderMin || 0}
+                max={authoritySliderMax || 0}
+                value={authorityAdjustedTotal || 0}
+                disabled={!authorityPlanExists || authorityPlanLocked === true}
+                onChange={(e) => setAuthorityAdjustedTotal(Number(e.target.value || 0))}
+                style={{ width: 280 }}
+              />
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                {geoModeChip ? <StatusPill tone="neutral">{String(geoModeChip)}</StatusPill> : null}
+                {locationChip ? <StatusPill tone="neutral">{String(locationChip)}</StatusPill> : null}
+              </div>
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {!authorityPlanExists ? (
+              <button
+                disabled={!gateOk || authorityPlanState === "generating"}
+                onClick={() => generateOrUpdateAuthorityPlan({ useAdjustedTotal: false })}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: `1px solid ${HOUSE.cardBorder}`,
+                  background: !gateOk ? "#f3f4f6" : HOUSE.primaryPurple,
+                  color: !gateOk ? "#6b7280" : "white",
+                  fontWeight: 900,
+                  cursor: !gateOk ? "not-allowed" : "pointer",
+                }}
+              >
+                {authorityPlanState === "generating" ? "Generating…" : "Generate 90-Day Plan"}
+              </button>
+            ) : (
+              <button
+                disabled={!gateOk || authorityPlanLocked === true || authorityPlanState === "generating"}
+                onClick={() => generateOrUpdateAuthorityPlan({ useAdjustedTotal: true })}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: `1px solid ${HOUSE.cardBorder}`,
+                  background:
+                    !gateOk || authorityPlanLocked === true ? "#f3f4f6" : HOUSE.primaryBlue,
+                  color:
+                    !gateOk || authorityPlanLocked === true ? "#6b7280" : "white",
+                  fontWeight: 900,
+                  cursor:
+                    !gateOk || authorityPlanLocked === true ? "not-allowed" : "pointer",
+                }}
+                title={authorityPlanLocked === true ? "Locked plan cannot be updated" : ""}
+              >
+                {authorityPlanState === "generating" ? "Updating…" : "Update Plan"}
+              </button>
+            )}
+
+            {authorityPlanLocked === true ? (
+              <StatusPill tone="warning">Locked</StatusPill>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Gate message */}
+        {!gateOk ? (
+          <div style={{ marginTop: 12, padding: 12, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "rgba(245,158,11,0.07)" }}>
+            <div style={{ fontWeight: 900, color: HOUSE.warning, marginBottom: 8 }}>
+              Step 8A is locked. Complete these first:
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 18, color: HOUSE.text, fontWeight: 800, lineHeight: 1.5 }}>
+              {missing.map((m, idx) => (
+                <li key={idx}>{m}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {/* Error */}
+        {authorityPlanState === "error" && authorityPlanError ? (
+          <div style={{ marginTop: 12, padding: 12, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "rgba(239,68,68,0.07)" }}>
+            <div style={{ fontWeight: 900, color: "#b91c1c" }}>Error</div>
+            <div style={{ marginTop: 6, color: HOUSE.text, fontWeight: 800 }}>{authorityPlanError}</div>
+          </div>
+        ) : null}
+
+        {/* Empty state (when gate ok but no plan yet) */}
+        {gateOk && !authorityPlanExists ? (
+          <div style={{ marginTop: 12, padding: 14, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "white" }}>
+            <div style={{ fontWeight: 900, color: HOUSE.text }}>No plan generated yet.</div>
+            <div style={{ marginTop: 6, color: HOUSE.subtext, fontWeight: 800, lineHeight: 1.5 }}>
+              Click <b>Generate 90-Day Plan</b> to create a blueprint. After generation, you can use the slider and click <b>Update Plan</b>.
+            </div>
+            <div style={{ marginTop: 10, color: HOUSE.subtext, fontWeight: 800 }}>
+              Action column will be enabled in Step 8B. For now it will stay disabled.
+            </div>
+          </div>
+        ) : null}
+
+        {/* Minimal “plan exists” placeholder (tables come next step) */}
+        {gateOk && authorityPlanExists ? (
+          <div style={{ marginTop: 12, padding: 14, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "white" }}>
+            <div style={{ fontWeight: 900, color: HOUSE.text }}>Plan loaded.</div>
+            <div style={{ marginTop: 6, color: HOUSE.subtext, fontWeight: 800, lineHeight: 1.5 }}>
+              Next, we will render: (1) Reasoning summary, (2) Pillar allocation table, and (3) Month tabs with a table view.
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  })()}
+</StepCard>
+{/* >>> STEP 8A UI SHELL (END) */}
+
 
 
       </div>
