@@ -6439,7 +6439,7 @@ style={{
               borderRadius: 12,
               border: `1px solid ${HOUSE.cardBorder}`,
               background: authorityActiveMonth === 1 ? "rgba(30,102,255,0.10)" : "white",
-              fontWeight: 900,
+             fontWeight: 800,
               cursor: "pointer",
             }}
           >
@@ -6453,7 +6453,7 @@ style={{
               borderRadius: 12,
               border: `1px solid ${HOUSE.cardBorder}`,
               background: authorityActiveMonth === 2 ? "rgba(30,102,255,0.10)" : "white",
-              fontWeight: 900,
+             fontWeight: 800,
               cursor: "pointer",
             }}
           >
@@ -6467,7 +6467,7 @@ style={{
               borderRadius: 12,
               border: `1px solid ${HOUSE.cardBorder}`,
               background: authorityActiveMonth === 3 ? "rgba(30,102,255,0.10)" : "white",
-              fontWeight: 900,
+              fontWeight: 800,
               cursor: "pointer",
             }}
           >
@@ -6532,12 +6532,20 @@ style={{
             </thead>
             <tbody>
               {filteredRows.map((r, idx) => (
-                <tr key={String(r?.id || idx)} style={{ borderBottom: `1px solid ${HOUSE.cardBorder}` }}>
-                  <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
+                <tr
+  key={String(r?.id || idx)}
+  style={{
+    borderBottom: `1px solid ${HOUSE.cardBorder}`,
+    background: idx % 2 === 0 ? "white" : "rgba(30,102,255,0.02)",
+  }}
+>
+
+                  <td style={{ padding: "14px 8px", fontWeight: 800, color: HOUSE.text }}>
                     {String(r?.pillarName || "")}
                   </td>
 
-                  <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text, maxWidth: 520 }}>
+                  <td style={{ padding: "14px 8px", fontWeight: 800, color: HOUSE.text, maxWidth: 520 }}>
+
 <details>
   <summary
     style={{
@@ -6548,7 +6556,7 @@ style={{
     }}
   >
     {String(r?.blogTitle || "")}
-    <span style={{ marginLeft: 8, color: HOUSE.primaryBlue, fontWeight: 900, fontSize: 12 }}>
+    <span style={{ marginLeft: 8, color: HOUSE.primaryBlue, fontWeight: 800, fontSize: 12 }}>
       View details
     </span>
   </summary>
@@ -6565,12 +6573,75 @@ style={{
       lineHeight: 1.6,
     }}
   >
-    {r?.slug ? (
-      <div style={{ marginBottom: 8 }}>
-        <span style={{ fontWeight: 900, color: HOUSE.text }}>Slug:</span>{" "}
-        <span style={{ color: HOUSE.primaryBlue, fontWeight: 800 }}>{String(r.slug)}</span>
-      </div>
-    ) : null}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "140px 1fr",
+        columnGap: 12,
+        rowGap: 10,
+        alignItems: "start",
+      }}
+    >
+      {r?.slug ? (
+        <>
+          <div style={{ fontWeight: 800, color: HOUSE.text }}>Slug</div>
+          <div style={{ color: HOUSE.primaryBlue, fontWeight: 800, wordBreak: "break-word" }}>
+            {String(r.slug)}
+          </div>
+        </>
+      ) : null}
+
+      {Array.isArray(r?.secondaryKeywords) && r.secondaryKeywords.length ? (
+        <>
+          <div style={{ fontWeight: 800, color: HOUSE.text }}>Secondary</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {r.secondaryKeywords.map((k, i) => (
+              <span key={i}>
+                <StatusPill tone="neutral">{String(k)}</StatusPill>
+              </span>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {r?.synopsis ? (
+        <>
+          <div style={{ fontWeight: 800, color: HOUSE.text }}>Synopsis</div>
+          <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>
+            {String(r.synopsis)}
+          </div>
+        </>
+      ) : null}
+
+      {Array.isArray(r?.internalLinkTargets) && r.internalLinkTargets.length ? (
+        <>
+          <div style={{ fontWeight: 800, color: HOUSE.text }}>Internal links</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {r.internalLinkTargets.map((x, i) => (
+              <div key={i} style={{ fontWeight: 700 }}>
+                <span style={{ fontWeight: 800, color: HOUSE.text }}>
+                  {String(x?.anchor || "")}
+                </span>{" "}
+                <span style={{ color: HOUSE.subtext }}>→</span>{" "}
+                <span style={{ color: HOUSE.primaryBlue, fontWeight: 800, wordBreak: "break-word" }}>
+                  {String(x?.url || "")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {r?.ctaFocus ? (
+        <>
+          <div style={{ fontWeight: 800, color: HOUSE.text }}>CTA focus</div>
+          <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>
+            {String(r.ctaFocus)}
+          </div>
+        </>
+      ) : null}
+    </div>
+
 
     {Array.isArray(r?.secondaryKeywords) && r.secondaryKeywords.length ? (
       <div style={{ marginBottom: 8 }}>
@@ -6616,23 +6687,24 @@ style={{
 
                   </td>
 
-                  <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
-                    {String(r?.primaryKeyword || "")}
-                  </td>
+<td style={{ padding: "14px 8px", fontWeight: 700, color: HOUSE.text }}>
+  {String(r?.primaryKeyword || "")}
+</td>
 
-                  <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
-                    {String(r?.intent || "")}
-                  </td>
+<td style={{ padding: "14px 8px", fontWeight: 700, color: HOUSE.subtext }}>
+  {String(r?.intent || "")}
+</td>
 
-                  <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
-                    {String(r?.targetAudience || "")}
-                  </td>
+<td style={{ padding: "14px 8px", fontWeight: 700, color: HOUSE.text }}>
+  {String(r?.targetAudience || "")}
+</td>
 
-                  <td style={{ padding: "10px 8px" }}>
+
+                  <td style={{ padding: "14px 8px" }}>
                     <StatusPill tone="neutral">{String(r?.impactTag || "")}</StatusPill>
                   </td>
 
-                  <td style={{ padding: "10px 8px" }}>
+                  <td style={{ padding: "14px 8px" }}>
                     <button
                       disabled
                       style={{
