@@ -128,6 +128,47 @@ export default async function handler(req, res) {
     );
 
     const authorityPlanSnap = await authorityPlanRef.get();
+    // =============================
+// Load Strategy Step 1 Business Profile
+// =============================
+const businessProfileRef = db.doc(
+  `users/${effectiveUid}/websites/${effectiveWebsiteId}/modules/seo/strategy/businessProfile`
+);
+
+const businessProfileSnap = await businessProfileRef.get();
+const businessProfile = businessProfileSnap.exists
+  ? businessProfileSnap.data() || {}
+  : {};
+
+const businessIndustryText = String(businessProfile?.industry || "").trim();
+const businessGeography = String(businessProfile?.geography || "").trim();
+
+function mapIndustryToKey(text) {
+  const t = String(text || "").toLowerCase();
+
+  if (
+    t.includes("rehab") ||
+    t.includes("addiction") ||
+    t.includes("alcohol") ||
+    t.includes("drug") ||
+    t.includes("recovery")
+  ) {
+    return "health_recovery";
+  }
+
+  if (
+    t.includes("finance") ||
+    t.includes("bank") ||
+    t.includes("invest")
+  ) {
+    return "finance_investing";
+  }
+
+  return "general";
+}
+
+const industryKey = mapIndustryToKey(businessIndustryText);
+
     if (!authorityPlanSnap.exists) {
       return res.status(400).json({
         error: "Step 8B blocked: authorityPlan not found. Please generate Step 8A first.",
@@ -168,6 +209,9 @@ const draftRef = db
       version: 1,
       createdAt: nowTs(),
       createdByUid: uid,
+      businessIndustryText,
+businessGeography,
+industryKey,
       source: "strategy_step8",
       authorityPlanRef: "strategy/authorityPlan",
       authorityPlanGeneratedAt: authorityPlan?.generatedAt || null,
