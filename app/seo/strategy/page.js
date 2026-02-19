@@ -294,6 +294,9 @@ const [lastPagesSavedAt, setLastPagesSavedAt] = useState(null);
 // Step 2 lock enforcement (Sprint 1)
 const [pageDiscoveryLocked, setPageDiscoveryLocked] = useState(false); // canonical: pageDiscovery.locked === true
 const [pageDiscoveryLockedAt, setPageDiscoveryLockedAt] = useState(null);
+	const [pageDiscoveryAuditLocked, setPageDiscoveryAuditLocked] = useState(false); // canonical: pageDiscovery.auditLocked === true
+const [pageDiscoveryAuditLockedAt, setPageDiscoveryAuditLockedAt] = useState(null);
+
 
 const [lockUrlsState, setLockUrlsState] = useState("idle"); // idle | locking | locked | error
 const [lockUrlsError, setLockUrlsError] = useState("");
@@ -308,6 +311,9 @@ const [resetUrlsError, setResetUrlsError] = useState("");
 // users/{effectiveUid}/websites/{effectiveWebsiteId}/modules/seo/strategy/auditResults/{urlId}
 // =========================
 const [auditRunState, setAuditRunState] = useState("idle"); // idle | running | done | error
+const [auditConfirmState, setAuditConfirmState] = useState("idle"); // idle | confirming | done | error
+const [auditConfirmError, setAuditConfirmError] = useState("");
+
 const [auditError, setAuditError] = useState("");
 const [auditedUrlSet, setAuditedUrlSet] = useState(new Set()); // Set of URL strings
 const [auditProgress, setAuditProgress] = useState({ done: 0, total: 0 });
@@ -2553,10 +2559,12 @@ useEffect(() => {
         setLastPagesSavedAt(null);
         setUrlListRaw("");
 
-        // canonical defaults when doc is absent
-        setPageDiscoveryLocked(false);
-        setPageDiscoveryLockedAt(null);
-        return;
+// canonical defaults when doc is absent
+setPageDiscoveryLocked(false);
+setPageDiscoveryLockedAt(null);
+setPageDiscoveryAuditLocked(false);
+setPageDiscoveryAuditLockedAt(null);
+return;
       }
 
       const d = snap.data() || {};
@@ -2566,17 +2574,26 @@ useEffect(() => {
       setUrlListRaw(urls.join("\n"));
       setLastPagesSavedAt(safeToDate(d.updatedAt));
 
-      // canonical lock fields (missing => false)
-      const locked = d.locked === true;
-      setPageDiscoveryLocked(locked);
-      setPageDiscoveryLockedAt(safeToDate(d.lockedAt));
+// canonical lock fields (missing => false)
+const locked = d.locked === true;
+setPageDiscoveryLocked(locked);
+setPageDiscoveryLockedAt(safeToDate(d.lockedAt));
+
+// audit confirmation lock (missing => false)
+const auditLocked = d.auditLocked === true;
+setPageDiscoveryAuditLocked(auditLocked);
+setPageDiscoveryAuditLockedAt(safeToDate(d.auditLockedAt));
+
     } catch (e) {
       console.error("Failed to load page discovery:", e);
       setPageDiscoveryExists(false);
 
-      // safe fallback
-      setPageDiscoveryLocked(false);
-      setPageDiscoveryLockedAt(null);
+// safe fallback
+setPageDiscoveryLocked(false);
+setPageDiscoveryLockedAt(null);
+setPageDiscoveryAuditLocked(false);
+setPageDiscoveryAuditLockedAt(null);
+
     } finally {
       setLoadingPages(false);
     }
@@ -2754,10 +2771,15 @@ async function handleResetUrlList() {
       {
         locked: false,
         lockedAt: null,
+        auditLocked: false,
+        auditLockedAt: null,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
     );
+
+setPageDiscoveryAuditLocked(false);
+setPageDiscoveryAuditLockedAt(null);
 
     // 2) Clear ALL audit results under strategy/auditResults/urls/*
     const colRef = auditResultsColRef();
@@ -2878,6 +2900,13 @@ if (d.locked !== true) {
   setAuditError("URL list is not locked. Please go to Step 2 and lock the URL list before running the audit.");
   return;
 }
+	  // New Sprint 1 rule: once audit is confirmed + locked, audits cannot be re-run
+if (d.auditLocked === true) {
+  setAuditRunState("error");
+  setAuditError("Audit is confirmed and locked. To run audits again, use Reset URL List in Step 2.");
+  return;
+}
+
 
 const savedUrls = Array.isArray(d.urls) ? d.urls : [];
 
@@ -2943,7 +2972,38 @@ const savedUrls = Array.isArray(d.urls) ? d.urls : [];
   }
 }
 
+async function handleConfirmAuditAndLock() {
+  const ref = pageDiscoveryDocRef();
+  if (!ref) return;
+
+  setAuditConfirmState("confirming");
+  setAuditConfirmError("");
+
+  try {
+    await setDoc(
+      ref,
+      {
+        auditLocked: true,
+        auditLockedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    setPageDiscoveryAuditLocked(true);
+    setPageDiscoveryAuditLockedAt(new Date());
+
+    setAuditConfirmState("done");
+    setTimeout(() => setAuditConfirmState("idle"), 1500);
+  } catch (e) {
+    console.error("Failed to confirm audit lock:", e);
+    setAuditConfirmState("error");
+    setAuditConfirmError(e?.message || "Failed to confirm and lock audit.");
+  }
+}
+
   // Load existing Step 1 profile (resume)
+
   useEffect(() => {
     async function loadProfile() {
       const ref = businessProfileDocRef();
@@ -3729,18 +3789,18 @@ title="Continue to Step 3"
 
       type="button"
       onClick={handleRunAudit}
-      disabled={!selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked}
+      disabled={!selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked || pageDiscoveryAuditLocked}
       style={{
         padding: "10px 14px",
         borderRadius: 10,
         border: "1px solid #111827",
-        cursor:
-          !selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked
-            ? "not-allowed"
-            : "pointer",
+      cursor:
+  !selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked || pageDiscoveryAuditLocked
+    ? "not-allowed"
+    : "pointer",
         background: "#111827",
         color: "white",
-        opacity: !selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked ? 0.6 : 1,
+       opacity: !selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked || pageDiscoveryAuditLocked ? 0.6 : 1,
       }}
     >
       {auditRunState === "running" ? "Running Audit…" : "Run Audit"}
@@ -3754,6 +3814,16 @@ title="Continue to Step 3"
     {auditRunState === "error" ? (
       <div style={{ color: "#b91c1c", fontWeight: 700 }}>Audit failed</div>
     ) : null}
+{pageDiscoveryAuditLocked ? (
+  <div style={{ color: "#374151", fontWeight: 700 }}>
+    Audit confirmed and locked.
+  </div>
+) : null}
+
+{auditConfirmError ? (
+  <div style={{ color: "#b91c1c", fontWeight: 700 }}>{auditConfirmError}</div>
+) : null}
+
   </div>
 
   <div
@@ -3856,6 +3926,64 @@ title="Continue to Step 3"
 
     return (
       <div style={{ marginTop: 12 }}>
+<div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+  <button
+    type="button"
+    onClick={handleConfirmAuditAndLock}
+    disabled={
+      auditConfirmState === "confirming" ||
+      pageDiscoveryLocked !== true ||
+      pageDiscoveryAuditLocked === true ||
+      !Array.isArray(auditRows) ||
+      auditRows.length === 0
+    }
+    style={{
+      padding: "10px 14px",
+      borderRadius: 10,
+      border: "1px solid #111827",
+      cursor:
+        auditConfirmState === "confirming" ||
+        pageDiscoveryLocked !== true ||
+        pageDiscoveryAuditLocked === true ||
+        !Array.isArray(auditRows) ||
+        auditRows.length === 0
+          ? "not-allowed"
+          : "pointer",
+      background: "#111827",
+      color: "white",
+      opacity:
+        auditConfirmState === "confirming" ||
+        pageDiscoveryLocked !== true ||
+        pageDiscoveryAuditLocked === true ||
+        !Array.isArray(auditRows) ||
+        auditRows.length === 0
+          ? 0.6
+          : 1,
+      fontWeight: 900,
+    }}
+    title={
+      pageDiscoveryLocked !== true
+        ? "Lock URLs in Step 2 first"
+        : !Array.isArray(auditRows) || auditRows.length === 0
+        ? "Run audit in Step 3 first"
+        : pageDiscoveryAuditLocked === true
+        ? "Audit already confirmed"
+        : ""
+    }
+  >
+    {auditConfirmState === "confirming" ? "Confirming…" : "Confirm Audit & Lock"}
+  </button>
+
+  {pageDiscoveryAuditLocked ? (
+    <div style={{ color: "#065f46", fontWeight: 800 }}>
+      Audit confirmed and locked.
+    </div>
+  ) : null}
+
+  {auditConfirmState === "done" ? (
+    <div style={{ color: "#065f46", fontWeight: 800 }}>Saved</div>
+  ) : null}
+</div>
         {auditRowsLoading ? (
           <div style={{ color: "#374151" }}>Loading audit results…</div>
         ) : auditRowsError ? (
@@ -4126,7 +4254,14 @@ title="Continue to Step 3"
   statusTone={keywordPoolExists ? "success" : "neutral"}
   statusText={keywordPoolExists ? "Generated" : "Not started"}
   openStep={openStep}
-  setOpenStep={setOpenStep}
+  setOpenStep={(next) => {
+  const allowStep4 =
+    pageDiscoveryLocked === true && pageDiscoveryAuditLocked === true;
+
+  if (!allowStep4) return;
+  setOpenStep(next);
+}}
+
 >
 
 
