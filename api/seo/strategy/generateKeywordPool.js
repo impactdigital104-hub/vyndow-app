@@ -1,6 +1,10 @@
 // api/seo/strategy/generateKeywordPool.js
 
 import admin from "../../firebaseAdmin";
+import { safeJsonParse } from "../../_lib/seoKeywordIntelligence";
+
+
+
 
 // -------------------- AUTH --------------------
 async function getUidFromRequest(req) {
@@ -27,6 +31,135 @@ async function resolveEffectiveContext(uid, websiteId) {
 
   return { effectiveUid, effectiveWebsiteId };
 }
+// -------------------- DOMAIN PURITY (AI HARD FILTER) --------------------
+
+// Split array into chunks of size n
+function chunkArray(arr, n) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+  return out;
+}
+
+function requireOpenAIKey() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY is missing.");
+  return apiKey;
+}
+
+async function callOpenAIJson({ system, user, model = "gpt-4o-mini", temperature = 0 }) {
+  const apiKey = requireOpenAIKey();
+
+  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      temperature,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    }),
+  });
+
+  const json = await resp.json();
+  if (!resp.ok) {
+    throw new Error(json?.error?.message || "OpenAI chat request failed.");
+  }
+  return json?.choices?.[0]?.message?.content || "";
+}
+
+async function domainPurityHardFilterBatched({
+  keywords,
+  businessProfile,
+  seeds,
+  geo_mode,
+  location_name,
+  language_code,
+  batchSize = 130,
+}) {
+  const system = `
+You are a commercial SEO strategist.
+
+You will receive:
+- Business Profile
+- Seed Keywords
+- Geo context
+- A list of keywords
+
+For each keyword decide:
+KEEP -> clearly aligned with core services explicitly described
+DROP -> outside the described service vertical
+
+Rules:
+- Do NOT infer additional services.
+- If keyword represents adjacent vertical not explicitly described -> DROP.
+- If keyword is academic, employment, education, research, certification -> DROP.
+- If unclear -> DROP.
+
+Return ONLY valid JSON (no markdown, no commentary), in this exact format:
+[
+  { "keyword": "...", "decision": "KEEP" },
+  { "keyword": "...", "decision": "DROP" }
+]
+`.trim();
+
+  const list = Array.isArray(keywords) ? keywords : [];
+  const batches = chunkArray(list, batchSize);
+
+  const keepSet = new Set();
+
+  for (let b = 0; b < batches.length; b++) {
+    const batch = batches[b];
+
+    const user = JSON.stringify(
+      {
+        businessProfile,
+        seedKeywords: Array.isArray(seeds) ? seeds : [],
+        geo: { geo_mode, location_name, language_code },
+        keywords: batch,
+      },
+      null,
+      2
+    );
+
+    const raw = await callOpenAIJson({ system, user });
+
+    let parsed;
+    try {
+      parsed = safeJsonParse(raw);
+    } catch (e) {
+      throw new Error(`Domain purity JSON parse failed in batch ${b + 1}/${batches.length}: ${e.message}`);
+    }
+
+    if (!Array.isArray(parsed)) {
+      throw new Error(`Domain purity response is not an array in batch ${b + 1}/${batches.length}`);
+    }
+
+    // Build decision map (case-insensitive)
+    const decisionByKey = new Map();
+    for (const row of parsed) {
+      const k = (row?.keyword || "").toString().trim().toLowerCase();
+      const d = (row?.decision || "").toString().trim().toUpperCase();
+      if (!k) continue;
+      if (d !== "KEEP" && d !== "DROP") continue;
+      if (!decisionByKey.has(k)) decisionByKey.set(k, d);
+    }
+
+    // Apply strict rule: if missing/unclear -> DROP
+    for (const kw of batch) {
+      const k = (kw || "").toString().trim().toLowerCase();
+      const d = decisionByKey.get(k) || "DROP";
+      if (d === "KEEP") keepSet.add(k);
+    }
+  }
+
+  return keepSet;
+}
+
 
 // -------------------- MAIN HANDLER --------------------
 export default async function handler(req, res) {
@@ -91,6 +224,18 @@ if (existingSnap.exists) {
     data: existingSnap.data(),
   });
 }
+// -------------------- LOAD BUSINESS PROFILE (for purity filter) --------------------
+const businessProfileRef = db.doc(
+  `users/${effectiveUid}/websites/${effectiveWebsiteId}/modules/seo/strategy/businessProfile`
+);
+
+const businessProfileSnap = await businessProfileRef.get();
+if (!businessProfileSnap.exists) {
+  return res.status(400).json({
+    error: "Missing businessProfile. Please complete Step 1 (Business Profile) first.",
+  });
+}
+const businessProfile = businessProfileSnap.data() || {};
 
 
 // -------------------- DATAFORSEO CALL --------------------
@@ -356,8 +501,44 @@ const parsed = items.map((item) => {
       parsed.sort((a, b) => (b.volume || 0) - (a.volume || 0));
     }
 
-    const allKeywords = source === "labs" ? parsed.slice(0, 1500) : parsed.slice(0, 500);
-    const topKeywords = parsed.slice(0, 200);
+// -------------------- DOMAIN PURITY HARD FILTER (AI) --------------------
+const rawCount = parsed.length;
+
+let keptParsed = parsed;
+
+try {
+  const keywordStrings = parsed
+    .map((x) => (x?.keyword || "").toString().trim())
+    .filter(Boolean);
+
+  const keepSet = await domainPurityHardFilterBatched({
+    keywords: keywordStrings,
+    businessProfile,
+    seeds,
+    geo_mode,
+    location_name: String(location_name).trim(),
+    language_code,
+    batchSize: 130,
+  });
+
+  keptParsed = parsed.filter((x) => {
+    const k = (x?.keyword || "").toString().trim().toLowerCase();
+    return k && keepSet.has(k);
+  });
+} catch (e) {
+  return res.status(500).json({
+    error: "Domain purity filtering failed.",
+    message: e.message || String(e),
+  });
+}
+
+const keptCount = keptParsed.length;
+const droppedCount = rawCount - keptCount;
+
+// Preserve existing behavior: keep order, then slice for storage size
+const allKeywords = source === "labs" ? keptParsed.slice(0, 1500) : keptParsed.slice(0, 500);
+const topKeywords = keptParsed.slice(0, 200);
+
 
 
     // -------------------- STORE --------------------
@@ -372,7 +553,10 @@ await keywordPoolRef.set({
   seeds,                 // ✅ NEW: persist seeds for Step 4.5 + resume
   seedCount: seeds.length,
   source,
-  resultCount: parsed.length,
+ rawCount,
+keptCount,
+droppedCount,
+resultCount: keptCount,
   apiCost,
 });
 
