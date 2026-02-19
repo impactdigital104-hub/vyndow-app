@@ -93,129 +93,221 @@ if (existingSnap.exists) {
 }
 
 
-    // -------------------- DATAFORSEO CALL --------------------
+// -------------------- DATAFORSEO CALL --------------------
     const login = process.env.DATAFORSEO_LOGIN;
     const password = process.env.DATAFORSEO_PASSWORD;
 
     const auth = Buffer.from(`${login}:${password}`).toString("base64");
 
-let endpoint;
-let payload;
-let source;
-
-if (geo_mode === "country") {
-  // Use DataForSEO Labs Keyword Ideas
-  endpoint =
-    "https://api.dataforseo.com/v3/dataforseo_labs/keyword_ideas/live";
-
-  payload = [
-    {
-      location_name: String(location_name).trim(),
-      language_code,
-      keywords: seeds,
-      limit: 500,
-      offset: 0,
-      order_by: ["keyword_info.search_volume,desc"],
-      include_serp_info: false,
-      closely_variants: false,
-    },
-  ];
-
-  source = "labs";
-} else {
-  // Use Google Ads endpoint for local targeting
-  endpoint =
-    "https://api.dataforseo.com/v3/keywords_data/google_ads/keywords_for_keywords/live";
-
-  payload = [
-    {
-      location_name: String(location_name).trim(),
-      language_code,
-      keywords: seeds,
-      include_adult_keywords: false,
-      sort_by: "relevance",
-      limit: 2000,
-      offset: 0,
-    },
-  ];
-
-  source = "google_ads";
-}
-
-
-
-    const r = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const json = await r.json();
-
-    if (json?.status_code !== 20000) {
-      return res.status(500).json({
-        error: "DataForSEO error",
-        raw: json,
+    // Helper: call DataForSEO and return { items, cost }
+    async function callDataForSeoLive(endpoint, payloadArray) {
+      const r = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payloadArray),
       });
+
+      const json = await r.json();
+
+      if (json?.status_code !== 20000) {
+        return { error: "DataForSEO error", raw: json };
+      }
+
+      const task = json?.tasks?.[0];
+      if (!task || task.status_code !== 20000) {
+        const status_message =
+          task?.status_message ||
+          json?.status_message ||
+          "DataForSEO task error";
+
+        return {
+          error: "DataForSEO task error",
+          status_code: task?.status_code ?? json?.status_code ?? null,
+          status_message,
+          raw: json,
+        };
+      }
+
+      // If location_name is invalid/unresolvable, DataForSEO often returns empty/no result payload.
+      if (!Array.isArray(task?.result) || task.result.length === 0) {
+        return {
+          error: "Invalid or unresolvable location_name",
+          location_name: String(location_name).trim(),
+          geo_mode,
+          raw: json,
+        };
+      }
+
+      const cost = task?.cost ?? null;
+
+      // Standardize items extraction across endpoints
+      const resultsRaw = Array.isArray(task.result) ? task.result : [];
+      const items =
+        Array.isArray(resultsRaw?.[0]?.items)
+          ? resultsRaw[0].items
+          : resultsRaw;
+
+      return { items, cost };
     }
 
-const task = json?.tasks?.[0];
-if (!task || task.status_code !== 20000) {
-  const status_message =
-    task?.status_message ||
-    json?.status_message ||
-    "DataForSEO task error";
+    let items = [];
+    let source = null;
+    let apiCost = null;
 
-  // Explicit STOP — do not fallback, do not save anything
-  return res.status(400).json({
-    error: "DataForSEO task error",
-    status_code: task?.status_code ?? json?.status_code ?? null,
-    status_message,
-    geo_mode,
-    location_name: String(location_name).trim(),
-    source,
-  });
-}
+    if (geo_mode === "country") {
+      source = "labs";
 
-    // If location_name is invalid/unresolvable, DataForSEO often returns empty/no result payload.
-if (!Array.isArray(task?.result) || task.result.length === 0) {
-  return res.status(400).json({
-    error: "Invalid or unresolvable location_name",
-    location_name: String(location_name).trim(),
-    geo_mode,
-  });
-}
+      // 1) Keyword Ideas (relevance first, then volume)
+      const ideasEndpoint =
+        "https://api.dataforseo.com/v3/dataforseo_labs/keyword_ideas/live";
 
+      const ideasPayload = [
+        {
+          location_name: String(location_name).trim(),
+          language_code,
+          keywords: seeds,
+          limit: 1000,
+          offset: 0,
+          order_by: ["relevance,desc", "keyword_info.search_volume,desc"],
+          include_serp_info: false,
+          closely_variants: false,
+        },
+      ];
 
-const apiCost = task?.cost ?? null;
+      const ideasResp = await callDataForSeoLive(ideasEndpoint, ideasPayload);
 
-let items = [];
+      if (ideasResp?.error) {
+        // Explicit STOP — do not fallback, do not save anything
+        return res.status(400).json({
+          error: ideasResp.error,
+          status_code: ideasResp.status_code ?? null,
+          status_message: ideasResp.status_message ?? null,
+          geo_mode,
+          location_name: String(location_name).trim(),
+          source,
+          raw: ideasResp.raw ?? null,
+        });
+      }
 
-if (source === "labs") {
-  items =
-    Array.isArray(task?.result?.[0]?.items)
-      ? task.result[0].items
-      : [];
+      // 2) Keyword Suggestions (long-tail, split across seeds to avoid huge cost)
+      const suggestionsEndpoint =
+        "https://api.dataforseo.com/v3/dataforseo_labs/google/keyword_suggestions/live";
 
-} else {
-  const resultsRaw = Array.isArray(task.result) ? task.result : [];
-  items =
-    Array.isArray(resultsRaw?.[0]?.items)
-      ? resultsRaw[0].items
-      : resultsRaw;
-}
+      const cleanSeeds = Array.isArray(seeds) ? seeds.filter(Boolean) : [];
+      const seedCount = cleanSeeds.length || 1;
+
+      // Total cap ~500 suggestions, distributed across seeds
+      const limitPerSeed = Math.max(1, Math.floor(500 / seedCount));
+
+      const suggestionCalls = cleanSeeds.map((seedKw) => {
+        const suggestionsPayload = [
+          {
+            keyword: String(seedKw).trim(),
+            location_name: String(location_name).trim(),
+            language_code,
+            limit: limitPerSeed,
+            offset: 0,
+            include_serp_info: false,
+          },
+        ];
+        return callDataForSeoLive(suggestionsEndpoint, suggestionsPayload);
+      });
+
+      const suggestionsResps = await Promise.all(suggestionCalls);
+
+      // If any suggestion call errors, STOP (no partial saves)
+      const bad = suggestionsResps.find((x) => x?.error);
+      if (bad) {
+        return res.status(400).json({
+          error: bad.error,
+          status_code: bad.status_code ?? null,
+          status_message: bad.status_message ?? null,
+          geo_mode,
+          location_name: String(location_name).trim(),
+          source,
+          raw: bad.raw ?? null,
+        });
+      }
+
+      // Merge + dedupe by keyword string (case-insensitive)
+      const allItems = []
+        .concat(Array.isArray(ideasResp.items) ? ideasResp.items : [])
+        .concat(
+          suggestionsResps.flatMap((x) =>
+            Array.isArray(x?.items) ? x.items : []
+          )
+        );
+
+      const seen = new Set();
+      const merged = [];
+
+      for (const it of allItems) {
+        const k = (it?.keyword || "").toString().trim().toLowerCase();
+        if (!k) continue;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        merged.push(it);
+      }
+
+      items = merged;
+
+      // Track combined cost
+      const ideasCost = ideasResp?.cost ? Number(ideasResp.cost) : 0;
+      const suggCost = suggestionsResps.reduce(
+        (sum, x) => sum + (x?.cost ? Number(x.cost) : 0),
+        0
+      );
+      apiCost = ideasCost + suggCost;
+    } else {
+      // Use Google Ads endpoint for local targeting
+      source = "google_ads";
+
+      const endpoint =
+        "https://api.dataforseo.com/v3/keywords_data/google_ads/keywords_for_keywords/live";
+
+      const payload = [
+        {
+          location_name: String(location_name).trim(),
+          language_code,
+          keywords: seeds,
+          include_adult_keywords: false,
+          sort_by: "relevance",
+          limit: 2000,
+          offset: 0,
+        },
+      ];
+
+      const adsResp = await callDataForSeoLive(endpoint, payload);
+
+      if (adsResp?.error) {
+        // Explicit STOP — do not fallback, do not save anything
+        return res.status(400).json({
+          error: adsResp.error,
+          status_code: adsResp.status_code ?? null,
+          status_message: adsResp.status_message ?? null,
+          geo_mode,
+          location_name: String(location_name).trim(),
+          source,
+          raw: adsResp.raw ?? null,
+        });
+      }
+
+      items = Array.isArray(adsResp.items) ? adsResp.items : [];
+      apiCost = adsResp?.cost ?? null;
+    }
+
     // STOP if location_name is invalid/unresolvable OR no items returned (no fallback)
-if (!Array.isArray(items) || items.length === 0) {
-  return res.status(400).json({
-    error: "Invalid or unresolvable location_name (no keyword items returned)",
-    location_name: String(location_name).trim(),
-    geo_mode,
-    source,
-  });
-}
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        error: "Invalid or unresolvable location_name (no keyword items returned)",
+        location_name: String(location_name).trim(),
+        geo_mode,
+        source,
+      });
+    }
 
 
 function competitionLabelFromFloat(v) {
@@ -254,11 +346,19 @@ const parsed = items.map((item) => {
 
 
 
-    // -------------------- SORT BY VOLUME DESC --------------------
-    parsed.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+// -------------------- SORT / CAP --------------------
+    // IMPORTANT:
+    // - For country mode (labs), DataForSEO Keyword Ideas is already relevance-sorted.
+    //   So we keep the returned order to preserve relevance.
+    // - For local mode (google_ads), we sort by volume (as before).
 
-    const allKeywords = parsed.slice(0, 500);
+    if (source !== "labs") {
+      parsed.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+    }
+
+    const allKeywords = source === "labs" ? parsed.slice(0, 1500) : parsed.slice(0, 500);
     const topKeywords = parsed.slice(0, 200);
+
 
     // -------------------- STORE --------------------
 await keywordPoolRef.set({
