@@ -2705,10 +2705,14 @@ async function handleLockUrlsAndProceed() {
   setLockUrlsError("");
 
   try {
-    // must exist logically, but we still allow lock to set fields safely
+    // Lock MUST also persist the latest edited URL list (prevents stale audits)
     await setDoc(
       ref,
       {
+        urls: cappedValidUrls,
+        invalidCount: parsedUrls.invalid.length,
+        status: "draft",
+        cap: urlCap,
         locked: true,
         lockedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -2716,6 +2720,10 @@ async function handleLockUrlsAndProceed() {
       { merge: true }
     );
 
+    // Normalize textarea to what was locked
+    setUrlListRaw(cappedValidUrls.join("\n"));
+
+    setPageDiscoveryExists(true);
     setPageDiscoveryLocked(true);
     setPageDiscoveryLockedAt(new Date());
     setLockUrlsState("locked");
@@ -2732,6 +2740,7 @@ async function handleLockUrlsAndProceed() {
 }
 
 async function handleResetUrlList() {
+
   const ref = pageDiscoveryDocRef();
   if (!ref) return;
 
