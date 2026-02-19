@@ -12,7 +12,9 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  deleteDoc,
 } from "firebase/firestore";
+
 
 import VyndowShell from "../../VyndowShell";
 import { auth, db } from "../../firebaseClient";
@@ -285,10 +287,22 @@ const [loadingPages, setLoadingPages] = useState(false);
 const [pageDiscoveryExists, setPageDiscoveryExists] = useState(false);
 const [savePagesState, setSavePagesState] = useState("idle"); // idle | saving | saved | error
 const [savePagesError, setSavePagesError] = useState("");
-  const [discoverState, setDiscoverState] = useState("idle"); // idle | discovering | done | error
+const [discoverState, setDiscoverState] = useState("idle"); // idle | discovering | done | error
 const [discoverError, setDiscoverError] = useState("");
 const [lastPagesSavedAt, setLastPagesSavedAt] = useState(null);
-  // =========================
+
+// Step 2 lock enforcement (Sprint 1)
+const [pageDiscoveryLocked, setPageDiscoveryLocked] = useState(false); // canonical: pageDiscovery.locked === true
+const [pageDiscoveryLockedAt, setPageDiscoveryLockedAt] = useState(null);
+
+const [lockUrlsState, setLockUrlsState] = useState("idle"); // idle | locking | locked | error
+const [lockUrlsError, setLockUrlsError] = useState("");
+
+const [resetUrlsState, setResetUrlsState] = useState("idle"); // idle | resetting | done | error
+const [resetUrlsError, setResetUrlsError] = useState("");
+
+// =========================
+
 // Step 3 — Pure On-Page Audit (run + resume)
 // Firestore:
 // users/{effectiveUid}/websites/{effectiveWebsiteId}/modules/seo/strategy/auditResults/{urlId}
@@ -2482,8 +2496,8 @@ useEffect(() => {
       setSeoModuleError("");
 
       const snap = await getDoc(ref);
-      if (snap.exists()) setSeoModule({ id: snap.id, ...snap.data() });
-      else setSeoModule(null);
+if (snap.exists()) setSeoModule({ id: snap.id, ...snap.data() });
+else setSeoModule(null);
     } catch (e) {
       console.error("Failed to load SEO module:", e);
       setSeoModule(null);
@@ -2528,23 +2542,41 @@ useEffect(() => {
       setLoadingPages(true);
       setSavePagesState("idle");
       setSavePagesError("");
+      setLockUrlsState("idle");
+      setLockUrlsError("");
+      setResetUrlsState("idle");
+      setResetUrlsError("");
 
       const snap = await getDoc(ref);
       if (!snap.exists()) {
         setPageDiscoveryExists(false);
         setLastPagesSavedAt(null);
         setUrlListRaw("");
+
+        // canonical defaults when doc is absent
+        setPageDiscoveryLocked(false);
+        setPageDiscoveryLockedAt(null);
         return;
       }
 
       const d = snap.data() || {};
       setPageDiscoveryExists(true);
+
       const urls = Array.isArray(d.urls) ? d.urls : [];
       setUrlListRaw(urls.join("\n"));
       setLastPagesSavedAt(safeToDate(d.updatedAt));
+
+      // canonical lock fields (missing => false)
+      const locked = d.locked === true;
+      setPageDiscoveryLocked(locked);
+      setPageDiscoveryLockedAt(safeToDate(d.lockedAt));
     } catch (e) {
       console.error("Failed to load page discovery:", e);
       setPageDiscoveryExists(false);
+
+      // safe fallback
+      setPageDiscoveryLocked(false);
+      setPageDiscoveryLockedAt(null);
     } finally {
       setLoadingPages(false);
     }
@@ -2553,7 +2585,9 @@ useEffect(() => {
   loadPageDiscovery();
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [uid, selectedWebsiteId, websites]);
-  // Load existing Step 3 audit results (resume)
+
+// Load existing Step 3 audit results (resume)
+
 useEffect(() => {
   if (!uid || !selectedWebsiteId || !websites?.length) return;
   loadExistingAuditResults();
@@ -2603,13 +2637,25 @@ async function handleSavePages() {
   const ref = pageDiscoveryDocRef();
   if (!ref) return;
 
+  // If locked, do nothing (UI should already disable, but we keep it safe)
+  if (pageDiscoveryLocked) return;
+
   setSavePagesState("saving");
   setSavePagesError("");
 
   let createdAt = null;
+  let existingLocked = false;
+  let existingLockedAt = null;
+
   try {
     const existing = await getDoc(ref);
-    if (existing.exists()) createdAt = existing.data()?.createdAt || null;
+    if (existing.exists()) {
+      createdAt = existing.data()?.createdAt || null;
+
+      // Preserve lock fields if they exist (canonical defaults: missing => false)
+      existingLocked = existing.data()?.locked === true;
+      existingLockedAt = existing.data()?.lockedAt || null;
+    }
   } catch (e) {
     // ignore
   }
@@ -2624,6 +2670,10 @@ async function handleSavePages() {
         cap: urlCap,
         createdAt: createdAt || serverTimestamp(),
         updatedAt: serverTimestamp(),
+
+        // canonical lock fields
+        locked: existingLocked === true ? true : false,
+        lockedAt: existingLocked === true ? (existingLockedAt || serverTimestamp()) : null,
       },
       { merge: true }
     );
@@ -2631,6 +2681,10 @@ async function handleSavePages() {
     setPageDiscoveryExists(true);
     setSavePagesState("saved");
     setLastPagesSavedAt(new Date());
+
+    // keep canonical lock state in UI
+    setPageDiscoveryLocked(existingLocked === true);
+    setPageDiscoveryLockedAt(existingLocked === true ? new Date() : null);
 
     // Normalize textarea to capped + valid only
     setUrlListRaw(cappedValidUrls.join("\n"));
@@ -2642,7 +2696,117 @@ async function handleSavePages() {
     setSavePagesError(e?.message || "Failed to save URLs.");
   }
 }
+
+async function handleLockUrlsAndProceed() {
+  const ref = pageDiscoveryDocRef();
+  if (!ref) return;
+
+  setLockUrlsState("locking");
+  setLockUrlsError("");
+
+  try {
+    // must exist logically, but we still allow lock to set fields safely
+    await setDoc(
+      ref,
+      {
+        locked: true,
+        lockedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    setPageDiscoveryLocked(true);
+    setPageDiscoveryLockedAt(new Date());
+    setLockUrlsState("locked");
+
+    // proceed to Step 3 (accordion open)
+    setOpenStep("step3");
+
+    setTimeout(() => setLockUrlsState("idle"), 1500);
+  } catch (e) {
+    console.error("Failed to lock URL list:", e);
+    setLockUrlsState("error");
+    setLockUrlsError(e?.message || "Failed to lock URL list.");
+  }
+}
+
+async function handleResetUrlList() {
+  const ref = pageDiscoveryDocRef();
+  if (!ref) return;
+
+  setResetUrlsState("resetting");
+  setResetUrlsError("");
+
+  try {
+    // 1) Unlock Step 2 canonically
+    await setDoc(
+      ref,
+      {
+        locked: false,
+        lockedAt: null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // 2) Clear ALL audit results under strategy/auditResults/urls/*
+    const colRef = auditResultsColRef();
+    if (colRef) {
+      const snap = await getDocs(colRef);
+      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    }
+
+    // 3) Reset local Step 3 UI state so it doesn't look "accumulated"
+    setAuditedUrlSet(new Set());
+    setAuditRows([]);
+    setAuditProgress({ done: 0, total: 0 });
+    setAuditRunState("idle");
+    setAuditError("");
+    setAuditCurrentUrl("");
+    setExpandedAuditRowId(null);
+
+    // 4) Back to editable Step 2 state
+    setPageDiscoveryLocked(false);
+    setPageDiscoveryLockedAt(null);
+
+    // Step 3 must be disabled again until re-lock
+    setOpenStep("step2");
+
+    setResetUrlsState("done");
+    setTimeout(() => setResetUrlsState("idle"), 1500);
+  } catch (e) {
+    console.error("Failed to reset URL list:", e);
+    setResetUrlsState("error");
+    setResetUrlsError(e?.message || "Failed to reset URL list.");
+  }
+}
+
+async function handleContinueToStep3() {
+  const ref = pageDiscoveryDocRef();
+  if (!ref) return;
+
+  try {
+    const snap = await getDoc(ref);
+    const d = snap.data() || {};
+
+    // Strict canonical gating: only when pageDiscovery.locked === true
+    if (d.locked === true) {
+      setOpenStep("step3");
+      return;
+    }
+
+    // Missing field or false => treat as not locked
+    setLockUrlsState("error");
+    setLockUrlsError("URL list is not locked. Please go to Step 2 and lock the URL list before proceeding.");
+  } catch (e) {
+    setLockUrlsState("error");
+    setLockUrlsError(e?.message || "Could not verify URL lock status. Please try again.");
+  }
+}
+	
 async function handleDiscoverUrls() {
+
   const w = websites.find((x) => x.id === selectedWebsiteId);
   const origin = normalizeWebsiteBaseUrl(w);
   if (!origin) return;
@@ -2697,8 +2861,17 @@ async function handleRunAudit() {
       return;
     }
 
-    const d = snap.data() || {};
-    const savedUrls = Array.isArray(d.urls) ? d.urls : [];
+const d = snap.data() || {};
+
+// Canonical gating: Step 3 actions only when pageDiscovery.locked === true
+if (d.locked !== true) {
+  setAuditRunState("error");
+  setAuditError("URL list is not locked. Please go to Step 2 and lock the URL list before running the audit.");
+  return;
+}
+
+const savedUrls = Array.isArray(d.urls) ? d.urls : [];
+
     const cap = Number(d.cap) || savedUrls.length || 10;
     const urls = savedUrls.slice(0, cap);
 
@@ -3306,22 +3479,23 @@ async function handleRunAudit() {
 <button
   type="button"
   onClick={handleDiscoverUrls}
-  disabled={!selectedWebsiteId || discoverState === "discovering"}
+  disabled={!selectedWebsiteId || discoverState === "discovering" || pageDiscoveryLocked}
   style={{
     padding: "8px 12px",
     borderRadius: 10,
     border: "1px solid #ddd",
     cursor:
-      !selectedWebsiteId || discoverState === "discovering"
+      !selectedWebsiteId || discoverState === "discovering" || pageDiscoveryLocked
         ? "not-allowed"
         : "pointer",
     background: "white",
     opacity:
-      !selectedWebsiteId || discoverState === "discovering" ? 0.6 : 1,
+      !selectedWebsiteId || discoverState === "discovering" || pageDiscoveryLocked ? 0.6 : 1,
   }}
-  title="Discover URLs using sitemap.xml first, else a lightweight crawl (no AI)"
+  title={pageDiscoveryLocked ? "URL list is locked" : "Discover URLs using sitemap.xml first, else a lightweight crawl (no AI)"}
 >
   {discoverState === "discovering" ? "Discovering…" : "Discover URLs"}
+
 </button>
 
     </div>
@@ -3329,10 +3503,18 @@ async function handleRunAudit() {
     <textarea
       value={urlListRaw}
       onChange={(e) => setUrlListRaw(e.target.value)}
+      disabled={pageDiscoveryLocked}
       placeholder={`https://example.com/\nhttps://example.com/about\nhttps://example.com/services`}
       rows={8}
-      style={{ ...inputStyle, resize: "vertical" }}
+      style={{
+        ...inputStyle,
+        resize: "vertical",
+        background: pageDiscoveryLocked ? "#f9fafb" : "white",
+        cursor: pageDiscoveryLocked ? "not-allowed" : "text",
+        opacity: pageDiscoveryLocked ? 0.85 : 1,
+      }}
     />
+
 
     <div style={{ marginTop: 10, fontSize: 13, color: "#374151" }}>
       Valid URLs: <b>{parsedUrls.valid.length}</b> · Invalid:{" "}
@@ -3366,7 +3548,7 @@ async function handleRunAudit() {
       </div>
     ) : null}
 
-    <div
+     <div
       style={{
         marginTop: 14,
         display: "flex",
@@ -3376,23 +3558,23 @@ async function handleRunAudit() {
         flexWrap: "wrap",
       }}
     >
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <button
           type="button"
           onClick={handleSavePages}
-          disabled={!selectedWebsiteId || savePagesState === "saving"}
+          disabled={!selectedWebsiteId || savePagesState === "saving" || pageDiscoveryLocked}
           style={{
             padding: "10px 14px",
             borderRadius: 10,
             border: "1px solid #111827",
             cursor:
-              !selectedWebsiteId || savePagesState === "saving"
+              !selectedWebsiteId || savePagesState === "saving" || pageDiscoveryLocked
                 ? "not-allowed"
                 : "pointer",
             background: "#111827",
             color: "white",
             opacity:
-              !selectedWebsiteId || savePagesState === "saving" ? 0.6 : 1,
+              !selectedWebsiteId || savePagesState === "saving" || pageDiscoveryLocked ? 0.6 : 1,
           }}
         >
           {savePagesState === "saving" ? "Saving…" : "Save URLs"}
@@ -3405,25 +3587,101 @@ async function handleRunAudit() {
         {savePagesState === "error" ? (
           <div style={{ color: "#b91c1c", fontWeight: 700 }}>Save failed</div>
         ) : null}
+
+        {/* State 2: Saved but Unlocked */}
+        {pageDiscoveryExists && !pageDiscoveryLocked ? (
+          <button
+            type="button"
+            onClick={handleLockUrlsAndProceed}
+            disabled={!selectedWebsiteId || lockUrlsState === "locking"}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #1f2937",
+              cursor: !selectedWebsiteId || lockUrlsState === "locking" ? "not-allowed" : "pointer",
+              background: "white",
+              color: "#111827",
+              fontWeight: 800,
+              opacity: !selectedWebsiteId || lockUrlsState === "locking" ? 0.6 : 1,
+            }}
+            title="Lock this URL list and proceed to Step 3"
+          >
+            {lockUrlsState === "locking" ? "Locking…" : "Lock URLs & Proceed"}
+          </button>
+        ) : null}
+
+        {/* State 3: Locked */}
+        {pageDiscoveryLocked ? (
+          <div style={{ fontSize: 13, color: "#111827" }}>
+            <span style={{ fontWeight: 900 }}>URL list locked</span>
+            {pageDiscoveryLockedAt ? (
+              <span style={{ marginLeft: 8, color: "#6b7280" }}>
+                (Locked: {pageDiscoveryLockedAt.toLocaleString()})
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {lockUrlsState === "error" && lockUrlsError ? (
+          <div style={{ color: "#b91c1c", fontWeight: 700 }}>{lockUrlsError}</div>
+        ) : null}
+
+        {resetUrlsState === "error" && resetUrlsError ? (
+          <div style={{ color: "#b91c1c", fontWeight: 700 }}>{resetUrlsError}</div>
+        ) : null}
       </div>
 
-      <button
-        disabled
-        style={{
-          padding: "10px 14px",
-          borderRadius: 10,
-          border: "1px solid #e5e7eb",
-          background: "#f3f4f6",
-          color: "#6b7280",
-          cursor: "not-allowed",
-        }}
-        title="Step 3 will be enabled after we finish Phase D"
-      >
-        Continue to Step 3 (next phase)
-      </button>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        {pageDiscoveryLocked ? (
+          <button
+            type="button"
+onClick={handleContinueToStep3}
+title="Continue to Step 3"
+          >
+            Continue to Step 3
+          </button>
+        ) : (
+          <button
+            disabled
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #e5e7eb",
+              background: "#f3f4f6",
+              color: "#6b7280",
+              cursor: "not-allowed",
+            }}
+            title="Lock the URL list in Step 2 to enable Step 3"
+          >
+            Continue to Step 3
+          </button>
+        )}
+
+        {pageDiscoveryLocked ? (
+          <button
+            type="button"
+            onClick={handleResetUrlList}
+            disabled={resetUrlsState === "resetting"}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #e5e7eb",
+              background: "white",
+              color: "#111827",
+              cursor: resetUrlsState === "resetting" ? "not-allowed" : "pointer",
+              opacity: resetUrlsState === "resetting" ? 0.6 : 1,
+              fontWeight: 800,
+            }}
+            title="Unlock Step 2 and clear audit results"
+          >
+            {resetUrlsState === "resetting" ? "Resetting…" : "Reset URL List"}
+          </button>
+        ) : null}
+      </div>
     </div>
 
     {savePagesError ? (
+
       <div style={{ marginTop: 12, color: "#b91c1c" }}>{savePagesError}</div>
     ) : null}
   </div>
@@ -3440,23 +3698,44 @@ async function handleRunAudit() {
   setOpenStep={setOpenStep}
 >
 
+  {!pageDiscoveryLocked ? (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 12,
+        borderRadius: 12,
+        border: "1px solid #fde68a",
+        background: "#fffbeb",
+        color: "#92400e",
+        fontSize: 13,
+        lineHeight: 1.5,
+      }}
+    >
+      Please lock your URL list in Step 2 to continue to Step 3.
+    </div>
+  ) : null}
+
   <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
     <button
+
       type="button"
       onClick={handleRunAudit}
-      disabled={!selectedWebsiteId || auditRunState === "running"}
+      disabled={!selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked}
       style={{
         padding: "10px 14px",
         borderRadius: 10,
         border: "1px solid #111827",
         cursor:
-          !selectedWebsiteId || auditRunState === "running" ? "not-allowed" : "pointer",
+          !selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked
+            ? "not-allowed"
+            : "pointer",
         background: "#111827",
         color: "white",
-        opacity: !selectedWebsiteId || auditRunState === "running" ? 0.6 : 1,
+        opacity: !selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked ? 0.6 : 1,
       }}
     >
       {auditRunState === "running" ? "Running Audit…" : "Run Audit"}
+
     </button>
 
     {auditRunState === "done" ? (
