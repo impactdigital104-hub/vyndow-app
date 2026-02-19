@@ -57,26 +57,26 @@ function withTimeout(promise, ms, label = "Operation") {
 async function callOpenAIJson({ system, user, model = "gpt-4o-mini", temperature = 0 }) {
   const apiKey = requireOpenAIKey();
 
-const resp = await withTimeout(
-  fetch("https://api.openai.com/v1/chat/completions", {
+  const resp = await withTimeout(
+    fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    }),
+    25000,
+    "OpenAI request"
+  );
 
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      temperature,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-   })
-),
-25000,
-"OpenAI request"
-);
 
 
   const json = await resp.json();
