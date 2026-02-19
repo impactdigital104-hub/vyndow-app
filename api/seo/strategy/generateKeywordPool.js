@@ -45,11 +45,20 @@ function requireOpenAIKey() {
   if (!apiKey) throw new Error("OPENAI_API_KEY is missing.");
   return apiKey;
 }
+function withTimeout(promise, ms, label = "Operation") {
+  let t;
+  const timeout = new Promise((_, reject) => {
+    t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
+}
 
 async function callOpenAIJson({ system, user, model = "gpt-4o-mini", temperature = 0 }) {
   const apiKey = requireOpenAIKey();
 
-  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+const resp = await withTimeout(
+  fetch("https://api.openai.com/v1/chat/completions", {
+
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -62,8 +71,12 @@ async function callOpenAIJson({ system, user, model = "gpt-4o-mini", temperature
         { role: "system", content: system },
         { role: "user", content: user },
       ],
-    }),
-  });
+   })
+),
+25000,
+"OpenAI request"
+);
+
 
   const json = await resp.json();
   if (!resp.ok) {
@@ -110,52 +123,55 @@ Return ONLY valid JSON (no markdown, no commentary), in this exact format:
   const list = Array.isArray(keywords) ? keywords : [];
   const batches = chunkArray(list, batchSize);
 
-  const keepSet = new Set();
+const concurrency = 3; // 3 OpenAI batches at a time (faster, avoids 300s timeout)
+const keepSet = new Set();
 
-  for (let b = 0; b < batches.length; b++) {
-    const batch = batches[b];
+async function runOneBatch(batchIndex, batch) {
+  const user = JSON.stringify({
+    businessProfile,
+    seedKeywords: Array.isArray(seeds) ? seeds : [],
+    geo: { geo_mode, location_name, language_code },
+    keywords: batch,
+  });
 
-    const user = JSON.stringify(
-      {
-        businessProfile,
-        seedKeywords: Array.isArray(seeds) ? seeds : [],
-        geo: { geo_mode, location_name, language_code },
-        keywords: batch,
-      },
-      null,
-      2
+  const raw = await callOpenAIJson({ system, user });
+
+  let parsed;
+  try {
+    parsed = safeJsonParse(raw);
+  } catch (e) {
+    throw new Error(
+      `Domain purity JSON parse failed in batch ${batchIndex + 1}/${batches.length}: ${e.message}`
     );
-
-    const raw = await callOpenAIJson({ system, user });
-
-    let parsed;
-    try {
-      parsed = safeJsonParse(raw);
-    } catch (e) {
-      throw new Error(`Domain purity JSON parse failed in batch ${b + 1}/${batches.length}: ${e.message}`);
-    }
-
-    if (!Array.isArray(parsed)) {
-      throw new Error(`Domain purity response is not an array in batch ${b + 1}/${batches.length}`);
-    }
-
-    // Build decision map (case-insensitive)
-    const decisionByKey = new Map();
-    for (const row of parsed) {
-      const k = (row?.keyword || "").toString().trim().toLowerCase();
-      const d = (row?.decision || "").toString().trim().toUpperCase();
-      if (!k) continue;
-      if (d !== "KEEP" && d !== "DROP") continue;
-      if (!decisionByKey.has(k)) decisionByKey.set(k, d);
-    }
-
-    // Apply strict rule: if missing/unclear -> DROP
-    for (const kw of batch) {
-      const k = (kw || "").toString().trim().toLowerCase();
-      const d = decisionByKey.get(k) || "DROP";
-      if (d === "KEEP") keepSet.add(k);
-    }
   }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error(
+      `Domain purity response is not an array in batch ${batchIndex + 1}/${batches.length}`
+    );
+  }
+
+  const decisionByKey = new Map();
+  for (const row of parsed) {
+    const k = (row?.keyword || "").toString().trim().toLowerCase();
+    const d = (row?.decision || "").toString().trim().toUpperCase();
+    if (!k) continue;
+    if (d !== "KEEP" && d !== "DROP") continue;
+    if (!decisionByKey.has(k)) decisionByKey.set(k, d);
+  }
+
+  for (const kw of batch) {
+    const k = (kw || "").toString().trim().toLowerCase();
+    const d = decisionByKey.get(k) || "DROP"; // strict default
+    if (d === "KEEP") keepSet.add(k);
+  }
+}
+
+// Run batches in groups of 3
+for (let i = 0; i < batches.length; i += concurrency) {
+  const slice = batches.slice(i, i + concurrency);
+  await Promise.all(slice.map((batch, idx) => runOneBatch(i + idx, batch)));
+}
 
   return keepSet;
 }
@@ -518,7 +534,8 @@ try {
     geo_mode,
     location_name: String(location_name).trim(),
     language_code,
-    batchSize: 130,
+    batchSize: 180,
+
   });
 
   keptParsed = parsed.filter((x) => {
