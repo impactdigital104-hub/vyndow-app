@@ -1,7 +1,8 @@
 // api/seo/strategy/generateKeywordPool.js
 
-import admin from "../../firebaseAdmin";
-import { safeJsonParse } from "../../_lib/seoKeywordIntelligence";
+const admin = require("../../firebaseAdmin");
+const { safeJsonParse } = require("../../_lib/seoKeywordIntelligence");
+
 
 
 
@@ -178,7 +179,8 @@ for (let i = 0; i < batches.length; i += concurrency) {
 
 
 // -------------------- MAIN HANDLER --------------------
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
+
   try {
 if (req.method !== "POST") {
   return res.status(405).json({ error: "Method not allowed" });
