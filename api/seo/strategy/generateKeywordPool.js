@@ -1,6 +1,11 @@
 // api/seo/strategy/generateKeywordPool.js
 
-const admin = require("../../firebaseAdmin");
+const firebaseAdminModule = require("../../firebaseAdmin");
+// Support both export styles: module.exports = admin  OR  exports.default = admin  OR  exports.admin = admin
+const admin =
+  firebaseAdminModule?.default ||
+  firebaseAdminModule?.admin ||
+  firebaseAdminModule;
 const { safeJsonParse } = require("../../_lib/seoKeywordIntelligence");
 const https = require("https");
 const { URL } = require("url");
