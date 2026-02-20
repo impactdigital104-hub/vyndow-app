@@ -2,6 +2,8 @@
 
 const admin = require("../../firebaseAdmin");
 const { safeJsonParse } = require("../../_lib/seoKeywordIntelligence");
+const https = require("https");
+const { URL } = require("url");
 
 
 
@@ -53,33 +55,79 @@ function withTimeout(promise, ms, label = "Operation") {
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
 }
+function postJson(urlStr, headers, bodyObj, timeoutMs = 25000) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(urlStr);
+    const body = JSON.stringify(bodyObj);
 
+    const req = https.request(
+      {
+        method: "POST",
+        hostname: u.hostname,
+        path: u.pathname + (u.search || ""),
+        headers: {
+          ...headers,
+          "Content-Length": Buffer.byteLength(body),
+        },
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          // Try JSON parse; if fails, return raw text too
+          let parsed = null;
+          try {
+            parsed = JSON.parse(data);
+          } catch (_) {}
+
+          resolve({
+            ok: res.statusCode >= 200 && res.statusCode < 300,
+            status: res.statusCode,
+            json: parsed,
+            text: data,
+          });
+        });
+      }
+    );
+
+    req.on("error", reject);
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`POST ${u.hostname} timed out after ${timeoutMs}ms`));
+    });
+
+    req.write(body);
+    req.end();
+  });
+}
 async function callOpenAIJson({ system, user, model = "gpt-4o-mini", temperature = 0 }) {
   const apiKey = requireOpenAIKey();
 
-  const resp = await withTimeout(
-    fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        temperature,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-    }),
-    25000,
-    "OpenAI request"
+  const resp = await postJson(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    {
+      model,
+      temperature,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    },
+    25000
   );
 
+  if (!resp.ok) {
+    const msg =
+      resp.json?.error?.message ||
+      resp.text?.slice(0, 300) ||
+      "OpenAI request failed.";
+    throw new Error(msg);
+  }
 
-
-  const json = await resp.json();
+  const json = resp.json;
   if (!resp.ok) {
     throw new Error(json?.error?.message || "OpenAI chat request failed.");
   }
@@ -264,16 +312,20 @@ const businessProfile = businessProfileSnap.data() || {};
 
     // Helper: call DataForSEO and return { items, cost }
     async function callDataForSeoLive(endpoint, payloadArray) {
-      const r = await fetch(endpoint, {
-        method: "POST",
-        headers: {
+      const r = await postJson(
+        endpoint,
+        {
           Authorization: `Basic ${auth}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payloadArray),
-      });
+        payloadArray,
+        25000
+      );
 
-      const json = await r.json();
+      const json = r.json;
+      if (!json) {
+        return { error: "DataForSEO non-JSON response", rawText: r.text?.slice(0, 300) || null };
+      }
 
       if (json?.status_code !== 20000) {
         return { error: "DataForSEO error", raw: json };
