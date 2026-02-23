@@ -630,16 +630,25 @@ await keywordPoolRef.set({
   geo_mode,
   location_name: String(location_name).trim(),
   language_code,
-  seeds,                 // ✅ NEW: persist seeds for Step 4.5 + resume
+  seeds,
   seedCount: seeds.length,
   source,
- rawCount,
-keptCount,
-droppedCount,
-resultCount: keptCount,
+  rawCount,
+  keptCount,
+  droppedCount,
+  resultCount: keptCount,
   apiCost,
-});
 
+  // ---------------- DEBUG (temporary) ----------------
+  debug_rawKeywords: parsed
+    .map((x) => String(x?.keyword || "").trim())
+    .filter(Boolean),
+
+  debug_droppedKeywords: parsed
+    .map((x) => String(x?.keyword || "").trim())
+    .filter(Boolean)
+    .filter((k) => !keepSet.has(k.toLowerCase())),
+});
 
 
 
