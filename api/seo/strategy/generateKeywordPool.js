@@ -133,15 +133,12 @@ async function callOpenAIJson({ system, user, model = "gpt-4o-mini", temperature
   }
 
   const json = resp.json;
-  if (!resp.ok) {
-    throw new Error(json?.error?.message || "OpenAI chat request failed.");
-  }
   return json?.choices?.[0]?.message?.content || "";
 }
 
 async function domainPurityHardFilterBatched({
   keywords,
-  businessProfile,
+  businessProfileSummary,
   seeds,
   geo_mode,
   location_name,
@@ -149,83 +146,79 @@ async function domainPurityHardFilterBatched({
   batchSize = 130,
 }) {
   const system = `
-You are a commercial SEO strategist.
+You are a strict commercial SEO strategist.
 
-You will receive:
-- Business Profile
+Given:
+- Business Profile Summary (short text)
 - Seed Keywords
 - Geo context
 - A list of keywords
 
-For each keyword decide:
-KEEP -> clearly aligned with core services explicitly described
-DROP -> outside the described service vertical
+Task:
+Return ONLY valid JSON in this EXACT format (no markdown, no commentary):
+{ "keep": ["..."], "drop": ["..."] }
 
 Rules:
-- Do NOT infer additional services.
-- If keyword represents adjacent vertical not explicitly described -> DROP.
-- If keyword is academic, employment, education, research, certification -> DROP.
-- If unclear -> DROP.
-
-Return ONLY valid JSON (no markdown, no commentary), in this exact format:
-[
-  { "keyword": "...", "decision": "KEEP" },
-  { "keyword": "...", "decision": "DROP" }
-]
+- KEEP only if the keyword is clearly aligned with the core services explicitly described.
+- Do NOT infer adjacent services.
+- If unclear, DROP.
+- Do not explain anything.
 `.trim();
 
   const list = Array.isArray(keywords) ? keywords : [];
   const batches = chunkArray(list, batchSize);
 
-const concurrency = 3; // 3 OpenAI batches at a time (faster, avoids 300s timeout)
-const keepSet = new Set();
+  const keepSet = new Set();
 
-async function runOneBatch(batchIndex, batch) {
-  const user = JSON.stringify({
-    businessProfile,
-    seedKeywords: Array.isArray(seeds) ? seeds : [],
-    geo: { geo_mode, location_name, language_code },
-    keywords: batch,
-  });
+  async function decideBatchOnce(batchIndex, batch) {
+    const user = JSON.stringify({
+      businessProfileSummary: String(businessProfileSummary || "").trim(),
+      seedKeywords: Array.isArray(seeds) ? seeds : [],
+      geo: { geo_mode, location_name, language_code },
+      keywords: batch,
+    });
 
-  const raw = await callOpenAIJson({ system, user });
+    const raw = await callOpenAIJson({ system, user });
 
-  let parsed;
-  try {
-    parsed = safeJsonParse(raw);
-  } catch (e) {
-    throw new Error(
-      `Domain purity JSON parse failed in batch ${batchIndex + 1}/${batches.length}: ${e.message}`
+    let parsed;
+    try {
+      parsed = safeJsonParse(raw);
+    } catch (e) {
+      throw new Error(`JSON parse failed (batch ${batchIndex + 1}/${batches.length}): ${e.message}`);
+    }
+
+    const keepArr = Array.isArray(parsed?.keep) ? parsed.keep : [];
+    const dropArr = Array.isArray(parsed?.drop) ? parsed.drop : [];
+
+    const keepLocal = new Set(
+      keepArr.map((k) => String(k || "").trim().toLowerCase()).filter(Boolean)
     );
+
+    // Strict: only keywords explicitly returned in keep[] are kept; everything else treated as drop.
+    for (const kw of batch) {
+      const k = String(kw || "").trim().toLowerCase();
+      if (k && keepLocal.has(k)) keepSet.add(k);
+    }
+
+    return { keepCount: keepLocal.size, dropCount: dropArr.length };
   }
 
-  if (!Array.isArray(parsed)) {
-    throw new Error(
-      `Domain purity response is not an array in batch ${batchIndex + 1}/${batches.length}`
-    );
-  }
+  for (let b = 0; b < batches.length; b++) {
+    const batch = batches[b];
 
-  const decisionByKey = new Map();
-  for (const row of parsed) {
-    const k = (row?.keyword || "").toString().trim().toLowerCase();
-    const d = (row?.decision || "").toString().trim().toUpperCase();
-    if (!k) continue;
-    if (d !== "KEEP" && d !== "DROP") continue;
-    if (!decisionByKey.has(k)) decisionByKey.set(k, d);
+    try {
+      await decideBatchOnce(b, batch);
+    } catch (e1) {
+      // 1 retry only
+      try {
+        await decideBatchOnce(b, batch);
+      } catch (e2) {
+        throw new Error(
+          `Domain purity failed after retry. batch=${b + 1}/${batches.length}, batchSize=${batch.length}, keptSoFar=${keepSet.size}. LastError=${e2.message}`
+        );
+      }
+    }
   }
-
-  for (const kw of batch) {
-    const k = (kw || "").toString().trim().toLowerCase();
-    const d = decisionByKey.get(k) || "DROP"; // strict default
-    if (d === "KEEP") keepSet.add(k);
-  }
-}
-
-// Run batches in groups of 3
-for (let i = 0; i < batches.length; i += concurrency) {
-  const slice = batches.slice(i, i + concurrency);
-  await Promise.all(slice.map((batch, idx) => runOneBatch(i + idx, batch)));
-}
 
   return keepSet;
 }
@@ -307,6 +300,18 @@ if (!businessProfileSnap.exists) {
   });
 }
 const businessProfile = businessProfileSnap.data() || {};
+    // -------------------- BUSINESS PROFILE SUMMARY (compressed for OpenAI) --------------------
+const bp = businessProfile || {};
+const line = (v) => String(v || "").replace(/\s+/g, " ").trim();
+
+const businessProfileSummary = [
+  `Business Profile Summary: ${line(bp.businessName || bp.name || bp.title || "")}`,
+  `Core Services: ${line(bp.coreServices || bp.services || bp.offering || bp.description || "")}`,
+  `Audience/ICP: ${line(bp.audience || bp.icp || bp.targetCustomers || "")}`,
+  `Includes/Excludes (only if stated): ${line(bp.includesExcludes || bp.scopeNotes || "")}`,
+  `Seed Keywords: ${(Array.isArray(seeds) ? seeds : []).map((s) => String(s || "").trim()).filter(Boolean).join(", ")}`,
+  `Geo Context: mode=${geo_mode}, location=${String(location_name).trim()}, language=${language_code}`,
+].filter((x) => !x.endsWith(":")).join("\n");
 
 
 // -------------------- DATAFORSEO CALL --------------------
@@ -588,13 +593,12 @@ try {
 
   const keepSet = await domainPurityHardFilterBatched({
     keywords: keywordStrings,
-    businessProfile,
+    businessProfileSummary,
     seeds,
     geo_mode,
     location_name: String(location_name).trim(),
     language_code,
-    batchSize: 180,
-
+    batchSize: 60,
   });
 
   keptParsed = parsed.filter((x) => {
