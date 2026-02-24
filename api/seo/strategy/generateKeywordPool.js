@@ -60,7 +60,7 @@ function withTimeout(promise, ms, label = "Operation") {
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
 }
-function postJson(urlStr, headers, bodyObj, timeoutMs = 25000) {
+function postJson(urlStr, headers, bodyObj, timeoutMs = 45000) {
   return new Promise((resolve, reject) => {
     const u = new URL(urlStr);
     const body = JSON.stringify(bodyObj);
@@ -121,7 +121,7 @@ async function callOpenAIJson({ system, user, model = "gpt-4o-mini", temperature
         { role: "user", content: user },
       ],
     },
-    25000
+    45000
   );
 
   if (!resp.ok) {
@@ -329,7 +329,7 @@ const businessProfileSummary = [
           "Content-Type": "application/json",
         },
         payloadArray,
-        25000
+        45000
       );
 
       const json = r.json;
@@ -585,13 +585,14 @@ const parsed = items.map((item) => {
 const rawCount = parsed.length;
 
 let keptParsed = parsed;
+    let keepSet = new Set();
 
 try {
   const keywordStrings = parsed
     .map((x) => (x?.keyword || "").toString().trim())
     .filter(Boolean);
 
-  const keepSet = await domainPurityHardFilterBatched({
+   keepSet = await domainPurityHardFilterBatched({
     keywords: keywordStrings,
     businessProfileSummary,
     seeds,
