@@ -146,7 +146,7 @@ async function domainPurityHardFilterBatched({
   batchSize = 130,
 }) {
   const system = `
-You are a strict commercial SEO strategist.
+You are a SEO strategist.
 
 Given:
 - Business Profile Summary (short text)
@@ -418,58 +418,16 @@ const businessProfileSummary = [
       }
 
       // 2) Keyword Suggestions (long-tail, split across seeds to avoid huge cost)
-      const suggestionsEndpoint =
-        "https://api.dataforseo.com/v3/dataforseo_labs/google/keyword_suggestions/live";
+      // DISABLED: Suggestions can introduce broad/vague pollution across many domains.
+      // We are running "Keyword Ideas" only for country mode.
 
-      const cleanSeeds = Array.isArray(seeds) ? seeds.filter(Boolean) : [];
-      const seedCount = cleanSeeds.length || 1;
+      const ideasItems = Array.isArray(ideasResp.items) ? ideasResp.items : [];
 
-      // Total cap ~500 suggestions, distributed across seeds
-      const limitPerSeed = Math.max(1, Math.floor(500 / seedCount));
-
-      const suggestionCalls = cleanSeeds.map((seedKw) => {
-        const suggestionsPayload = [
-          {
-            keyword: String(seedKw).trim(),
-            location_name: String(location_name).trim(),
-            language_code,
-            limit: limitPerSeed,
-            offset: 0,
-            include_serp_info: false,
-          },
-        ];
-        return callDataForSeoLive(suggestionsEndpoint, suggestionsPayload);
-      });
-
-      const suggestionsResps = await Promise.all(suggestionCalls);
-
-      // If any suggestion call errors, STOP (no partial saves)
-      const bad = suggestionsResps.find((x) => x?.error);
-      if (bad) {
-        return res.status(400).json({
-          error: bad.error,
-          status_code: bad.status_code ?? null,
-          status_message: bad.status_message ?? null,
-          geo_mode,
-          location_name: String(location_name).trim(),
-          source,
-          raw: bad.raw ?? null,
-        });
-      }
-
-      // Merge + dedupe by keyword string (case-insensitive)
-      const allItems = []
-        .concat(Array.isArray(ideasResp.items) ? ideasResp.items : [])
-        .concat(
-          suggestionsResps.flatMap((x) =>
-            Array.isArray(x?.items) ? x.items : []
-          )
-        );
-
+      // Dedupe by keyword string (case-insensitive)
       const seen = new Set();
       const merged = [];
 
-      for (const it of allItems) {
+      for (const it of ideasItems) {
         const k = (it?.keyword || "").toString().trim().toLowerCase();
         if (!k) continue;
         if (seen.has(k)) continue;
@@ -479,13 +437,8 @@ const businessProfileSummary = [
 
       items = merged;
 
-      // Track combined cost
-      const ideasCost = ideasResp?.cost ? Number(ideasResp.cost) : 0;
-      const suggCost = suggestionsResps.reduce(
-        (sum, x) => sum + (x?.cost ? Number(x.cost) : 0),
-        0
-      );
-      apiCost = ideasCost + suggCost;
+      // Track cost (ideas only)
+      apiCost = ideasResp?.cost ? Number(ideasResp.cost) : 0;
     } else {
       // Use Google Ads endpoint for local targeting
       source = "google_ads";
