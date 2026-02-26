@@ -136,93 +136,62 @@ async function callOpenAIJson({ system, user, model = "gpt-4o-mini", temperature
   return json?.choices?.[0]?.message?.content || "";
 }
 
-async function domainPurityHardFilterBatched({
-  keywords,
-  businessProfileSummary,
-  seeds,
-  geo_mode,
-  location_name,
-  language_code,
-  batchSize = 130,
-}) {
-  const system = `
-You are a SEO strategist.
+async function domainPurityHardFilterBatched({ businessProfileSummary, seedKeywords, keywords, batchSize = 250 }) {
+  const keepSet = new Set();
+  const maybeSet = new Set();
 
-Given:
-- Business Profile Summary (short text)
-- Seed Keywords
-- Geo context
-- A list of keywords
+  for (let i = 0; i < keywords.length; i += batchSize) {
+    const batch = keywords.slice(i, i + batchSize);
 
-Task:
-Return ONLY valid JSON in this EXACT format (no markdown, no commentary):
-{ "keep": ["..."], "drop": ["..."] }
+    const system = `
+You are a senior SEO strategist and commercial intent analyst.
+
+You will classify keywords into 3 buckets:
+- KEEP: strongly aligned with the core paid service in the Business Profile (rehab/rehabilitation, de-addiction, detox, addiction treatment, recovery program, inpatient/outpatient rehab, luxury rehab, location variants, “best/near me/cost/fees”, etc). Do NOT require the word centre/center.
+- MAYBE: belongs to the same domain but is informational or research intent (what/how/why/where/symptoms/meaning/guide) OR softer intent.
+- DROP: clearly irrelevant / different industry / bars, pubs, shopping centres, salons, nightlife, random places, etc.
 
 Rules:
-- KEEP only if the keyword is clearly aligned with the core services explicitly described.
-- Do NOT infer adjacent services.
-- If unclear, DROP.
-- Do not explain anything.
+- Do NOT require exact seed word matches. Allow synonyms and close variants.
+- Location modifiers are valid.
+- If unclear but still plausibly in-domain, put in MAYBE (not DROP).
+- Output MUST be valid JSON with keys: keep, maybe, drop.
+- Each array must contain only keywords from the provided list.
 `.trim();
 
-  const list = Array.isArray(keywords) ? keywords : [];
-  const batches = chunkArray(list, batchSize);
+    const user = `
+Business Profile:
+${businessProfileSummary}
 
-  const keepSet = new Set();
+Seed Keywords:
+${(seedKeywords || []).join(", ")}
 
-  async function decideBatchOnce(batchIndex, batch) {
-    const user = JSON.stringify({
-      businessProfileSummary: String(businessProfileSummary || "").trim(),
-      seedKeywords: Array.isArray(seeds) ? seeds : [],
-      geo: { geo_mode, location_name, language_code },
-      keywords: batch,
-    });
+Keywords to classify:
+${batch.join("\n")}
+`.trim();
 
-    const raw = await callOpenAIJson({ system, user });
+      const content = await callOpenAIJson({ system, user });
+    const raw = safeJsonParse(content);
 
-    let parsed;
-    try {
-      parsed = safeJsonParse(raw);
-    } catch (e) {
-      throw new Error(`JSON parse failed (batch ${batchIndex + 1}/${batches.length}): ${e.message}`);
-    }
+    const keep = Array.isArray(raw?.keep) ? raw.keep : [];
+    const maybe = Array.isArray(raw?.maybe) ? raw.maybe : [];
 
-    const keepArr = Array.isArray(parsed?.keep) ? parsed.keep : [];
-    const dropArr = Array.isArray(parsed?.drop) ? parsed.drop : [];
-
-    const keepLocal = new Set(
-      keepArr.map((k) => String(k || "").trim().toLowerCase()).filter(Boolean)
-    );
-
-    // Strict: only keywords explicitly returned in keep[] are kept; everything else treated as drop.
-    for (const kw of batch) {
-      const k = String(kw || "").trim().toLowerCase();
-      if (k && keepLocal.has(k)) keepSet.add(k);
-    }
-
-    return { keepCount: keepLocal.size, dropCount: dropArr.length };
-  }
-
-  for (let b = 0; b < batches.length; b++) {
-    const batch = batches[b];
-
-    try {
-      await decideBatchOnce(b, batch);
-    } catch (e1) {
-      // 1 retry only
-      try {
-        await decideBatchOnce(b, batch);
-      } catch (e2) {
-        throw new Error(
-          `Domain purity failed after retry. batch=${b + 1}/${batches.length}, batchSize=${batch.length}, keptSoFar=${keepSet.size}. LastError=${e2.message}`
-        );
+    // SAFETY: if the model returns empty/invalid buckets, do NOT drop the whole batch.
+    // Put the entire batch into MAYBE so we can still keep in-domain terms.
+    if (keep.length === 0 && maybe.length === 0) {
+      for (const k of batch) {
+        const norm = String(k || "").trim().toLowerCase();
+        if (norm) maybeSet.add(norm);
       }
+      continue;
     }
+
+    for (const k of keep) keepSet.add(String(k).trim().toLowerCase());
+    for (const k of maybe) maybeSet.add(String(k).trim().toLowerCase());
   }
 
-  return keepSet;
+  return { keepSet, maybeSet };
 }
-
 
 // -------------------- MAIN HANDLER --------------------
 module.exports = async function handler(req, res) {
@@ -585,27 +554,57 @@ const parsed = items.map((item) => {
 const rawCount = parsed.length;
 
 let keptParsed = parsed;
-    let keepSet = new Set();
+
+// IMPORTANT:
+// - keepSet = strict + best match (for Top 200)
+// - maybeSet = relevant but less strict (allowed in All Keywords, not Top 200)
+let keepSet = new Set();
+let maybeSet = new Set();
 
 try {
   const keywordStrings = parsed
     .map((x) => (x?.keyword || "").toString().trim())
     .filter(Boolean);
 
-   keepSet = await domainPurityHardFilterBatched({
-    keywords: keywordStrings,
-    businessProfileSummary,
-    seeds,
-    geo_mode,
-    location_name: String(location_name).trim(),
-    language_code,
-    batchSize: 60,
-  });
+const result = await domainPurityHardFilterBatched({
+  keywords: keywordStrings,
+  businessProfileSummary: businessProfileSummary, // ✅ key matches function
+  seedKeywords: seeds,
+  geo_mode,
+  location_name: String(location_name || "").trim(),
+  language_code,
+  batchSize: 60,
+});
 
-  keptParsed = parsed.filter((x) => {
+  // Support both return styles:
+  // - old style: returns Set
+  // - new style: returns { keepSet, maybeSet }
+  if (result instanceof Set) {
+    keepSet = result;
+    maybeSet = new Set();
+  } else {
+    keepSet = result?.keepSet instanceof Set ? result.keepSet : new Set();
+    maybeSet = result?.maybeSet instanceof Set ? result.maybeSet : new Set();
+  }
+
+  const strictParsed = parsed.filter((x) => {
     const k = (x?.keyword || "").toString().trim().toLowerCase();
     return k && keepSet.has(k);
   });
+
+  const maybeParsed = parsed.filter((x) => {
+    const k = (x?.keyword || "").toString().trim().toLowerCase();
+    return k && !keepSet.has(k) && maybeSet.has(k);
+  });
+
+  // For storage:
+  // - strict first (best quality)
+  // - then maybe (still relevant, but not top-tier)
+  keptParsed = strictParsed.concat(maybeParsed);
+
+  // Top 200 should be ONLY strict
+  var topKeywordsStrict = strictParsed.slice(0, 200);
+
 } catch (e) {
   return res.status(500).json({
     error: "Domain purity filtering failed.",
@@ -618,7 +617,11 @@ const droppedCount = rawCount - keptCount;
 
 // Preserve existing behavior: keep order, then slice for storage size
 const allKeywords = source === "labs" ? keptParsed.slice(0, 1500) : keptParsed.slice(0, 500);
-const topKeywords = keptParsed.slice(0, 200);
+
+// TOP 200 = strict only
+const topKeywords = (typeof topKeywordsStrict !== "undefined" && topKeywordsStrict)
+  ? topKeywordsStrict
+  : keptParsed.slice(0, 200);
 
 
 
@@ -648,7 +651,7 @@ await keywordPoolRef.set({
   debug_droppedKeywords: parsed
     .map((x) => String(x?.keyword || "").trim())
     .filter(Boolean)
-    .filter((k) => !keepSet.has(k.toLowerCase())),
+    .filter((k) => !keepSet.has(k.toLowerCase()) && !maybeSet.has(k.toLowerCase())),
 });
 
 
