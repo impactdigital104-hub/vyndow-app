@@ -3655,35 +3655,37 @@ async function handleConfirmAuditAndLock() {
         gap: 10,
       }}
     >
-      <label style={labelStyle}>URLs (one per line)</label>
+<label style={labelStyle}>URLs (one per line)</label>
 
-
-
-    </div>
-
-    <textarea
-      value={urlListRaw}
-      o<button
+<button
   type="button"
   className="btn btn-soft-primary"
   onClick={handleDiscoverUrls}
   disabled={!selectedWebsiteId || discoverState === "discovering" || pageDiscoveryLocked}
-  title={pageDiscoveryLocked ? "URL list is locked" : "Discover URLs using sitemap.xml first, else a lightweight crawl (no AI)"}
+  title={
+    pageDiscoveryLocked
+      ? "URL list is locked"
+      : "Discover URLs using sitemap.xml first, else a lightweight crawl (no AI)"
+  }
 >
   {discoverState === "discovering" ? "Scanning…" : "Scan Website for URLs"}
-</button>nChange={(e) => setUrlListRaw(e.target.value)}
-      disabled={pageDiscoveryLocked}
-      placeholder={`https://example.com/\nhttps://example.com/about\nhttps://example.com/services`}
-      rows={8}
-      style={{
-        ...inputStyle,
-        resize: "vertical",
-        background: pageDiscoveryLocked ? "#f9fafb" : "white",
-        cursor: pageDiscoveryLocked ? "not-allowed" : "text",
-        opacity: pageDiscoveryLocked ? 0.85 : 1,
-      }}
-    />
+</button>
+</div>
 
+<textarea
+  value={urlListRaw}
+  onChange={(e) => setUrlListRaw(e.target.value)}
+  disabled={pageDiscoveryLocked}
+  placeholder={`https://example.com/\nhttps://example.com/about\nhttps://example.com/services`}
+  rows={8}
+  style={{
+    ...inputStyle,
+    resize: "vertical",
+    background: pageDiscoveryLocked ? "#f9fafb" : "white",
+    cursor: pageDiscoveryLocked ? "not-allowed" : "text",
+    opacity: pageDiscoveryLocked ? 0.85 : 1,
+  }}
+/>
 
     <div style={{ marginTop: 10, fontSize: 13, color: "#374151" }}>
       Valid URLs: <b>{parsedUrls.valid.length}</b> · Invalid:{" "}
