@@ -3664,19 +3664,20 @@ async function handleConfirmAuditAndLock() {
   style={{
     padding: "8px 12px",
     borderRadius: 10,
-    border: "1px solid #ddd",
+    border: "1px solid #111827",
     cursor:
       !selectedWebsiteId || discoverState === "discovering" || pageDiscoveryLocked
         ? "not-allowed"
         : "pointer",
-    background: "white",
+    background: "#111827",
+    color: "white",
+    fontWeight: 800,
     opacity:
       !selectedWebsiteId || discoverState === "discovering" || pageDiscoveryLocked ? 0.6 : 1,
   }}
   title={pageDiscoveryLocked ? "URL list is locked" : "Discover URLs using sitemap.xml first, else a lightweight crawl (no AI)"}
 >
   {discoverState === "discovering" ? "Scanning…" : "Scan Website for URLs"}
-
 </button>
 
     </div>
