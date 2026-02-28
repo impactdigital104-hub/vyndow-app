@@ -238,7 +238,7 @@ function AddKeywordInline({ onAdd }) {
         value={val}
         onChange={(e) => setVal(e.target.value)}
         placeholder="Add a keyword (example: rehab center in pune)"
-        style={{ ...inputStyle, maxWidth: 420, padding: "8px 10px" }}
+     style={{ ...inputStyle, maxWidth: 420, padding: "8px 10px" }}
       />
       <button
         type="button"
@@ -3807,11 +3807,11 @@ title="Continue to Step 3"
 
     </button>
 
-    {selectedWebsiteId && pageDiscoveryLocked !== true ? (
-      <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
-        Step 3 is locked until you Lock URLs in Step 2.
-      </div>
-    ) : null}
+{selectedWebsiteId && pageDiscoveryLocked !== true ? (
+  <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 400 }}>
+    Step 3 is locked until you Lock URLs in Step 2.
+  </div>
+) : null}
 
     {auditRunState === "done" ? (
       <div style={{ color: "#065f46", fontWeight: 800 }}>Audit complete</div>
@@ -4489,11 +4489,11 @@ title="Continue to Step 3"
               {keywordPoolState === "generating" ? "Generating…" : "Generate Keyword Pool"}
             </button>
 
-            {selectedWebsiteId && pageDiscoveryAuditLocked !== true ? (
-              <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
-                Step 4 requires you to Confirm Audit & Lock in Step 3.5.
-              </div>
-            ) : null}
+     {selectedWebsiteId && pageDiscoveryAuditLocked !== true ? (
+  <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 400 }}>
+    Step 4 requires you to Confirm Audit & Lock in Step 3.5.
+  </div>
+) : null}
 
             {keywordPoolMeta?.generatedAt ? (
               <div style={{ fontSize: 12, color: "#6b7280" }}>
@@ -4839,11 +4839,11 @@ title="Continue to Step 3"
       {keywordClusteringState === "generating" ? "Generating…" : "Generate Step 5 Architecture"}
     </button>
 
-    {selectedWebsiteId && businessContextApproved !== true ? (
-      <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
-        Approve Business Context to continue.
-      </div>
-    ) : null}
+{selectedWebsiteId && businessContextApproved !== true ? (
+  <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 400 }}>
+    Approve Business Context to continue.
+  </div>
+) : null}
 
     <button
       type="button"
@@ -5342,11 +5342,11 @@ style={{
       {keywordMappingState === "generating" ? "Generating…" : "Generate Mapping"}
     </button>
 
-    {selectedWebsiteId && keywordClusteringApproved !== true ? (
-      <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
-        Approve & Lock Keyword Clustering to proceed.
-      </div>
-    ) : null}
+{selectedWebsiteId && keywordClusteringApproved !== true ? (
+  <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 400 }}>
+    Approve & Lock Keyword Clustering to proceed.
+  </div>
+) : null}
 
           <button
       type="button"
@@ -6019,21 +6019,11 @@ style={{
 >
   <div style={{ padding: 18 }}>
     {/* Gate on Step 6 approval */}
-    {keywordMappingApproved !== true ? (
-      <div
-        style={{
-          padding: 14,
-          borderRadius: 12,
-          border: `1px solid ${HOUSE.cardBorder}`,
-             background: "transparent",
-          color: "#6b7280",
-          fontWeight: 600,
-          fontSize: 12,
-        }}
-      >
-      Approve & Lock Keyword Mapping to continue.
-      </div>
-    ) : (
+{keywordMappingApproved !== true ? (
+  <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 400 }}>
+    Approve & Lock Keyword Mapping to continue.
+  </div>
+) : (
       <>
         {/* Generate / Resume row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -6754,11 +6744,11 @@ style={{
                 {authorityPlanState === "generating" ? "Generating…" : "Generate 90-Day Plan"}
               </button>
 
-              {selectedWebsiteId && businessContextApproved === true && keywordClusteringApproved === true && keywordMappingApproved === true && poLocked !== true ? (
-                <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
-                  Lock Page Optimization Blueprint to generate Authority Plan.
-                </div>
-              ) : null}
+{selectedWebsiteId && businessContextApproved === true && keywordClusteringApproved === true && keywordMappingApproved === true && poLocked !== true ? (
+  <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 400 }}>
+    Lock Page Optimization Blueprint to generate Authority Plan.
+  </div>
+) : null}
 
                       </>) : (
               <button
@@ -7254,11 +7244,11 @@ style={{
           {isCreating ? "Creating…" : "Generate blog in Vyndow SEO"}
         </button>
 
-        {selectedWebsiteId && authorityPlanExists !== true ? (
-          <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, lineHeight: 1.35 }}>
-            Authority Plan must be generated before creating blog drafts.
-          </div>
-        ) : null}
+{selectedWebsiteId && authorityPlanExists !== true ? (
+  <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 400, lineHeight: 1.35 }}>
+    Authority Plan must be generated before creating blog drafts.
+  </div>
+) : null}
 
         {err ? (
           <div
