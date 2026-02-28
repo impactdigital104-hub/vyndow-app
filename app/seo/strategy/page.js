@@ -3675,7 +3675,7 @@ async function handleConfirmAuditAndLock() {
   }}
   title={pageDiscoveryLocked ? "URL list is locked" : "Discover URLs using sitemap.xml first, else a lightweight crawl (no AI)"}
 >
-  {discoverState === "discovering" ? "Discovering…" : "Discover URLs"}
+  {discoverState === "discovering" ? "Scanning…" : "Scan Website for URLs"}
 
 </button>
 
@@ -3780,8 +3780,8 @@ async function handleConfirmAuditAndLock() {
               borderRadius: 10,
               border: "1px solid #1f2937",
               cursor: !selectedWebsiteId || lockUrlsState === "locking" ? "not-allowed" : "pointer",
-              background: "white",
-              color: "#111827",
+              background: "#111827",
+color: "white",
               fontWeight: 800,
               opacity: !selectedWebsiteId || lockUrlsState === "locking" ? 0.6 : 1,
             }}
@@ -3814,10 +3814,19 @@ async function handleConfirmAuditAndLock() {
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         {pageDiscoveryLocked ? (
-          <button
+       <button
             type="button"
-onClick={handleContinueToStep3}
-title="Continue to Step 3"
+            onClick={handleContinueToStep3}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #111827",
+              background: "#111827",
+              color: "white",
+              cursor: "pointer",
+              fontWeight: 800,
+            }}
+            title="Continue to Step 3"
           >
             Continue to Step 3
           </button>
@@ -3846,9 +3855,9 @@ title="Continue to Step 3"
             style={{
               padding: "10px 14px",
               borderRadius: 10,
-              border: "1px solid #e5e7eb",
-              background: "white",
-              color: "#111827",
+border: "1px solid #b91c1c",
+background: "white",
+color: "#b91c1c",
               cursor: resetUrlsState === "resetting" ? "not-allowed" : "pointer",
               opacity: resetUrlsState === "resetting" ? 0.6 : 1,
               fontWeight: 800,
@@ -4441,8 +4450,9 @@ title="Continue to Step 3"
         style={{
           padding: "10px 12px",
           borderRadius: 10,
-          border: "1px solid #ddd",
-          background: "white",
+          border: "1px solid #111827",
+background: "#111827",
+color: "white",
           cursor: "pointer",
           fontWeight: 800,
           whiteSpace: "nowrap",
