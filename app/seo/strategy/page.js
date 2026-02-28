@@ -544,33 +544,14 @@ async function loadExistingAuditResults() {
 }
 
 
-
   // Step 1 data
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [profileExists, setProfileExists] = useState(false);
   const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
   const [saveError, setSaveError] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState(null);
-	// Step 1 → Step 2 hard gate
-const step1Saved = profileExists === true;
-const [stepGateError, setStepGateError] = useState("");
 
-// Clear gate error automatically once Step 1 is saved
-useEffect(() => {
-  if (step1Saved) setStepGateError("");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [step1Saved]);
-
-// Guard Step 2 accordion open
-const setOpenStepWithStep1Gate = (next) => {
-  if (next === "step2" && !step1Saved) {
-    setStepGateError("Complete Step 1 first.");
-    return;
-  }
-  setStepGateError("");
-  setOpenStep(next);
-};
-
+  // Step 1 form fields (MUST be declared before we compute isStep1Valid)
   const [businessName, setBusinessName] = useState("");
   const [industry, setIndustry] = useState("");
   const [geography, setGeography] = useState("");
@@ -579,6 +560,39 @@ const setOpenStepWithStep1Gate = (next) => {
   const [primaryOffer, setPrimaryOffer] = useState("");
   const [targetCustomer, setTargetCustomer] = useState("");
   const [competitorsRaw, setCompetitorsRaw] = useState("");
+
+  // Step 1 → Step 2 hard gate
+
+  // Step 1 is "valid" only if required existing fields are filled (trimmed)
+  const isStep1Valid =
+    String(businessName || "").trim().length > 0 &&
+    String(industry || "").trim().length > 0 &&
+    String(geography || "").trim().length > 0 &&
+    String(primaryOffer || "").trim().length > 0 &&
+    String(targetCustomer || "").trim().length > 0;
+
+  // Step 1 is considered "saved/completed" ONLY when:
+  // 1) Firestore draft exists AND 2) required fields are valid
+  const step1Saved = profileExists === true && isStep1Valid;
+
+  const [stepGateError, setStepGateError] = useState("");
+
+  // Clear gate error automatically once Step 1 is saved
+  useEffect(() => {
+    if (step1Saved) setStepGateError("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step1Saved]);
+
+  // Guard Step 2 accordion open
+  const setOpenStepWithStep1Gate = (next) => {
+    if (next === "step2" && !step1Saved) {
+      setStepGateError("Complete Step 1 first.");
+      return;
+    }
+    setStepGateError("");
+    setOpenStep(next);
+  };
+
 // -------------------------
 // Step 4B helpers — Keyword Pool (Firestore resume + UI wiring)
 // -------------------------
@@ -3096,6 +3110,12 @@ async function handleConfirmAuditAndLock() {
 
     setSaveState("saving");
     setSaveError("");
+	      // Block empty/invalid saves (prevents Step 2 unlocking from an empty draft)
+    if (!isStep1Valid) {
+      setSaveState("idle");
+      setSaveError("Please complete required fields before saving.");
+      return;
+    }
 
     const competitors = (competitorsRaw || "")
       .split("\n")
@@ -3308,6 +3328,11 @@ async function handleConfirmAuditAndLock() {
             <div style={{ fontWeight: 800 }}>Resume Strategy Setup</div>
             <div style={{ marginTop: 6, fontSize: 13 }}>
               A saved draft was found for this website.
+			              {!step1Saved ? (
+                <div style={{ marginTop: 6, fontSize: 13, fontWeight: 900, color: "#991b1b" }}>
+                  This draft is incomplete. Fill required fields in Step 1 and Save to unlock Step 2.
+                </div>
+              ) : null}
               {lastSavedAt ? (
                 <span> Last saved: {lastSavedAt.toLocaleString()}.</span>
               ) : null}
@@ -3321,8 +3346,8 @@ async function handleConfirmAuditAndLock() {
   step="Step 1"
   title="Business Profile"
   subtitle="We will use this to build a revenue-aligned SEO strategy. Do not add keywords here."
-  statusTone={profileExists ? "success" : "neutral"}
-  statusText={profileExists ? "Saved" : "Not started"}
+  statusTone={step1Saved ? "success" : profileExists ? "warning" : "neutral"}
+  statusText={step1Saved ? "Saved" : profileExists ? "Incomplete" : "Not started"}
   openStep={openStep}
   setOpenStep={setOpenStep}
 >
@@ -3460,7 +3485,7 @@ async function handleConfirmAuditAndLock() {
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <button
                 onClick={handleSaveDraft}
-                disabled={!selectedWebsiteId || saveState === "saving"}
+                            disabled={!selectedWebsiteId || saveState === "saving" || !isStep1Valid}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -3477,6 +3502,11 @@ async function handleConfirmAuditAndLock() {
               >
                 {saveState === "saving" ? "Saving…" : "Save Draft"}
               </button>
+              {!isStep1Valid ? (
+                <div style={{ marginTop: 6, fontSize: 12, color: "#b91c1c", fontWeight: 800 }}>
+                  Fill required fields to enable Save.
+                </div>
+              ) : null}
 
               {saveState === "saved" ? (
                 <div style={{ color: "#065f46", fontWeight: 800 }}>Saved</div>
