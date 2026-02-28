@@ -3557,8 +3557,19 @@ async function handleConfirmAuditAndLock() {
 <StepCard
   id="step2"
   step="Step 2"
-  title="Page Discovery"
-  subtitle="Add the key URLs you want to include in this SEO strategy. This step only saves URLs — no audit, no AI calls, no fixes."
+  title="URL Page Selection"
+  subtitle={
+  <>
+    <div>Select the website pages that should be included in your SEO strategy.</div>
+    <div>
+      These URLs will be audited and used to generate keyword mapping and on-page optimization blueprints.
+    </div>
+    <div style={{ marginTop: 6, fontWeight: 800 }}>
+      Important: Everything after this step depends on the URLs you lock here.
+    </div>
+    <div>To proceed, you must review and lock your selected URLs.</div>
+  </>
+}
   statusTone={pageDiscoveryExists ? "success" : "neutral"}
   statusText={pageDiscoveryExists ? "Saved" : "Not started"}
   openStep={openStep}
@@ -3589,8 +3600,22 @@ async function handleConfirmAuditAndLock() {
       <div style={{ color: "#b91c1c" }}>SEO plan load error: {seoModuleError}</div>
     ) : (
       <div>
-        You can save up to <b>{urlCap}</b> URLs for this website (Small Business:
-        10, Enterprise: 25).
+<div>
+  <div>You can include up to:</div>
+  <div style={{ marginTop: 6, lineHeight: 1.6 }}>
+    <div>Free: 4 URLs</div>
+    <div>Small Business: 10 URLs</div>
+    <div>Enterprise: 25 URLs</div>
+  </div>
+
+  <div style={{ marginTop: 10 }}>
+    You can either scan your website automatically or manually add URLs.
+  </div>
+
+  <div style={{ marginTop: 10 }}>
+    Your current plan allows up to <b>{urlCap}</b> URLs.
+  </div>
+</div>
       </div>
     )}
   </div>
