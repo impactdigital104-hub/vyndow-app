@@ -6737,7 +6737,7 @@ style={{
 
           {/* Buttons */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            {!authorityPlanExists ? (
+           {!authorityPlanExists ? (<>
               <button
                 disabled={!gateOk || authorityPlanState === "generating"}
                 onClick={() => generateOrUpdateAuthorityPlan({ useAdjustedTotal: false })}
@@ -6760,7 +6760,7 @@ style={{
                 </div>
               ) : null}
 
-            ) : (
+                      </>) : (
               <button
                 disabled={!gateOk || authorityPlanLocked === true || authorityPlanState === "generating"}
                 onClick={() => generateOrUpdateAuthorityPlan({ useAdjustedTotal: true })}
