@@ -3657,34 +3657,21 @@ async function handleConfirmAuditAndLock() {
     >
       <label style={labelStyle}>URLs (one per line)</label>
 
-<button
-  type="button"
-  onClick={handleDiscoverUrls}
-  disabled={!selectedWebsiteId || discoverState === "discovering" || pageDiscoveryLocked}
-  style={{
-    padding: "8px 12px",
-    borderRadius: 10,
-    border: "1px solid #111827",
-    cursor:
-      !selectedWebsiteId || discoverState === "discovering" || pageDiscoveryLocked
-        ? "not-allowed"
-        : "pointer",
-    background: "#111827",
-    color: "white",
-    fontWeight: 800,
-    opacity:
-      !selectedWebsiteId || discoverState === "discovering" || pageDiscoveryLocked ? 0.6 : 1,
-  }}
-  title={pageDiscoveryLocked ? "URL list is locked" : "Discover URLs using sitemap.xml first, else a lightweight crawl (no AI)"}
->
-  {discoverState === "discovering" ? "Scanning…" : "Scan Website for URLs"}
-</button>
+
 
     </div>
 
     <textarea
       value={urlListRaw}
-      onChange={(e) => setUrlListRaw(e.target.value)}
+      o<button
+  type="button"
+  className="btn btn-soft-primary"
+  onClick={handleDiscoverUrls}
+  disabled={!selectedWebsiteId || discoverState === "discovering" || pageDiscoveryLocked}
+  title={pageDiscoveryLocked ? "URL list is locked" : "Discover URLs using sitemap.xml first, else a lightweight crawl (no AI)"}
+>
+  {discoverState === "discovering" ? "Scanning…" : "Scan Website for URLs"}
+</button>nChange={(e) => setUrlListRaw(e.target.value)}
       disabled={pageDiscoveryLocked}
       placeholder={`https://example.com/\nhttps://example.com/about\nhttps://example.com/services`}
       rows={8}
@@ -3741,26 +3728,14 @@ async function handleConfirmAuditAndLock() {
       }}
     >
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <button
-          type="button"
-          onClick={handleSavePages}
-          disabled={!selectedWebsiteId || savePagesState === "saving" || pageDiscoveryLocked}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 10,
-            border: "1px solid #111827",
-            cursor:
-              !selectedWebsiteId || savePagesState === "saving" || pageDiscoveryLocked
-                ? "not-allowed"
-                : "pointer",
-            background: "#111827",
-            color: "white",
-            opacity:
-              !selectedWebsiteId || savePagesState === "saving" || pageDiscoveryLocked ? 0.6 : 1,
-          }}
-        >
-          {savePagesState === "saving" ? "Saving…" : "Save URLs"}
-        </button>
+<button
+  type="button"
+  className="btn btn-outline-primary"
+  onClick={handleSavePages}
+  disabled={!selectedWebsiteId || savePagesState === "saving" || pageDiscoveryLocked}
+>
+  {savePagesState === "saving" ? "Saving…" : "Save URLs"}
+</button>
 
         {savePagesState === "saved" ? (
           <div style={{ color: "#065f46", fontWeight: 800 }}>Saved</div>
@@ -3772,24 +3747,15 @@ async function handleConfirmAuditAndLock() {
 
         {/* State 2: Saved but Unlocked */}
         {pageDiscoveryExists && !pageDiscoveryLocked ? (
-          <button
-            type="button"
-            onClick={handleLockUrlsAndProceed}
-            disabled={!selectedWebsiteId || lockUrlsState === "locking"}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              border: "1px solid #1f2937",
-              cursor: !selectedWebsiteId || lockUrlsState === "locking" ? "not-allowed" : "pointer",
-              background: "#111827",
-color: "white",
-              fontWeight: 800,
-              opacity: !selectedWebsiteId || lockUrlsState === "locking" ? 0.6 : 1,
-            }}
-            title="Lock this URL list and proceed to Step 3"
-          >
-            {lockUrlsState === "locking" ? "Locking…" : "Lock URLs & Proceed"}
-          </button>
+<button
+  type="button"
+  className="btn btn-primary"
+  onClick={handleLockUrlsAndProceed}
+  disabled={!selectedWebsiteId || lockUrlsState === "locking"}
+  title="Lock this URL list and proceed to Step 3"
+>
+  {lockUrlsState === "locking" ? "Locking…" : "Lock URLs & Proceed"}
+</button>
         ) : null}
 
         {/* State 3: Locked */}
@@ -3815,58 +3781,34 @@ color: "white",
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         {pageDiscoveryLocked ? (
-       <button
-            type="button"
-            onClick={handleContinueToStep3}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              border: "1px solid #111827",
-              background: "#111827",
-              color: "white",
-              cursor: "pointer",
-              fontWeight: 800,
-            }}
-            title="Continue to Step 3"
-          >
-            Continue to Step 3
-          </button>
+     <button
+  type="button"
+  className="btn btn-primary"
+  onClick={handleContinueToStep3}
+  title="Continue to Step 3"
+>
+  Continue to Step 3
+</button>
         ) : (
-          <button
-            disabled
-            style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              border: "1px solid #e5e7eb",
-              background: "#f3f4f6",
-              color: "#6b7280",
-              cursor: "not-allowed",
-            }}
-            title="Lock the URL list in Step 2 to enable Step 3"
-          >
-            Continue to Step 3
-          </button>
+<button
+  disabled
+  className="btn btn-disabled"
+  title="Lock the URL list in Step 2 to enable Step 3"
+>
+  Continue to Step 3
+</button>
         )}
 
         {pageDiscoveryLocked ? (
-          <button
-            type="button"
-            onClick={handleResetUrlList}
-            disabled={resetUrlsState === "resetting"}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-border: "1px solid #b91c1c",
-background: "white",
-color: "#b91c1c",
-              cursor: resetUrlsState === "resetting" ? "not-allowed" : "pointer",
-              opacity: resetUrlsState === "resetting" ? 0.6 : 1,
-              fontWeight: 800,
-            }}
-            title="Unlock Step 2 and clear audit results"
-          >
-            {resetUrlsState === "resetting" ? "Resetting…" : "Reset URL List"}
-          </button>
+<button
+  type="button"
+  className="btn btn-outline-primary"
+  onClick={handleResetUrlList}
+  disabled={resetUrlsState === "resetting"}
+  title="Unlock Step 2 and clear audit results"
+>
+  {resetUrlsState === "resetting" ? "Resetting…" : "Reset URL List"}
+</button>
         ) : null}
       </div>
     </div>
