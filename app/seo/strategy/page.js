@@ -3177,7 +3177,7 @@ async function handleConfirmAuditAndLock() {
       <VyndowShell>
         <div style={{ padding: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700 }}>
-            SEO Strategy (Private Beta)
+                       SEO Strategy Builder
           </h1>
           <p style={{ marginTop: 8, color: "#555" }}>
             This feature is currently disabled.
@@ -3211,27 +3211,19 @@ async function handleConfirmAuditAndLock() {
   return (
     <VyndowShell>
       <div style={{ padding: 32, maxWidth: 1100 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0 }}>
-            Build SEO Strategy
-          </h1>
-          <div
-            style={{
-              fontSize: 12,
-              padding: "4px 10px",
-              borderRadius: 999,
-              border: "1px solid #e5e7eb",
-              color: "#374151",
-              background: "#fafafa",
-            }}
-          >
-            Private Beta
-          </div>
+              <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, letterSpacing: "-0.3px" }}>
+          SEO Strategy Builder
+        </h1>
+
+        <div style={{ marginTop: 8, color: "#6b7280", fontSize: 14, lineHeight: 1.5, maxWidth: 900 }}>
+          Build a complete SEO strategy for your website — from pages and audits to keywords, on-page blueprints, and a 90-day authority plan.
         </div>
 
-        <p style={{ marginTop: 8, color: "#6b7280" }}>
-          Step 1 of 9 — Business &amp; Revenue Alignment (no keywords)
-        </p>
+        <ul style={{ marginTop: 12, color: "#374151", fontSize: 14, lineHeight: 1.6, paddingLeft: 18 }}>
+          <li>Complete each step in order. Each step unlocks the next.</li>
+          <li>Your work is saved for this website as you go.</li>
+          <li>At the end, you’ll export an optimization blueprint and generate blog drafts in Vyndow SEO.</li>
+        </ul>
 
         {/* Website selector */}
         <div
@@ -3291,7 +3283,7 @@ async function handleConfirmAuditAndLock() {
                   ))}
                 </select>
                 <div style={helpStyle}>
-                  Strategy data is saved per website under its SEO module.
+                                    Your work is saved for this website as you go.
                 </div>
               </div>
 
