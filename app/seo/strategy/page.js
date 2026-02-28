@@ -3337,7 +3337,15 @@ async function handleConfirmAuditAndLock() {
   id="step1"
   step="Step 1"
   title="Business Profile"
-  subtitle="We will use this to build a revenue-aligned SEO strategy. Do not add keywords here."
+   subtitle={
+    <>
+      <div>Tell us what your business offers and who it serves.</div>
+      <div>We use this to keep keywords and strategy recommendations aligned to your actual services.</div>
+      <div style={{ marginTop: 6, opacity: 0.75 }}>
+        Tip: Updating this later may change downstream strategy steps.
+      </div>
+    </>
+  }
   statusTone={step1Saved ? "success" : profileExists ? "warning" : "neutral"}
   statusText={step1Saved ? "Saved" : profileExists ? "Incomplete" : "Not started"}
   openStep={openStep}
