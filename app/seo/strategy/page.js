@@ -551,6 +551,25 @@ async function loadExistingAuditResults() {
   const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
   const [saveError, setSaveError] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState(null);
+	// Step 1 → Step 2 hard gate
+const step1Saved = profileExists === true;
+const [stepGateError, setStepGateError] = useState("");
+
+// Clear gate error automatically once Step 1 is saved
+useEffect(() => {
+  if (step1Saved) setStepGateError("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [step1Saved]);
+
+// Guard Step 2 accordion open
+const setOpenStepWithStep1Gate = (next) => {
+  if (next === "step2" && !step1Saved) {
+    setStepGateError("Complete Step 1 first.");
+    return;
+  }
+  setStepGateError("");
+  setOpenStep(next);
+};
 
   const [businessName, setBusinessName] = useState("");
   const [industry, setIndustry] = useState("");
@@ -2651,6 +2670,10 @@ useEffect(() => {
 
 
 async function handleSavePages() {
+	  if (!step1Saved) {
+    setStepGateError("Complete Step 1 first.");
+    return;
+  }
   const ref = pageDiscoveryDocRef();
   if (!ref) return;
 
@@ -2715,6 +2738,10 @@ async function handleSavePages() {
 }
 
 async function handleLockUrlsAndProceed() {
+	  if (!step1Saved) {
+    setStepGateError("Complete Step 1 first.");
+    return;
+  }
   const ref = pageDiscoveryDocRef();
   if (!ref) return;
 
@@ -2757,6 +2784,10 @@ async function handleLockUrlsAndProceed() {
 }
 
 async function handleResetUrlList() {
+	  if (!step1Saved) {
+    setStepGateError("Complete Step 1 first.");
+    return;
+  }
 
   const ref = pageDiscoveryDocRef();
   if (!ref) return;
@@ -2814,6 +2845,10 @@ setPageDiscoveryAuditLockedAt(null);
 }
 
 async function handleContinueToStep3() {
+	  if (!step1Saved) {
+    setStepGateError("Complete Step 1 first.");
+    return;
+  }
   const ref = pageDiscoveryDocRef();
   if (!ref) return;
 
@@ -2837,6 +2872,10 @@ async function handleContinueToStep3() {
 }
 	
 async function handleDiscoverUrls() {
+	  if (!step1Saved) {
+    setStepGateError("Complete Step 1 first.");
+    return;
+  }
 
   const w = websites.find((x) => x.id === selectedWebsiteId);
   const origin = normalizeWebsiteBaseUrl(w);
@@ -3451,19 +3490,33 @@ async function handleConfirmAuditAndLock() {
             </div>
 
             <button
-              disabled
+              type="button"
+              disabled={!step1Saved}
+              onClick={() => {
+                if (!step1Saved) {
+                  setStepGateError("Complete Step 1 first.");
+                  return;
+                }
+                setStepGateError("");
+                setOpenStep("step2");
+              }}
               style={{
                 padding: "10px 14px",
                 borderRadius: 10,
                 border: "1px solid #e5e7eb",
-                background: "#f3f4f6",
-                color: "#6b7280",
-                cursor: "not-allowed",
+                background: step1Saved ? "#111827" : "#f3f4f6",
+                color: step1Saved ? "#ffffff" : "#6b7280",
+                cursor: step1Saved ? "pointer" : "not-allowed",
               }}
-              title="Step 2 will be enabled after we finish Phase C"
+              title={step1Saved ? "Continue to Step 2" : "Complete Step 1 first"}
             >
-              Continue to Step 2 (next phase)
+              Continue to Step 2
             </button>
+				  {stepGateError ? (
+  <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13, fontWeight: 700 }}>
+    {stepGateError}
+  </div>
+) : null}
           </div>
 
           {saveError ? (
@@ -3479,9 +3532,13 @@ async function handleConfirmAuditAndLock() {
   statusTone={pageDiscoveryExists ? "success" : "neutral"}
   statusText={pageDiscoveryExists ? "Saved" : "Not started"}
   openStep={openStep}
-  setOpenStep={setOpenStep}
+   setOpenStep={setOpenStepWithStep1Gate}
 >
-
+  {stepGateError ? (
+    <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>
+      {stepGateError}
+    </div>
+  ) : null}
 
   <div
     style={{
