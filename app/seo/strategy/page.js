@@ -3820,13 +3820,11 @@ async function handleConfirmAuditAndLock() {
       <div style={{ marginTop: 12, color: "#b91c1c" }}>{savePagesError}</div>
     ) : null}
   </div>
-</StepCard>
-{/* STEP 3 */}
 <StepCard
   id="step3"
   step="Step 3"
-  title="Pure On-Page Audit (Diagnostics)"
-  subtitle="This runs a diagnostics audit only (no AI, no fixes). It audits only the URLs saved in Step 2. It is resume-safe and skips URLs already audited."
+  title="Step 3: On-Page SEO Audit Diagnostics"
+  subtitle="This step audits the URLs you locked in Step 2 and generates a diagnostic on-page SEO report. This is a diagnostics-only step. We will improve and optimize these pages later in the On-Page Optimization Blueprint step."
   statusTone={auditProgress?.done > 0 ? "success" : "neutral"}
   statusText={auditProgress?.done > 0 ? `${auditProgress.done} audited` : "Not started"}
   openStep={openStep}
@@ -3851,24 +3849,12 @@ async function handleConfirmAuditAndLock() {
   ) : null}
 
   <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-    <button
-
-      type="button"
-      onClick={handleRunAudit}
-      disabled={!selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked || pageDiscoveryAuditLocked}
-      style={{
-        padding: "10px 14px",
-        borderRadius: 10,
-        border: "1px solid #111827",
-      cursor:
-  !selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked || pageDiscoveryAuditLocked
-    ? "not-allowed"
-    : "pointer",
-        background: "#111827",
-        color: "white",
-       opacity: !selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked || pageDiscoveryAuditLocked ? 0.6 : 1,
-      }}
-    >
+<button
+  type="button"
+  onClick={handleRunAudit}
+  disabled={!selectedWebsiteId || auditRunState === "running" || !pageDiscoveryLocked || pageDiscoveryAuditLocked}
+  className="btn btn-primary"
+>
       {auditRunState === "running" ? "Running Audit…" : "Run Audit"}
 
     </button>
@@ -3937,9 +3923,9 @@ async function handleConfirmAuditAndLock() {
 {/* STEP 3.5 */}
 <StepCard
   id="step3_5"
-  step="Step 3.5"
-  title="Audit Results Viewer"
-  subtitle="Resume-safe: results render automatically if audits already exist. Click a row to expand details."
+  step="Step 4"
+  title="On-Page Audit Report"
+  subtitle="This report shows the on-page SEO diagnostics for your selected URLs. Red indicators highlight issues that require attention. Click any URL row to expand and view detailed findings."
   statusTone={auditProgress?.done > 0 ? "success" : "neutral"}
   statusText={auditProgress?.done > 0 ? "Ready" : "Waiting"}
   openStep={openStep}
@@ -3999,50 +3985,34 @@ async function handleConfirmAuditAndLock() {
     return (
       <div style={{ marginTop: 12 }}>
 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-  <button
-    type="button"
-    onClick={handleConfirmAuditAndLock}
-    disabled={
-      auditConfirmState === "confirming" ||
-      pageDiscoveryLocked !== true ||
-      pageDiscoveryAuditLocked === true ||
-      !Array.isArray(auditRows) ||
-      auditRows.length === 0
-    }
-    style={{
-      padding: "10px 14px",
-      borderRadius: 10,
-      border: "1px solid #111827",
-      cursor:
-        auditConfirmState === "confirming" ||
-        pageDiscoveryLocked !== true ||
-        pageDiscoveryAuditLocked === true ||
-        !Array.isArray(auditRows) ||
-        auditRows.length === 0
-          ? "not-allowed"
-          : "pointer",
-      background: "#111827",
-      color: "white",
-      opacity:
-        auditConfirmState === "confirming" ||
-        pageDiscoveryLocked !== true ||
-        pageDiscoveryAuditLocked === true ||
-        !Array.isArray(auditRows) ||
-        auditRows.length === 0
-          ? 0.6
-          : 1,
-      fontWeight: 900,
-    }}
-    title={
-      pageDiscoveryLocked !== true
-        ? "Lock URLs in Step 2 first"
-        : !Array.isArray(auditRows) || auditRows.length === 0
-        ? "Run audit in Step 3 first"
-        : pageDiscoveryAuditLocked === true
-        ? "Audit already confirmed"
-        : ""
-    }
-  >
+
+  <div style={{ marginBottom: 8, fontSize: 12, color: "#6b7280", fontWeight: 400, lineHeight: 1.5 }}>
+    To proceed to the next step, you must confirm and lock this audit report.
+    <br />
+    Note: All SEO corrections and improvements will be implemented later in the On-Page Optimization Blueprint step.
+  </div>
+
+<button
+  type="button"
+  onClick={handleConfirmAuditAndLock}
+  disabled={
+    auditConfirmState === "confirming" ||
+    pageDiscoveryLocked !== true ||
+    pageDiscoveryAuditLocked === true ||
+    !Array.isArray(auditRows) ||
+    auditRows.length === 0
+  }
+  className="btn btn-primary"
+  title={
+    pageDiscoveryLocked !== true
+      ? "Lock URLs in Step 2 first"
+      : !Array.isArray(auditRows) || auditRows.length === 0
+      ? "Run audit in Step 3 first"
+      : pageDiscoveryAuditLocked === true
+      ? "Audit already confirmed"
+      : ""
+  }
+>
     {auditConfirmState === "confirming" ? "Confirming…" : "Confirm Audit & Lock"}
   </button>
 
@@ -4076,6 +4046,21 @@ async function handleConfirmAuditAndLock() {
             No audit results found yet. Run Step 3 to generate results.
           </div>
         ) : (
+			<div
+  style={{
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 12,
+    border: "1px solid #f3f4f6",
+    background: "#fafafa",
+    color: "#374151",
+    fontSize: 13,
+    lineHeight: 1.5,
+  }}
+>
+  <div style={{ fontWeight: 800, color: "#111827" }}>Audit Complete.</div>
+  <div>Review the findings below. Confirm and lock the report once you are satisfied.</div>
+</div>
           <div
             style={{
               marginTop: 10,
