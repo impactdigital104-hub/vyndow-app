@@ -4643,20 +4643,23 @@ color: "white",
 {/* STEP 4.5 */}
 <StepCard
   id="step4_5"
-  step="Step 4.5"
-  title="AI Business Understanding"
-  subtitle="This is a neutral, factual summary used for keyword relevance scoring and clustering. Please edit if needed and approve to unlock Step 5."
+  step="Step 6"
+  title="Business Profiling"
   statusTone={businessContextApproved ? "success" : "warning"}
   statusText={businessContextApproved ? "Approved" : "Not approved"}
   openStep={openStep}
   setOpenStep={setOpenStep}
 >
 
-          <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-            This is a neutral, factual summary used for keyword relevance scoring and clustering.
-            Please edit if needed and approve to unlock Step 5 in the next phase.
+                 <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
+            This section builds a structured understanding of your business based on your Business Profile, selected Location, and keyword research.
+            <br />
+            <br />
+            It defines how your services, themes, and positioning will be interpreted for keyword scoring and content clustering in the next steps.
+            <br />
+            <br />
+            Please review and edit this summary carefully. Any changes here will directly influence how your content pillars and keyword mapping are created.
           </div>
-
           {/* Mismatch warning (does not block) */}
           {businessContextMismatchWarning ? (
             <div
@@ -4678,16 +4681,16 @@ color: "white",
 
           {/* Editable summary */}
           <div style={{ marginTop: 12 }}>
-            <label style={labelStyle}>AI Understanding of Your Business (editable)</label>
+           <label style={labelStyle}>Business Summary (Editable)</label>
             <textarea
               value={businessContextSummary}
               onChange={(e) => setBusinessContextSummary(e.target.value)}
               rows={7}
               style={{ ...inputStyle, resize: "vertical" }}
-              placeholder="Click Regenerate to create a summary from Business Profile + audited pages + keyword pool."
+             placeholder='Click "Generate Business Profile" to create a structured summary of your business.'
             />
             <div style={helpStyle}>
-              Must be 120–180 words, neutral, no promotional language, must mention geo target.
+              Click "Generate Business Profile" to create a structured summary of your business. You can edit this summary before approval. Once approved, this will unlock the next step in your SEO strategy workflow.
             </div>
           </div>
 
@@ -4765,25 +4768,13 @@ color: "white",
             }}
           >
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <button
+                            <button
                 type="button"
                 onClick={handleGenerateBusinessContext}
                 disabled={!selectedWebsiteId || businessContextState === "generating"}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  border: "1px solid #111827",
-                  cursor:
-                    !selectedWebsiteId || businessContextState === "generating"
-                      ? "not-allowed"
-                      : "pointer",
-                  background: "#111827",
-                  color: "white",
-                  opacity:
-                    !selectedWebsiteId || businessContextState === "generating" ? 0.6 : 1,
-                }}
+                className="btn btn-primary"
               >
-                {businessContextState === "generating" ? "Generating…" : "Regenerate"}
+                {businessContextState === "generating" ? "Generating…" : "Generate Business Profile"}
               </button>
 
               <button
@@ -4806,19 +4797,7 @@ color: "white",
                 type="button"
                 onClick={handleApproveBusinessContext}
                 disabled={businessContextApproved || !selectedWebsiteId || !businessContextSummary?.trim()}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  border: "1px solid #16a34a",
-                  cursor:
-                    !selectedWebsiteId || !businessContextSummary?.trim()
-                      ? "not-allowed"
-                      : "pointer",
-                  background: "#16a34a",
-                  color: "white",
-                  opacity:
-                    !selectedWebsiteId || !businessContextSummary?.trim() ? 0.6 : 1,
-                }}
+                className="btn btn-primary"
               >
                {businessContextApproved ? "Approved ✓" : "Approve & Continue"}
               </button>
