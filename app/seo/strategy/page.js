@@ -4309,7 +4309,7 @@ async function handleConfirmAuditAndLock() {
 {/* STEP 4B */}
 <StepCard
   id="step4b"
-  step="Step 5: Keyword Research"
+  step="Step 5:"
   title="Keyword Research"
   subtitle="Based on your Business Profile and selected Location, we will generate a large keyword set relevant to your business."
   statusTone={keywordPoolExists ? "success" : "neutral"}
@@ -4493,11 +4493,11 @@ color: "white",
 
 <div style={{ marginTop: 10, padding: 10, borderRadius: 10, border: "1px solid #e5e7eb", background: "white", fontSize: 13, lineHeight: 1.4, color: "#111827" }}>
   {keywordPoolGenerationCount === 0 ? (
-    <>You can generate keywords up to 2 times for this website.</>
+    <b>You can generate keywords up to 2 times for this website.</b>
   ) : keywordPoolGenerationCount === 1 ? (
     <>You have 1 regeneration remaining for this website.</>
   ) : (
-    <>No regenerations remaining. Keywords are now locked for this website.</>
+    <b>No regenerations remaining. Keywords are now locked for this website.</b>
   )}
 </div>
 
