@@ -3819,7 +3819,8 @@ async function handleConfirmAuditAndLock() {
 
       <div style={{ marginTop: 12, color: "#b91c1c" }}>{savePagesError}</div>
     ) : null}
-  </div>
+</div>
+</StepCard>
 <StepCard
   id="step3"
   step="Step 3"
