@@ -4046,12 +4046,19 @@ async function handleConfirmAuditAndLock() {
             No audit results found yet. Run Step 3 to generate results.
           </div>
         ) : (
+
+          <div
+            style={{
+              marginTop: 10,
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              overflow: "hidden",
+            }}
+          >
 			<div
   style={{
-    marginTop: 10,
     padding: 12,
-    borderRadius: 12,
-    border: "1px solid #f3f4f6",
+    borderBottom: "1px solid #f3f4f6",
     background: "#fafafa",
     color: "#374151",
     fontSize: 13,
@@ -4061,14 +4068,6 @@ async function handleConfirmAuditAndLock() {
   <div style={{ fontWeight: 800, color: "#111827" }}>Audit Complete.</div>
   <div>Review the findings below. Confirm and lock the report once you are satisfied.</div>
 </div>
-          <div
-            style={{
-              marginTop: 10,
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              overflow: "hidden",
-            }}
-          >
             <div style={{ maxHeight: 420, overflow: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
