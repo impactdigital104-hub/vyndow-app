@@ -344,6 +344,9 @@ const [localLocOpen, setLocalLocOpen] = useState(false); // show/hide dropdown
 const [localLocLoading, setLocalLocLoading] = useState(false);
 const [localLocError, setLocalLocError] = useState("");
 const [localLocSelected, setLocalLocSelected] = useState(false); // TRUE only when user clicks a suggestion
+	// Keyword generation limits: 2 total runs per website (1 regeneration allowed)
+const keywordPoolGenerationCount = keywordPoolMeta?.generationCount || 0;
+const keywordPoolRemaining = Math.max(0, 2 - keywordPoolGenerationCount);
   // =========================
 // Step 4.5 — Business Context Intelligence Layer (resume-safe)
 // Firestore:
@@ -640,9 +643,10 @@ function hydrateKeywordPoolFromDoc(d) {
   const rows = (top.length ? top : all).slice(0, 200);
 
   setKeywordPoolRows(rows);
-  setKeywordPoolLocked(Boolean(d?.generationLocked));
+  setKeywordPoolLocked((d?.generationCount || 0) >= 2);
   setKeywordPoolMeta({
     generatedAt: d?.generatedAt ? safeToDate(d.generatedAt) : null,
+	  generationCount: d?.generationCount || 0,
     seedCount: d?.seedCount ?? null,
     geo_mode: d?.geo_mode ?? null,
     location_name: d?.location_name ?? null,
@@ -802,7 +806,7 @@ async function searchLocalLocations(q) {
 
 async function handleGenerateKeywordPool() {
   // If already exists & locked, do nothing (UI should show lock notice)
-  if (keywordPoolExists && keywordPoolLocked) return;
+ if (keywordPoolRemaining === 0) return;
 
   const seeds = parseSeedKeywords(seedKeywordsRaw);
 
@@ -1981,7 +1985,7 @@ if (seeds.length < 3) {
 
 if (seeds.length < 3) {
   setBusinessContextError(
-   "Please paste at least 3 seed keywords in Step 4B (Seed Keywords box), then click Generate Keyword Pool, and only then click Regenerate here."
+   "Please paste at least 3 seed keywords in Step 5 (Seed Keywords box), then click Generate Keyword Research, and only then click Regenerate here."
   );
   setBusinessContextState("error");
   return;
@@ -4305,9 +4309,9 @@ async function handleConfirmAuditAndLock() {
 {/* STEP 4B */}
 <StepCard
   id="step4b"
-  step="Step 4B"
-  title="Keyword Pool"
-  subtitle="Enter 3–10 seed keywords (comma or newline separated). Generate is locked per website once created."
+  step="Step 5: Keyword Research"
+  title="Keyword Research"
+  subtitle="Based on your Business Profile and selected Location, we will generate a large keyword set relevant to your business."
   statusTone={keywordPoolExists ? "success" : "neutral"}
   statusText={keywordPoolExists ? "Generated" : "Not started"}
   openStep={openStep}
@@ -4323,7 +4327,15 @@ async function handleConfirmAuditAndLock() {
 
 
           <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-            Enter 3–10 seed keywords (comma or newline separated). Generate is locked per website once created.
+            Based on your Business Profile and selected Location, we will generate a large keyword set relevant to your business.
+
+<div style={{ marginTop: 8 }}>
+  Enter 3–10 seed keywords (services, offerings, or topics). We will use them to discover related keywords.
+</div>
+
+<div style={{ marginTop: 8 }}>
+  You will see a sample of the generated keywords below. These will later be refined and used for URL mapping and on-page optimization.
+</div>
               <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
   <div>
     <label style={labelStyle}>Geo Strategy Mode</label>
@@ -4331,7 +4343,7 @@ async function handleConfirmAuditAndLock() {
       value={keywordGeoMode}
       onChange={(e) => setKeywordGeoMode(e.target.value)}
       style={inputStyle}
-      disabled={keywordPoolExists && keywordPoolLocked}
+      disabled={keywordPoolRemaining === 0}
     >
       <option value="country">Country-level strategy (recommended)</option>
       <option value="local">Local strategy (city/state)</option>
@@ -4341,7 +4353,7 @@ async function handleConfirmAuditAndLock() {
 
   <div>
     <label style={labelStyle}>
-      {keywordGeoMode === "country" ? "Country" : "City / State"}
+     Location
     </label>
 {keywordGeoMode === "country" ? (
   <input
@@ -4351,7 +4363,7 @@ async function handleConfirmAuditAndLock() {
     }}
     placeholder="Example: India"
     style={inputStyle}
-    disabled={keywordPoolExists && keywordPoolLocked}
+    disabled={keywordPoolRemaining === 0}
   />
 ) : (
   <div style={{ position: "relative" }}>
@@ -4366,7 +4378,7 @@ async function handleConfirmAuditAndLock() {
         }}
         placeholder="Type your city/state (example: London)"
         style={{ ...inputStyle, flex: 1 }}
-        disabled={keywordPoolExists && keywordPoolLocked}
+        disabled={keywordPoolRemaining === 0}
       />
 
       <button
@@ -4473,33 +4485,21 @@ color: "white",
   </div>
 )}
 
-    <div style={helpStyle}>
-      {keywordGeoMode === "country"
-        ? "Type a country name exactly (e.g., India, United Kingdom, United States)."
-        : "Type a city/state/country string (e.g., London,England,United Kingdom)."}
-    </div>
+<div style={helpStyle}>Type a country or location</div>
   </div>
 </div>
 
           </div>
 
-          {keywordPoolExists && keywordPoolLocked ? (
-            <div
-              style={{
-                marginTop: 10,
-                padding: 10,
-                borderRadius: 10,
-                border: "1px solid #fde68a",
-                background: "#fffbeb",
-                color: "#92400e",
-                fontSize: 13,
-                lineHeight: 1.4,
-              }}
-            >
-              <b>Keywords already generated for this website (locked).</b> To regenerate, admin must delete the{" "}
-              <code>keywordPool</code> Firestore doc.
-            </div>
-          ) : null}
+<div style={{ marginTop: 10, padding: 10, borderRadius: 10, border: "1px solid #e5e7eb", background: "white", fontSize: 13, lineHeight: 1.4, color: "#111827" }}>
+  {keywordPoolGenerationCount === 0 ? (
+    <>You can generate keywords up to 2 times for this website.</>
+  ) : keywordPoolGenerationCount === 1 ? (
+    <>You have 1 regeneration remaining for this website.</>
+  ) : (
+    <>No regenerations remaining. Keywords are now locked for this website.</>
+  )}
+</div>
 
           <div style={{ marginTop: 12 }}>
             <label style={labelStyle}>Seed Keywords</label>
@@ -4509,7 +4509,7 @@ color: "white",
               rows={4}
               placeholder={`Example:\nplumbing services\nwater heater repair\nplumber near me`}
               style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
-              disabled={keywordPoolExists && keywordPoolLocked}
+              disabled={keywordPoolRemaining === 0}
             />
             <div style={helpStyle}>
               Tip: We’ll trim + de-duplicate. Minimum 3, maximum 10 unique seeds.
@@ -4522,24 +4522,17 @@ color: "white",
           </div>
 
           <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
-            <button
-              onClick={handleGenerateKeywordPool}
-              disabled={
-                keywordPoolState === "generating" ||
-                keywordPoolState === "loading" ||
-                (keywordPoolExists && keywordPoolLocked)
-              }
-              style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: "1px solid #ddd",
-                cursor: "pointer",
-                background: keywordPoolState === "generating" ? "#f9fafb" : "white",
-                fontWeight: 800,
-              }}
-            >
-              {keywordPoolState === "generating" ? "Generating…" : "Generate Keyword Pool"}
-            </button>
+          <button
+  onClick={handleGenerateKeywordPool}
+  className="btn btn-primary"
+  disabled={
+    keywordPoolState === "generating" ||
+    keywordPoolState === "loading" ||
+    keywordPoolRemaining === 0
+  }
+>
+  {keywordPoolState === "generating" ? "Generating…" : "Generate Keyword Research"}
+</button>
 
      {selectedWebsiteId && pageDiscoveryAuditLocked !== true ? (
   <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 400 }}>
@@ -4567,11 +4560,12 @@ color: "white",
             ) : keywordPoolRows?.length ? (
            <div>
     <div style={{ marginBottom: 8, display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-      <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
-        {((keywordPoolMeta?.geo_mode || keywordGeoMode) === "country")
-          ? "Top 200 Keywords"
-          : "Top results (count depends on Google Ads availability)"}
-      </div>
+     <div>
+  <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>Sample Keywords</div>
+  <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+    This is just a sample of the total keywords that were generated. We will further select the most relevant keywords in the next steps for your website.
+  </div>
+</div>
       <div style={{ fontSize: 12, color: "#6b7280" }}>
         Source: <b>{keywordPoolMeta?.source === "google_ads" ? "Google Ads" : "Labs"}</b>
         {keywordPoolMeta?.location_name ? (
