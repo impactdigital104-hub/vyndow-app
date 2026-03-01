@@ -249,13 +249,12 @@ if (!language_code) {
     const existingSnap = await keywordPoolRef.get();
 
     // -------------------- LOCK CHECK --------------------
-if (existingSnap.exists) {
-  return res.status(200).json({
-    ok: true,
-    generationLocked: true,
-    source: "existing",
-    data: existingSnap.data(),
-  });
+const existingData = existingSnap.exists ? (existingSnap.data() || {}) : {};
+const currentCount = existingData?.generationCount || 0;
+
+// -------------------- GENERATION LIMIT (2 total) --------------------
+if (currentCount >= 2) {
+  return res.status(403).json({ error: "Keyword generation is locked for this website." });
 }
 // -------------------- LOAD BUSINESS PROFILE (for purity filter) --------------------
 const businessProfileRef = db.doc(
@@ -629,7 +628,8 @@ const topKeywords = (typeof topKeywordsStrict !== "undefined" && topKeywordsStri
 await keywordPoolRef.set({
   allKeywords,
   topKeywords,
-  generationLocked: true,
+generationLocked: (currentCount + 1) >= 2,
+  generationCount: currentCount + 1,
   generatedAt: admin.firestore.FieldValue.serverTimestamp(),
   geo_mode,
   location_name: String(location_name).trim(),
@@ -658,7 +658,7 @@ await keywordPoolRef.set({
 
     return res.status(200).json({
       ok: true,
-      generationLocked: true,
+      generationLocked: (currentCount + 1) >= 2,
       source: "newly_generated",
       storedCount: allKeywords.length,
     });
