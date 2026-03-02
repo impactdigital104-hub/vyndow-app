@@ -416,6 +416,7 @@ const [keywordMappingApproved, setKeywordMappingApproved] = useState(false);
 const [kmExistingPages, setKmExistingPages] = useState([]); // editable working version
 const [kmGapPages, setKmGapPages] = useState([]); // editable working version
 const [kmDeploymentStats, setKmDeploymentStats] = useState(null);
+	const [kmExplainOpen, setKmExplainOpen] = useState(false);
 
 const [kmDraftState, setKmDraftState] = useState("idle"); // idle | saving | saved | error
 const [kmDraftError, setKmDraftError] = useState("");
@@ -5396,9 +5397,9 @@ style={{
 
 {/* >>> STEP 6 UI SHELL (START) */}
 <StepCard
-  id="step6"
-  step="Step 6"
-  title="Keyword-to-URL Mapping (Deployment Blueprint)"
+  id="step8"
+  step="Step 8"
+  title="Keyword Mapping"
   subtitle="Map shortlisted keywords to your existing audited pages, recommend gap pages, and produce a deployable SEO blueprint."
   statusTone={keywordMappingApproved ? "success" : "warning"}
   statusText={keywordMappingApproved ? "Approved" : "Not approved"}
@@ -5406,7 +5407,53 @@ style={{
   setOpenStep={setOpenStep}
 >
 
+  <div style={{ padding: 18, paddingBottom: 0 }}>
+    <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.5 }}>
+      <div>This section assigns primary and secondary keywords to your existing URLs.</div>
+      <div>It also identifies new Gap Pages required to improve coverage.</div>
+    </div>
 
+    <div style={{ marginTop: 10 }}>
+      <button
+        type="button"
+        onClick={() => setKmExplainOpen((v) => !v)}
+        style={{
+          border: "none",
+          background: "transparent",
+          padding: 0,
+          cursor: "pointer",
+          color: HOUSE.primaryBlue,
+          fontWeight: 900,
+          fontSize: 13,
+        }}
+        title="Click to expand"
+      >
+        {kmExplainOpen ? "How mapping improves SEO structure ▴" : "How mapping improves SEO structure ▾"}
+      </button>
+
+      {kmExplainOpen ? (
+        <div
+          style={{
+            marginTop: 10,
+            padding: 12,
+            borderRadius: 12,
+            border: `1px solid ${HOUSE.primaryBlue}22`,
+            background: HOUSE.bgSoft,
+            color: "#374151",
+            fontSize: 13,
+            lineHeight: 1.55,
+          }}
+        >
+          <div>Each URL should target one unique Primary keyword to avoid internal competition.</div>
+          <div style={{ marginTop: 8 }}>Secondary keywords support broader topical coverage for that page.</div>
+          <div style={{ marginTop: 8 }}>Coverage % shows how many of your shortlisted keywords are mapped to existing or planned pages.</div>
+          <div style={{ marginTop: 8 }}>Gap Pages represent important keywords that do not yet have a dedicated URL. Creating these pages strengthens your overall topical authority and search visibility.</div>
+          <div style={{ marginTop: 8 }}>Mapping prevents keyword cannibalization and ensures each page has a clear search intent focus.</div>
+          <div style={{ marginTop: 8 }}>Review and refine mappings carefully before approval, as this structure directly influences your on-page optimization blueprint.</div>
+        </div>
+      ) : null}
+    </div>
+  </div>
   {/* Gating message */}
   {keywordClusteringApproved !== true ? (
     <div
@@ -5422,7 +5469,7 @@ style={{
         fontWeight: 700,
       }}
     >
-      Step 6 is locked. Please approve Step 5 (Keyword Architecture) first.
+      Step 8 is locked. Please approve Step 7 (Pilloar and Content Architecture) first.
     </div>
   ) : (
     <div
@@ -5438,7 +5485,9 @@ style={{
         fontWeight: 700,
       }}
     >
-      Step 6 is unlocked. Next we will add the “Generate Mapping” button and show the results here.
+            Click on Generate Mapping to map your URLs to keywords.
+      Once mapped, you can edit the primary and secondary keywords.
+      When you are satisfied, approve the mapping to proceed to the next step.
     </div>
   )}
 
@@ -5457,7 +5506,7 @@ style={{
       style={{
         padding: "10px 14px",
         borderRadius: 10,
-        border: "1px solid #111827",
+        border: `1px solid ${HOUSE.primaryBlue}`,
         cursor:
           keywordClusteringApproved !== true ||
           keywordMappingApproved === true ||
@@ -5468,7 +5517,7 @@ style={{
         background:
           keywordClusteringApproved !== true || keywordMappingApproved === true
             ? "#f3f4f6"
-            : "#111827",
+            : HOUSE.primaryBlue,
         color:
           keywordClusteringApproved !== true || keywordMappingApproved === true
             ? "#6b7280"
@@ -5505,7 +5554,7 @@ style={{
       style={{
         padding: "10px 14px",
         borderRadius: 10,
-        border: "1px solid #2563eb",
+        border: `1px solid ${HOUSE.primaryBlue}`,
         cursor:
           keywordClusteringApproved !== true ||
           keywordMappingExists !== true ||
@@ -5518,13 +5567,13 @@ style={{
           keywordMappingExists !== true ||
           keywordMappingApproved === true
             ? "#f3f4f6"
-            : "#eff6ff",
+         ? "white",
         color:
           keywordClusteringApproved !== true ||
           keywordMappingExists !== true ||
           keywordMappingApproved === true
             ? "#6b7280"
-            : "#1d4ed8",
+          : HOUSE.primaryBlue,
         opacity: kmDraftState === "saving" ? 0.7 : 1,
         fontWeight: 900,
       }}
@@ -5553,7 +5602,7 @@ style={{
       style={{
         padding: "10px 14px",
         borderRadius: 10,
-        border: "1px solid #047857",
+       border: `1px solid ${HOUSE.primaryBlue}`,
         cursor:
           keywordClusteringApproved !== true ||
           keywordMappingExists !== true ||
@@ -5566,13 +5615,13 @@ style={{
           keywordMappingExists !== true ||
           keywordMappingApproved === true
             ? "#f3f4f6"
-            : "#ecfdf5",
+          : HOUSE.primaryBlue,
         color:
           keywordClusteringApproved !== true ||
           keywordMappingExists !== true ||
           keywordMappingApproved === true
             ? "#6b7280"
-            : "#047857",
+          : "white",
         opacity: kmApproveState === "approving" ? 0.7 : 1,
         fontWeight: 900,
       }}
@@ -5621,14 +5670,14 @@ style={{
         style={{
           padding: 12,
           borderRadius: 12,
-          border: "1px solid #f3f4f6",
-          background: "#fafafa",
+          border: `1px solid ${HOUSE.primaryBlue}22`,
+        background: HOUSE.bgSoft,
           color: "#374151",
           fontSize: 13,
           lineHeight: 1.5,
         }}
       >
-        <div style={{ fontWeight: 900, color: "#111827" }}>Mapping Summary</div>
+              <div style={{ fontWeight: 900, color: HOUSE.primaryBlue }}>Mapping Summary</div>
 
 <div style={{ marginTop: 6 }}>
   Existing pages mapped:{" "}
@@ -5644,7 +5693,7 @@ style={{
   <b>{kmDeploymentStats?.mappedToExisting ?? "—"}</b>
   {" "}• New pages suggested:{" "}
   <b>{kmDeploymentStats?.suggestedNewPages ?? "—"}</b>
-  {" "}• Coverage:{" "}
+  {" "}• <span title="Percentage of shortlisted keywords mapped to existing or planned pages.">Coverage %</span>:{" "}
   <b>
     {kmDeploymentStats?.coveragePercentage != null
       ? `${Number(kmDeploymentStats.coveragePercentage).toFixed(0)}%`
@@ -5686,7 +5735,7 @@ style={{
                   key={`${p?.url || "url"}-${idx}`}
                   style={{
                     padding: 18,
-                    border: "1px solid #e5e7eb",
+                   border: `1px solid ${HOUSE.primaryBlue}22`,
                     borderRadius: 14,
                     background: "white",
                     boxShadow: "0 1px 2px rgba(16, 24, 40, 0.06)",
@@ -5732,13 +5781,16 @@ style={{
 
                     {/* Primary */}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
+                                           <div
+                        style={{ fontSize: 12, color: HOUSE.primaryBlue, fontWeight: 800 }}
+                        title="The main keyword this page should rank for. Must be unique across all URLs."
+                      >
                         Primary keyword (unique)
                       </div>
 
 
                       {keywordMappingApproved ? (
-                        <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: "#111827" }}>
+                      <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: "#111827" }}>
                           {p?.primaryKeyword?.keyword || "—"}
                         </div>
                       ) : (
@@ -5753,7 +5805,7 @@ style={{
     border: "1px solid #e5e7eb",
     background: "white",
     fontSize: 13,
-    fontWeight: 700,
+   fontWeight: 600,
     color: "#111827",
   }}
 >
@@ -5777,7 +5829,10 @@ style={{
 
                     {/* Secondary */}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
+                                           <div
+                        style={{ fontSize: 12, color: HOUSE.primaryBlue, fontWeight: 800 }}
+                        title="Supporting keywords that reinforce topical depth."
+                      >
                         Secondary keywords (optional)
                       </div>
 
@@ -5798,7 +5853,7 @@ style={{
           border: "1px solid #e5e7eb",
           background: "#f8fafc",
           fontSize: 12,
-                                      fontWeight: 700,
+                                      fontWeight: 600,
                             color: "#111827",
         }}
       >
@@ -5904,7 +5959,7 @@ style={{
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Pillar</div>
+                                            <div style={{ fontSize: 12, color: HOUSE.primaryBlue, fontWeight: 800 }} title="The authority theme this page belongs to.">Pillar</div>
                    <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: "#111827" }}>
 
                         {p?.pillar || "—"}
@@ -5917,7 +5972,7 @@ style={{
                     </div>
 
                     <div>
-                     <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Confidence</div>
+                                          <div style={{ fontSize: 12, color: HOUSE.primaryBlue, fontWeight: 800 }} title="AI-based confidence score for the keyword-page fit.">Confidence</div>
                       <div style={{ marginTop: 8 }}>
                         <span
                           style={{
@@ -5938,7 +5993,7 @@ style={{
                     </div>
 
                     <div>
-<div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
+<div style={{ fontSize: 12, color: HOUSE.primaryBlue, fontWeight: 800 }} title="Suggested internal linking opportunities based on mapping.">
   Internal links
 </div>
                       <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: "#111827" }}>
@@ -5958,7 +6013,7 @@ style={{
           </div>
         )}
 
-        <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+               <div style={{ fontSize: 13, fontWeight: 900, color: HOUSE.primaryBlue }} title="Keywords requiring a new dedicated page to improve coverage.">
           Gap Pages (recommended new pages)
         </div>
 
@@ -5972,7 +6027,7 @@ style={{
         <div
           key={`${g?.suggestedSlug || g?.primaryKeyword || "gap"}-${idx}`}
           style={{
-            border: "1px solid #e5e7eb",
+            border: `1px solid ${HOUSE.primaryBlue}22`,
             borderRadius: 12,
             padding: 12,
             background: accepted ? "white" : "#fafafa",
@@ -5986,11 +6041,11 @@ style={{
               </div>
 
               <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
-                Primary: <b style={{ color: "#111827" }}>{g?.primaryKeyword || "—"}</b>
+               Primary: <span style={{ color: "#111827", fontWeight: 600 }}>{g?.primaryKeyword || "—"}</span>
               </div>
 
               <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
-                Pillar: <b style={{ color: "#111827" }}>{g?.pillar || "—"}</b>
+                Pillar: <span style={{ color: "#111827", fontWeight: 600 }}>{g?.pillar || "—"}</span>
               </div>
 
 <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
@@ -6001,7 +6056,7 @@ style={{
     </div>
 
     {keywordMappingApproved ? (
-      <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+     <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
         {g?.suggestedSlug || "—"}
       </div>
     ) : (
@@ -6016,7 +6071,7 @@ style={{
           border: "1px solid #e5e7eb",
           background: "white",
           fontSize: 13,
-          fontWeight: 900,
+         fontWeight: 600,
           color: "#111827",
         }}
       />
@@ -6030,7 +6085,7 @@ style={{
     </div>
 
     {keywordMappingApproved ? (
-      <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
+<div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
         {g?.pageType || "—"}
       </div>
     ) : (
@@ -6044,7 +6099,7 @@ style={{
           border: "1px solid #e5e7eb",
           background: "white",
           fontSize: 13,
-          fontWeight: 900,
+          fontWeight: 600,
           color: "#111827",
         }}
       >
@@ -6122,9 +6177,9 @@ style={{
                     width: "100%",
                     padding: "10px 12px",
                     borderRadius: 10,
-                    border: "1px solid #e5e7eb",
-                    background: accepted ? "#ecfdf5" : "#fef2f2",
-                    color: accepted ? "#047857" : "#b91c1c",
+                    border: `1px solid ${HOUSE.primaryBlue}`,
+                    background: accepted ? HOUSE.bgSoft : "white",
+                    color: HOUSE.primaryBlue,
                     fontWeight: 900,
                     cursor: "pointer",
                   }}
