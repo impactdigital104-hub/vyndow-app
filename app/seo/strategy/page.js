@@ -1540,25 +1540,126 @@ async function generatePageOptimization() {
     // Build a full list of pageIds to generate (existing + accepted gap)
     const all = [];
 
+    // Resume-safe: treat ONLY real blueprint objects as "already generated"
+    const alreadyGeneratedIds = new Set(
+      Object.entries(poPages || {})
+        .filter(([_, v]) => {
+          if (!v || typeof v !== "object") return false;
+          const hasCore =
+            Boolean((v.title || "").trim()) ||
+            Boolean((v.metaDescription || "").trim()) ||
+            Boolean((v.h1 || "").trim()) ||
+            Array.isArray(v.contentBlocks) ||
+            v.approved === true;
+          return hasCore;
+        })
+        .map(([k]) => k)
+    );
+
+    // UX scaffold: show meaningful page cards immediately (NO Firestore reads in loop)
+    let scaffoldPages = { ...(poPages || {}) };
+
     for (const p of kmExistingPages || []) {
       const id = await pageIdFromExistingUrl(p?.url);
       if (!id) continue;
+
+      const pk = getPrimaryKeywordString(p);
+      const existing = scaffoldPages[id];
+
+      const hasRealBlueprint =
+        existing &&
+        typeof existing === "object" &&
+        (Boolean((existing.title || "").trim()) ||
+          Boolean((existing.metaDescription || "").trim()) ||
+          Boolean((existing.h1 || "").trim()) ||
+          Array.isArray(existing.contentBlocks));
+
+      if (!hasRealBlueprint) {
+        scaffoldPages[id] = {
+          ...(existing && typeof existing === "object" ? existing : {}),
+          pageId: id,
+          pageSource: "existing",
+          pageType: "existing",
+          url: String(p?.url || existing?.url || "").trim(),
+          primaryKeyword: String(pk || existing?.primaryKeyword || "").trim(),
+          _isGenerating: false,
+          _isDone: existing?._isDone === true,
+        };
+      } else {
+        // Keep real blueprint, but ensure basic labels exist for the card
+        scaffoldPages[id] = {
+          ...(existing || {}),
+          pageId: id,
+          pageSource: existing?.pageSource || "existing",
+          pageType: existing?.pageType || "existing",
+          url: String(existing?.url || p?.url || "").trim(),
+          primaryKeyword: String(existing?.primaryKeyword || pk || "").trim(),
+        };
+      }
+
       all.push({ pageId: id, pageSource: "existing" });
     }
 
     for (const g of kmGapPages || []) {
       if (g?.accepted === false) continue;
+
       const id = await pageIdFromGap(g?.suggestedSlug, g?.primaryKeyword);
       if (!id) continue;
+
+      const slug = String(g?.suggestedSlug || "").trim();
+      const slugPath = slug ? `/${slug.replace(/^\/+/, "")}` : "";
+      const pk = String(g?.primaryKeyword || "").trim();
+      const existing = scaffoldPages[id];
+
+      const hasRealBlueprint =
+        existing &&
+        typeof existing === "object" &&
+        (Boolean((existing.title || "").trim()) ||
+          Boolean((existing.metaDescription || "").trim()) ||
+          Boolean((existing.h1 || "").trim()) ||
+          Array.isArray(existing.contentBlocks));
+
+      if (!hasRealBlueprint) {
+        scaffoldPages[id] = {
+          ...(existing && typeof existing === "object" ? existing : {}),
+          pageId: id,
+          pageSource: "gap",
+          pageType: "gap",
+          url: String(existing?.url || slugPath || "").trim(),
+          slug: String(existing?.slug || slug || "").trim(),
+          primaryKeyword: String(existing?.primaryKeyword || pk || "").trim(),
+          _isGenerating: false,
+          _isDone: existing?._isDone === true,
+        };
+      } else {
+        scaffoldPages[id] = {
+          ...(existing || {}),
+          pageId: id,
+          pageSource: existing?.pageSource || "gap",
+          pageType: existing?.pageType || "gap",
+          url: String(existing?.url || slugPath || "").trim(),
+          slug: String(existing?.slug || slug || "").trim(),
+          primaryKeyword: String(existing?.primaryKeyword || pk || "").trim(),
+        };
+      }
+
       all.push({ pageId: id, pageSource: "gap" });
+    }
+
+    // Push scaffold to UI so cards are never blank during generation
+    setPoPages(scaffoldPages);
+
+    // pick a stable active page for the right-side panel, if none selected yet
+    if (!poActivePageId) {
+      const keys = Object.keys(scaffoldPages || {});
+      if (keys.length) setPoActivePageId(keys[0]);
     }
 
     const total = all.length;
     setPoGenTotal(total);
 
     // Skip already-generated pages (resume-safe)
-    const already = new Set(Object.keys(poPages || {}));
-    const remaining = all.filter((x) => !already.has(x.pageId));
+    const remaining = all.filter((x) => !alreadyGeneratedIds.has(x.pageId));
 
     const doneStart = total - remaining.length;
     setPoGenDone(doneStart);
@@ -1574,10 +1675,16 @@ async function generatePageOptimization() {
     let done = doneStart;
 
     // Track locally during loop — DO NOT reload Firestore mid-loop
-    let localPages = { ...(poPages || {}) };
+    let localPages = { ...(scaffoldPages || {}) };
 
     for (const item of remaining) {
       setPoGenLastMessage(`Generating ${done + 1} / ${total}…`);
+		      // Mark the current page as "Generating…" in the UI scaffold (no Firestore reads)
+      localPages = {
+        ...localPages,
+        [item.pageId]: { ...(localPages?.[item.pageId] || {}), _isGenerating: true },
+      };
+      setPoPages(localPages);
 
       const res = await fetch("/api/seo/strategy/generatePageOptimization", {
         method: "POST",
@@ -1600,8 +1707,11 @@ async function generatePageOptimization() {
       done += 1;
       setPoGenDone(done);
 
-      // Mark this pageId as completed locally
-      localPages = { ...localPages, [item.pageId]: true };
+      // Mark this page as completed in the UI scaffold (no Firestore reads)
+      localPages = {
+        ...localPages,
+        [item.pageId]: { ...(localPages?.[item.pageId] || {}), _isGenerating: false, _isDone: true },
+      };
       setPoPages(localPages);
     }
 
@@ -1620,6 +1730,10 @@ async function generatePageOptimization() {
 }
 
 function computePageStatus(p) {
+  // Local scaffold statuses during generation (UI-only)
+  if (p?._isGenerating === true) return { tone: "warning", text: "Generating…" };
+  if (p?._isDone === true && p?.approved !== true) return { tone: "neutral", text: "Draft Ready" };
+
   if (!p) return { tone: "warning", text: "Draft" };
   if (p.approved === true) return { tone: "success", text: "Approved" };
   const ok = Boolean((p.title || "").trim()) && Boolean((p.metaDescription || "").trim()) && Boolean((p.h1 || "").trim());
