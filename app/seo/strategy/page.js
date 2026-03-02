@@ -6362,17 +6362,17 @@ style={{
                 borderRadius: 12,
                 border: "0",
                 background:
-                  pageOptimizationState === "generating" || pageOptimizationExists === true
+                  pageOptimizationState === "generating" || pageOptimizationState === "loading" || poLocked === true || !selectedWebsiteId
                     ? "rgba(30,102,255,0.25)"
                     : HOUSE.primaryBlue,
                 color: "white",
                 fontWeight: 900,
                 cursor:
-                  pageOptimizationState === "generating" || pageOptimizationExists === true
+                  pageOptimizationState === "generating" || pageOptimizationState === "loading" || poLocked === true || !selectedWebsiteId
                     ? "not-allowed"
                     : "pointer",
               }}
-              title={pageOptimizationExists ? "Blueprint already exists. Delete Firestore doc to regenerate." : ""}
+              title={poLocked === true ? "Step 7 is locked." : ""}
             >
             {pageOptimizationState === "generating"
   ? `Generating ${poGenDone} / ${poGenTotal}…`
@@ -6420,7 +6420,7 @@ style={{
             ) : null}
           </div>
         </div>
-{pageOptimizationState === "generating" && poGenTotal > 0 ? (
+{(pageOptimizationState === "generating" || pageOptimizationState === "error") && poGenTotal > 0 ? (
   <div style={{ marginTop: 10, color: "#6b7280", fontWeight: 800 }}>
     {poGenLastMessage}
   </div>
