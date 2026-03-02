@@ -314,7 +314,7 @@ export default async function handler(req, res) {
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
     const uid = await getUidFromRequest(req);
-    const { websiteId } = req.body || {};
+        const { websiteId, pageId, pageSource } = req.body || {};
     if (!websiteId) return res.status(400).json({ error: "Missing websiteId" });
 
     const { effectiveUid, effectiveWebsiteId } = await resolveEffectiveContext(uid, websiteId);
@@ -341,15 +341,26 @@ export default async function handler(req, res) {
 
     // -------------------- LOCK (no regen unless doc deleted) --------------------
     const existingPO = await pageOptimizationRef.get();
-    if (existingPO.exists) {
-      const data = existingPO.data() || {};
-      if (data?.locked === true) {
-        return res.status(200).json({ ok: true, generationLocked: true, locked: true, source: "existing", data });
-      }
-      // Even if not locked, we follow the same Step 6 contract: manual delete required to regenerate
-      return res.status(200).json({ ok: true, generationLocked: true, source: "existing", data });
-    }
+    const existingPOData = existingPO.exists ? (existingPO.data() || {}) : {};
+    const existingPOPages = isPlainObject(existingPOData?.pages) ? existingPOData.pages : {};
 
+    if (existingPO.exists) {
+      if (existingPOData?.locked === true) {
+        return res.status(200).json({
+          ok: true,
+          generationLocked: true,
+          locked: true,
+          source: "existing",
+          data: existingPOData,
+        });
+      }
+
+      // Full regen still requires manual delete (do NOT wipe existing pages).
+      // But allow single-page writes (resume mode) when pageId is provided.
+      if (!pageId) {
+        return res.status(200).json({ ok: true, generationLocked: true, source: "existing", data: existingPOData });
+      }
+    }
     // -------------------- GATE: Step 6 approved --------------------
     const kmSnap = await keywordMappingRef.get();
     if (!kmSnap.exists) {
@@ -411,7 +422,8 @@ export default async function handler(req, res) {
     // Available URLs for internal linking context
     const availableSiteUrls = dedupeStrings(existingPages.map((p) => p.url).filter(Boolean), 40);
 
-    const pagesOut = {};
+    // Build an index of ALL possible pages keyed by pageId
+    const pagesIndex = {};
 
     // EXISTING PAGES
     for (const p of existingPages) {
@@ -419,7 +431,160 @@ export default async function handler(req, res) {
       const nu = normalizeUrl(urlRaw);
       if (!nu) continue;
 
-      const pageId = urlIdFromUrl(nu);
+      const id = urlIdFromUrl(nu);
+      pagesIndex[id] = { source: "existing", url: nu, p };
+    }
+
+    // GAP PAGES (only if accepted !== false)
+    for (const g of gapPages) {
+      if (g?.accepted === false) continue;
+
+      const suggestedSlug = safeStr(g?.suggestedSlug);
+      const primaryKeyword = safeStr(g?.primaryKeyword);
+
+      if (!suggestedSlug && !primaryKeyword) continue;
+
+      const id = gapIdFromSlugAndKeyword(suggestedSlug, primaryKeyword);
+      pagesIndex[id] = { source: "gap", g };
+    }
+
+    const totalPages = Object.keys(pagesIndex).length;
+
+    // -------------------- SINGLE-PAGE MODE (resume-safe) --------------------
+    if (pageId) {
+      const target = pagesIndex[pageId];
+      if (!target) {
+        return res.status(400).json({ error: `Unknown pageId: ${pageId}` });
+      }
+
+      // If caller supplies pageSource, sanity-check it (but do not hard fail if missing)
+      if (pageSource && String(pageSource) !== String(target.source)) {
+        return res.status(400).json({ error: `pageSource mismatch for ${pageId}. Expected ${target.source}.` });
+      }
+
+      let pageOut = null;
+
+      if (target.source === "existing") {
+        const p = target.p || {};
+        const nu = target.url;
+
+        const primaryKeyword = pickPrimaryKeywordString(p?.primaryKeyword);
+        const secondaryKeywords = secondaryKeywordStrings(p?.secondaryKeywords);
+        const pageType = safeStr(p?.pillar) ? "Existing Page (Mapped)" : "Existing Page";
+
+        const auditDoc = auditByUrl.get(nu) || null;
+        const auditExtracted = auditDoc?.extracted || {};
+
+        const internalLinkTargets = Array.isArray(p?.internalLinkTargets) ? p.internalLinkTargets : [];
+
+        const prompt = buildPrompt({
+          pageLabel: nu,
+          url: nu,
+          pageType,
+          primaryKeyword,
+          secondaryKeywords,
+          businessSummary,
+          geo,
+          auditExtracted,
+          internalLinkTargets,
+          availableSiteUrls,
+        });
+
+        const raw = await callOpenAIJson({ prompt });
+        const parsed = safeJsonParse(raw);
+
+        pageOut = {
+          url: nu,
+          primaryKeyword,
+          secondaryKeywords,
+          pageType,
+          title: safeStr(parsed?.title),
+          metaDescription: safeStr(parsed?.metaDescription),
+          h1: safeStr(parsed?.h1),
+          h2Structure: clampArrayStrings(parsed?.h2Structure, 12),
+          contentBlocks: sanitizeContentBlocks(parsed?.contentBlocks, 8),
+          schemaSuggestions: sanitizeSchemaSuggestions(parsed?.schemaSuggestions, 6),
+          internalLinks: sanitizeInternalLinks(parsed?.internalLinks, 10),
+          advisoryBlocks: sanitizeAdvisoryBlocks(parsed?.advisoryBlocks, 10),
+          approved: false,
+          approvedAt: null,
+          autoSavedAt: nowTs(),
+        };
+      } else {
+        const g = target.g || {};
+        const suggestedSlug = safeStr(g?.suggestedSlug);
+        const primaryKeyword = safeStr(g?.primaryKeyword);
+        const secondaryKeywords = dedupeStrings(g?.secondaryKeywords || [], 8);
+        const pageType = safeStr(g?.pageType) || "New Page";
+
+        const label = suggestedSlug ? `(new) ${suggestedSlug}` : "(new page)";
+
+        const prompt = buildPrompt({
+          pageLabel: label,
+          url: "",
+          pageType,
+          primaryKeyword,
+          secondaryKeywords,
+          businessSummary,
+          geo,
+          auditExtracted: null,
+          internalLinkTargets: [],
+          availableSiteUrls,
+        });
+
+        const raw = await callOpenAIJson({ prompt });
+        const parsed = safeJsonParse(raw);
+
+        pageOut = {
+          url: suggestedSlug ? suggestedSlug : "",
+          primaryKeyword,
+          secondaryKeywords,
+          pageType,
+          title: safeStr(parsed?.title),
+          metaDescription: safeStr(parsed?.metaDescription),
+          h1: safeStr(parsed?.h1),
+          h2Structure: clampArrayStrings(parsed?.h2Structure, 12),
+          contentBlocks: sanitizeContentBlocks(parsed?.contentBlocks, 8),
+          schemaSuggestions: sanitizeSchemaSuggestions(parsed?.schemaSuggestions, 6),
+          internalLinks: sanitizeInternalLinks(parsed?.internalLinks, 10),
+          advisoryBlocks: sanitizeAdvisoryBlocks(parsed?.advisoryBlocks, 10),
+          approved: false,
+          approvedAt: null,
+          autoSavedAt: nowTs(),
+        };
+      }
+
+      // Progress fields
+      const alreadyDone = Object.keys(existingPOPages || {}).length;
+      const alreadyHadThisPage = Boolean(existingPOPages && existingPOPages[pageId]);
+      const donePages = Math.min(totalPages, alreadyDone + (alreadyHadThisPage ? 0 : 1));
+      const status = donePages >= totalPages ? "done" : "running";
+
+      const update = {
+        updatedAt: nowTs(),
+        generatedAt: existingPOData?.generatedAt || nowTs(),
+        locked: existingPOData?.locked === true ? true : false,
+        allPagesApproved: false,
+        generation: { totalPages, donePages, status },
+      };
+
+      update[`pages.${pageId}`] = pageOut;
+
+      await pageOptimizationRef.set(update, { merge: true });
+
+      return res.status(200).json({ ok: true, pageId, wrote: true });
+    }
+
+    // -------------------- FULL GENERATION (legacy) --------------------
+    // (UI will no longer use this; kept only for backward compatibility)
+    const pagesOut = {};
+
+    for (const p of existingPages) {
+      const urlRaw = safeStr(p?.url);
+      const nu = normalizeUrl(urlRaw);
+      if (!nu) continue;
+
+      const pageId2 = urlIdFromUrl(nu);
       const primaryKeyword = pickPrimaryKeywordString(p?.primaryKeyword);
       const secondaryKeywords = secondaryKeywordStrings(p?.secondaryKeywords);
       const pageType = safeStr(p?.pillar) ? "Existing Page (Mapped)" : "Existing Page";
@@ -445,36 +610,25 @@ export default async function handler(req, res) {
       const raw = await callOpenAIJson({ prompt });
       const parsed = safeJsonParse(raw);
 
-      const title = safeStr(parsed?.title);
-      const metaDescription = safeStr(parsed?.metaDescription);
-      const h1 = safeStr(parsed?.h1);
-
-      const h2Structure = clampArrayStrings(parsed?.h2Structure, 12);
-      const contentBlocks = sanitizeContentBlocks(parsed?.contentBlocks, 8);
-      const schemaSuggestions = sanitizeSchemaSuggestions(parsed?.schemaSuggestions, 6);
-      const internalLinks = sanitizeInternalLinks(parsed?.internalLinks, 10);
-      const advisoryBlocks = sanitizeAdvisoryBlocks(parsed?.advisoryBlocks, 10);
-
-      pagesOut[pageId] = {
+      pagesOut[pageId2] = {
         url: nu,
         primaryKeyword,
         secondaryKeywords,
         pageType,
-        title,
-        metaDescription,
-        h1,
-        h2Structure,
-        contentBlocks,
-        schemaSuggestions,
-        internalLinks,
-        advisoryBlocks,
+        title: safeStr(parsed?.title),
+        metaDescription: safeStr(parsed?.metaDescription),
+        h1: safeStr(parsed?.h1),
+        h2Structure: clampArrayStrings(parsed?.h2Structure, 12),
+        contentBlocks: sanitizeContentBlocks(parsed?.contentBlocks, 8),
+        schemaSuggestions: sanitizeSchemaSuggestions(parsed?.schemaSuggestions, 6),
+        internalLinks: sanitizeInternalLinks(parsed?.internalLinks, 10),
+        advisoryBlocks: sanitizeAdvisoryBlocks(parsed?.advisoryBlocks, 10),
         approved: false,
         approvedAt: null,
         autoSavedAt: nowTs(),
       };
     }
 
-    // GAP PAGES (only if accepted !== false)
     for (const g of gapPages) {
       if (g?.accepted === false) continue;
 
@@ -485,7 +639,7 @@ export default async function handler(req, res) {
 
       if (!suggestedSlug && !primaryKeyword) continue;
 
-      const pageId = gapIdFromSlugAndKeyword(suggestedSlug, primaryKeyword);
+      const pageId2 = gapIdFromSlugAndKeyword(suggestedSlug, primaryKeyword);
 
       const label = suggestedSlug ? `(new) ${suggestedSlug}` : "(new page)";
 
@@ -505,29 +659,19 @@ export default async function handler(req, res) {
       const raw = await callOpenAIJson({ prompt });
       const parsed = safeJsonParse(raw);
 
-      const title = safeStr(parsed?.title);
-      const metaDescription = safeStr(parsed?.metaDescription);
-      const h1 = safeStr(parsed?.h1);
-
-      const h2Structure = clampArrayStrings(parsed?.h2Structure, 12);
-      const contentBlocks = sanitizeContentBlocks(parsed?.contentBlocks, 8);
-      const schemaSuggestions = sanitizeSchemaSuggestions(parsed?.schemaSuggestions, 6);
-      const internalLinks = sanitizeInternalLinks(parsed?.internalLinks, 10);
-      const advisoryBlocks = sanitizeAdvisoryBlocks(parsed?.advisoryBlocks, 10);
-
-      pagesOut[pageId] = {
-        url: suggestedSlug ? suggestedSlug : "", // gap pages store slug here (until real URL exists)
+      pagesOut[pageId2] = {
+        url: suggestedSlug ? suggestedSlug : "",
         primaryKeyword,
         secondaryKeywords,
         pageType,
-        title,
-        metaDescription,
-        h1,
-        h2Structure,
-        contentBlocks,
-        schemaSuggestions,
-        internalLinks,
-        advisoryBlocks,
+        title: safeStr(parsed?.title),
+        metaDescription: safeStr(parsed?.metaDescription),
+        h1: safeStr(parsed?.h1),
+        h2Structure: clampArrayStrings(parsed?.h2Structure, 12),
+        contentBlocks: sanitizeContentBlocks(parsed?.contentBlocks, 8),
+        schemaSuggestions: sanitizeSchemaSuggestions(parsed?.schemaSuggestions, 6),
+        internalLinks: sanitizeInternalLinks(parsed?.internalLinks, 10),
+        advisoryBlocks: sanitizeAdvisoryBlocks(parsed?.advisoryBlocks, 10),
         approved: false,
         approvedAt: null,
         autoSavedAt: nowTs(),
@@ -538,7 +682,13 @@ export default async function handler(req, res) {
       pages: pagesOut,
       allPagesApproved: false,
       generatedAt: nowTs(),
+      updatedAt: nowTs(),
       locked: false,
+      generation: {
+        totalPages: Object.keys(pagesOut).length,
+        donePages: Object.keys(pagesOut).length,
+        status: "done",
+      },
     };
 
     await pageOptimizationRef.set(payload, { merge: false });
