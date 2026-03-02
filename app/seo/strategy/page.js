@@ -1601,9 +1601,10 @@ async function generatePageOptimization() {
     setPageOptimizationState("ready");
   } catch (e) {
     console.error("generatePageOptimization error:", e);
-    setPageOptimizationState("error");
+   setPageOptimizationState("ready");
     setPageOptimizationError(e?.message || "Failed to generate Step 7 blueprint.");
     setPoGenLastMessage("Stopped. You can resume generation.");
+	  await loadExistingPageOptimization();
   }
 }
 
