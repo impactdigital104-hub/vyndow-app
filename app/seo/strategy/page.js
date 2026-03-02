@@ -446,6 +446,9 @@ const [poAllPagesApproved, setPoAllPagesApproved] = useState(false);
 
 const [poPages, setPoPages] = useState({}); // { [pageId]: pageData }
 const [poActivePageId, setPoActivePageId] = useState("");
+	const [poGenTotal, setPoGenTotal] = useState(0);
+const [poGenDone, setPoGenDone] = useState(0);
+const [poGenLastMessage, setPoGenLastMessage] = useState("");
 
 const [poSaveState, setPoSaveState] = useState("idle"); // idle | saving | saved | error
 const [poSaveError, setPoSaveError] = useState("");
@@ -1480,10 +1483,43 @@ async function loadExistingPageOptimization() {
     setPageOptimizationError(e?.message || "Failed to load Step 7 pageOptimization.");
   }
 }
+async function sha256Hex(str) {
+  const enc = new TextEncoder();
+  const buf = await crypto.subtle.digest("SHA-256", enc.encode(String(str || "")));
+  const arr = Array.from(new Uint8Array(buf));
+  return arr.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
+function normalizeUrlForId(u) {
+  try {
+    const url = new URL(String(u));
+    if (!(url.protocol === "http:" || url.protocol === "https:")) return null;
+    url.hash = "";
+    url.search = "";
+    if (url.pathname !== "/" && url.pathname.endsWith("/")) {
+      url.pathname = url.pathname.slice(0, -1);
+    }
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+async function pageIdFromExistingUrl(u) {
+  const nu = normalizeUrlForId(u);
+  if (!nu) return null;
+  const hex = await sha256Hex(nu);
+  return hex.slice(0, 24);
+}
+
+async function pageIdFromGap(slug, primaryKeyword) {
+  const basis = `gap|${String(slug || "")}|${String(primaryKeyword || "")}`;
+  const hex = await sha256Hex(basis);
+  return `gap_${hex.slice(0, 24)}`;
+}
+	
 async function generatePageOptimization() {
   try {
-    // Hard gate: Step 7 only after Step 6 approved (repo truth)
     if (keywordMappingApproved !== true) {
       setPageOptimizationState("error");
       setPageOptimizationError("Step 7 is locked. Please approve Step 6 (Keyword Mapping) first.");
@@ -1492,31 +1528,82 @@ async function generatePageOptimization() {
 
     setPageOptimizationState("generating");
     setPageOptimizationError("");
+    setPoGenLastMessage("");
 
     const idToken = await auth.currentUser?.getIdToken();
     if (!idToken) throw new Error("Missing login token.");
 
-    const res = await fetch("/api/seo/strategy/generatePageOptimization", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify({ websiteId: selectedWebsiteId }),
-    });
+    // Build a full list of pageIds to generate (existing + accepted gap)
+    const all = [];
 
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data?.error || "Failed to generate page optimization.");
+    for (const p of kmExistingPages || []) {
+      const id = await pageIdFromExistingUrl(p?.url);
+      if (!id) continue;
+      all.push({ pageId: id, pageSource: "existing" });
     }
 
-    // Always load from Firestore after generation
-    await loadExistingPageOptimization();
+    for (const g of kmGapPages || []) {
+      if (g?.accepted === false) continue;
+      const id = await pageIdFromGap(g?.suggestedSlug, g?.primaryKeyword);
+      if (!id) continue;
+      all.push({ pageId: id, pageSource: "gap" });
+    }
+
+    const total = all.length;
+    setPoGenTotal(total);
+
+    // Skip already-generated pages (resume-safe)
+    const already = new Set(Object.keys(poPages || {}));
+    const remaining = all.filter((x) => !already.has(x.pageId));
+
+    const doneStart = total - remaining.length;
+    setPoGenDone(doneStart);
+
+    if (remaining.length === 0) {
+      setPoGenLastMessage("All pages are already generated.");
+      await loadExistingPageOptimization();
+      setPageOptimizationState("ready");
+      return;
+    }
+
+    // Generate sequentially, one page at a time
+    let done = doneStart;
+
+    for (const item of remaining) {
+      setPoGenLastMessage(`Generating ${done + 1} / ${total}…`);
+
+      const res = await fetch("/api/seo/strategy/generatePageOptimization", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          websiteId: selectedWebsiteId,
+          pageId: item.pageId,
+          pageSource: item.pageSource,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to generate page optimization (single-page).");
+      }
+
+      done += 1;
+      setPoGenDone(done);
+
+      // Load after each page so Firestore progress is visible and refresh-safe
+      await loadExistingPageOptimization();
+    }
+
+    setPoGenLastMessage(`Done: ${total} / ${total}`);
     setPageOptimizationState("ready");
   } catch (e) {
     console.error("generatePageOptimization error:", e);
     setPageOptimizationState("error");
     setPageOptimizationError(e?.message || "Failed to generate Step 7 blueprint.");
+    setPoGenLastMessage("Stopped. You can resume generation.");
   }
 }
 
@@ -6264,11 +6351,11 @@ style={{
 
             <button
               onClick={generatePageOptimization}
-              disabled={
-                pageOptimizationState === "generating" ||
-                pageOptimizationState === "loading" ||
-                pageOptimizationExists === true
-              }
+            disabled={
+  pageOptimizationState === "generating" ||
+  pageOptimizationState === "loading" ||
+  poLocked === true
+}
               style={{
                 padding: "10px 14px",
                 borderRadius: 12,
@@ -6286,7 +6373,11 @@ style={{
               }}
               title={pageOptimizationExists ? "Blueprint already exists. Delete Firestore doc to regenerate." : ""}
             >
-              {pageOptimizationState === "generating" ? "Generating…" : "Generate Blueprint"}
+            {pageOptimizationState === "generating"
+  ? `Generating ${poGenDone} / ${poGenTotal}…`
+  : pageOptimizationExists === true
+  ? "Resume Generation"
+  : "Generate Blueprint"}
             </button>
 <button
   onClick={exportOnPageBlueprint}
@@ -6328,7 +6419,11 @@ style={{
             ) : null}
           </div>
         </div>
-
+{pageOptimizationState === "generating" && poGenTotal > 0 ? (
+  <div style={{ marginTop: 10, color: "#6b7280", fontWeight: 800 }}>
+    {poGenLastMessage}
+  </div>
+) : null}
         {/* Error */}
         {pageOptimizationState === "error" && pageOptimizationError ? (
           <div style={{ marginTop: 12, color: "#b91c1c", fontWeight: 800 }}>
