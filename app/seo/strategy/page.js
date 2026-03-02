@@ -1599,13 +1599,13 @@ async function generatePageOptimization() {
 
     setPoGenLastMessage(`Done: ${total} / ${total}`);
     setPageOptimizationState("ready");
-  } catch (e) {
-    console.error("generatePageOptimization error:", e);
-   setPageOptimizationState("ready");
-    setPageOptimizationError(e?.message || "Failed to generate Step 7 blueprint.");
-    setPoGenLastMessage("Stopped. You can resume generation.");
-	  await loadExistingPageOptimization();
-  }
+} catch (e) {
+  console.error("generatePageOptimization error:", e);
+  setPageOptimizationState("ready");
+  setPageOptimizationError(e?.message || "Failed to generate Step 7 blueprint.");
+  setPoGenLastMessage("Stopped. You can resume generation.");
+  await loadExistingPageOptimization();
+}
 }
 
 function computePageStatus(p) {
@@ -6337,7 +6337,7 @@ style={{
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <button
-              onClick={loadExistingPageOptimization}
+             onClick={loadExistingPageOptimization}
               style={{
                 padding: "10px 12px",
                 borderRadius: 12,
