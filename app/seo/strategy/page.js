@@ -1573,6 +1573,9 @@ async function generatePageOptimization() {
     // Generate sequentially, one page at a time
     let done = doneStart;
 
+    // Track locally during loop — DO NOT reload Firestore mid-loop
+    let localPages = { ...(poPages || {}) };
+
     for (const item of remaining) {
       setPoGenLastMessage(`Generating ${done + 1} / ${total}…`);
 
@@ -1597,9 +1600,13 @@ async function generatePageOptimization() {
       done += 1;
       setPoGenDone(done);
 
-      // Load after each page so Firestore progress is visible and refresh-safe
-      await loadExistingPageOptimization();
+      // Mark this pageId as completed locally
+      localPages = { ...localPages, [item.pageId]: true };
+      setPoPages(localPages);
     }
+
+    // Single Firestore refresh AFTER loop completes
+    await loadExistingPageOptimization();
 
     setPoGenLastMessage(`Done: ${total} / ${total}`);
     setPageOptimizationState("ready");
