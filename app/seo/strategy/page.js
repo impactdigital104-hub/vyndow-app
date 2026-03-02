@@ -1450,13 +1450,17 @@ function hydratePageOptimizationFromDoc(d) {
     setPoActivePageId("");
   }
 
+  if (pageOptimizationState !== "generating") {
   setPageOptimizationState("ready");
+}
   setPageOptimizationError("");
 }
 
 async function loadExistingPageOptimization() {
   try {
-    setPageOptimizationState("loading");
+    if (pageOptimizationState !== "generating") {
+  setPageOptimizationState("loading");
+}
     setPageOptimizationError("");
 
     const ref = pageOptimizationDocRef();
