@@ -570,21 +570,26 @@ export default async function handler(req, res) {
       }
 
       // Progress fields (source of truth): compute + persist inside ONE transaction
+      // IMPORTANT: write the page into a REAL "pages" map (NOT a dotted field like "pages.<id>")
+      // Also: count legacy dotted fields ("pages.<id>") so counters don't get stuck for old data.
       await db.runTransaction(async (tx) => {
         const snap = await tx.get(pageOptimizationRef);
         const data = snap.exists ? (snap.data() || {}) : {};
 
-        const pages = isPlainObject(data?.pages) ? data.pages : {};
-        const alreadyHad = !!pages?.[pageId];
+        const pagesMap = isPlainObject(data?.pages) ? data.pages : {};
 
-        const currentCount = Object.keys(pages).length;
-        const nextDone = currentCount + (alreadyHad ? 0 : 1);
+        // Legacy support: if old runs wrote literal fields named "pages.<id>", count them too
+        const legacyIds = Object.keys(data || {})
+          .filter((k) => typeof k === "string" && k.startsWith("pages.") && k.length > "pages.".length)
+          .map((k) => k.slice("pages.".length))
+          .filter(Boolean);
 
-        const stableGeneratedAt =
-          data?.generatedAt ||
-          existingPOData?.generatedAt ||
-          nowTs();
+        const allIds = new Set([...Object.keys(pagesMap || {}), ...legacyIds]);
 
+        const alreadyHad = allIds.has(pageId);
+        const nextDone = allIds.size + (alreadyHad ? 0 : 1);
+
+        const stableGeneratedAt = data?.generatedAt || existingPOData?.generatedAt || nowTs();
         const nextStatus = nextDone >= totalPages ? "done" : "running";
 
         tx.set(
@@ -594,7 +599,12 @@ export default async function handler(req, res) {
             generatedAt: stableGeneratedAt,
             locked: data?.locked === true ? true : false,
             allPagesApproved: false,
-            [`pages.${pageId}`]: pageOut,
+
+            // ✅ Correct nested-map write (no dotted field keys)
+            pages: {
+              [pageId]: pageOut,
+            },
+
             generation: {
               totalPages,
               donePages: nextDone,
