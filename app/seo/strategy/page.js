@@ -5567,7 +5567,7 @@ style={{
           keywordMappingExists !== true ||
           keywordMappingApproved === true
             ? "#f3f4f6"
-         ? "white",
+         : "white",
         color:
           keywordClusteringApproved !== true ||
           keywordMappingExists !== true ||
