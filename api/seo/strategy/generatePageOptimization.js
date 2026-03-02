@@ -569,28 +569,39 @@ export default async function handler(req, res) {
         };
       }
 
-      // Progress fields (reliable): write page + update counters in ONE transaction
-      await db.runTransaction(async (tx) => {
-        const snap = await tx.get(pageOptimizationRef);
-        const data = snap.exists ? snap.data() || {} : {};
-        const pages = isPlainObject(data?.pages) ? data.pages : {};
-
-        const alreadyHadThisPage = Boolean(pages && pages[pageId]);
-        const donePagesNow = Math.min(totalPages, Object.keys(pages).length + (alreadyHadThisPage ? 0 : 1));
-        const nextStatus = donePagesNow >= totalPages ? "done" : "running";
-
-        const update = {
+      // Progress fields (source of truth): recount pages map after write
+      // 1) Write the page
+      await pageOptimizationRef.set(
+        {
           updatedAt: nowTs(),
-          generatedAt: data?.generatedAt || nowTs(),
-          locked: data?.locked === true ? true : false,
+          generatedAt: existingPOData?.generatedAt || nowTs(),
+          locked: existingPOData?.locked === true ? true : false,
           allPagesApproved: false,
-          generation: { totalPages, donePages: donePagesNow, status: nextStatus },
-        };
+          [`pages.${pageId}`]: pageOut,
+        },
+        { merge: true }
+      );
 
-        update[`pages.${pageId}`] = pageOut;
+      // 2) Read back and recount how many pages exist
+      const afterSnap = await pageOptimizationRef.get();
+      const afterData = afterSnap.exists ? (afterSnap.data() || {}) : {};
+      const afterPages = isPlainObject(afterData?.pages) ? afterData.pages : {};
+      const donePagesNow = Object.keys(afterPages).length;
 
-        tx.set(pageOptimizationRef, update, { merge: true });
-      });
+      const nextStatus = donePagesNow >= totalPages ? "done" : "running";
+
+      // 3) Persist generation counters
+      await pageOptimizationRef.set(
+        {
+          generation: {
+            totalPages,
+            donePages: donePagesNow,
+            status: nextStatus,
+          },
+          updatedAt: nowTs(),
+        },
+        { merge: true }
+      );
 
       return res.status(200).json({ ok: true, pageId, wrote: true });
     }
