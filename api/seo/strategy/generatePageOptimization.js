@@ -118,12 +118,27 @@ function secondaryKeywordStrings(list) {
 
 function safeJsonParse(str) {
   const raw = String(str || "").trim();
+
+  // Remove markdown fences if present
   const stripped = raw
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/```\s*$/i, "")
     .trim();
-  return JSON.parse(stripped);
+
+  // 1) Try direct JSON parse
+  try {
+    return JSON.parse(stripped);
+  } catch (e) {
+    // 2) Try to extract the first JSON object from the text
+    const firstBrace = stripped.indexOf("{");
+    const lastBrace = stripped.lastIndexOf("}");
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      const candidate = stripped.slice(firstBrace, lastBrace + 1);
+      return JSON.parse(candidate);
+    }
+    throw e;
+  }
 }
 
 function isPlainObject(x) {
