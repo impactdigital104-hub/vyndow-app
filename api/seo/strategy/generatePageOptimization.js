@@ -569,43 +569,28 @@ export default async function handler(req, res) {
         };
       }
 
-      // Progress fields
-      const alreadyDone = Object.keys(existingPOPages || {}).length;
-      const alreadyHadThisPage = Boolean(existingPOPages && existingPOPages[pageId]);
-      const donePages = Math.min(totalPages, alreadyDone + (alreadyHadThisPage ? 0 : 1));
-      const status = donePages >= totalPages ? "done" : "running";
+      // Progress fields (reliable): write page + update counters in ONE transaction
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(pageOptimizationRef);
+        const data = snap.exists ? snap.data() || {} : {};
+        const pages = isPlainObject(data?.pages) ? data.pages : {};
 
-      const update = {
-        updatedAt: nowTs(),
-        generatedAt: existingPOData?.generatedAt || nowTs(),
-        locked: existingPOData?.locked === true ? true : false,
-        allPagesApproved: false,
-        generation: { totalPages, donePages, status },
-      };
+        const alreadyHadThisPage = Boolean(pages && pages[pageId]);
+        const donePagesNow = Math.min(totalPages, Object.keys(pages).length + (alreadyHadThisPage ? 0 : 1));
+        const nextStatus = donePagesNow >= totalPages ? "done" : "running";
 
-      update[`pages.${pageId}`] = pageOut;
+        const update = {
+          updatedAt: nowTs(),
+          generatedAt: data?.generatedAt || nowTs(),
+          locked: data?.locked === true ? true : false,
+          allPagesApproved: false,
+          generation: { totalPages, donePages: donePagesNow, status: nextStatus },
+        };
 
-          await pageOptimizationRef.set(update, { merge: true });
+        update[`pages.${pageId}`] = pageOut;
 
-    // Recount pages after write (prevents donePages getting stuck)
-    const afterSnap = await pageOptimizationRef.get();
-    const afterData = afterSnap.exists ? (afterSnap.data() || {}) : {};
-    const afterPages = isPlainObject(afterData?.pages) ? afterData.pages : {};
-    const donePagesNow = Object.keys(afterPages).length;
-
-    const nextStatus = donePagesNow >= totalPages ? "done" : "running";
-
-    await pageOptimizationRef.set(
-      {
-        generation: {
-          totalPages,
-          donePages: donePagesNow,
-          status: nextStatus,
-        },
-        updatedAt: nowTs(),
-      },
-      { merge: true }
-    );
+        tx.set(pageOptimizationRef, update, { merge: true });
+      });
 
       return res.status(200).json({ ok: true, pageId, wrote: true });
     }
