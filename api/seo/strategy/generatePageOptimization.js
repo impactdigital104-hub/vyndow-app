@@ -569,39 +569,41 @@ export default async function handler(req, res) {
         };
       }
 
-      // Progress fields (source of truth): recount pages map after write
-      // 1) Write the page
-      await pageOptimizationRef.set(
-        {
-          updatedAt: nowTs(),
-          generatedAt: existingPOData?.generatedAt || nowTs(),
-          locked: existingPOData?.locked === true ? true : false,
-          allPagesApproved: false,
-          [`pages.${pageId}`]: pageOut,
-        },
-        { merge: true }
-      );
+      // Progress fields (source of truth): compute + persist inside ONE transaction
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(pageOptimizationRef);
+        const data = snap.exists ? (snap.data() || {}) : {};
 
-      // 2) Read back and recount how many pages exist
-      const afterSnap = await pageOptimizationRef.get();
-      const afterData = afterSnap.exists ? (afterSnap.data() || {}) : {};
-      const afterPages = isPlainObject(afterData?.pages) ? afterData.pages : {};
-      const donePagesNow = Object.keys(afterPages).length;
+        const pages = isPlainObject(data?.pages) ? data.pages : {};
+        const alreadyHad = !!pages?.[pageId];
 
-      const nextStatus = donePagesNow >= totalPages ? "done" : "running";
+        const currentCount = Object.keys(pages).length;
+        const nextDone = currentCount + (alreadyHad ? 0 : 1);
 
-      // 3) Persist generation counters
-      await pageOptimizationRef.set(
-        {
-          generation: {
-            totalPages,
-            donePages: donePagesNow,
-            status: nextStatus,
+        const stableGeneratedAt =
+          data?.generatedAt ||
+          existingPOData?.generatedAt ||
+          nowTs();
+
+        const nextStatus = nextDone >= totalPages ? "done" : "running";
+
+        tx.set(
+          pageOptimizationRef,
+          {
+            updatedAt: nowTs(),
+            generatedAt: stableGeneratedAt,
+            locked: data?.locked === true ? true : false,
+            allPagesApproved: false,
+            [`pages.${pageId}`]: pageOut,
+            generation: {
+              totalPages,
+              donePages: nextDone,
+              status: nextStatus,
+            },
           },
-          updatedAt: nowTs(),
-        },
-        { merge: true }
-      );
+          { merge: true }
+        );
+      });
 
       return res.status(200).json({ ok: true, pageId, wrote: true });
     }
