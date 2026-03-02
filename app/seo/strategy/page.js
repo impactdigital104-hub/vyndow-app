@@ -238,7 +238,15 @@ function AddKeywordInline({ onAdd }) {
         value={val}
         onChange={(e) => setVal(e.target.value)}
         placeholder="Add a keyword (example: rehab center in pune)"
-     style={{ ...inputStyle, maxWidth: 420, padding: "8px 10px" }}
+        style={{
+          ...inputStyle,
+          maxWidth: 440,
+          padding: "9px 10px",
+          border: `1px solid rgba(30,102,255,0.28)`,
+          background: "rgba(30,102,255,0.04)",
+          boxShadow: "0 0 0 3px rgba(30,102,255,0.06)",
+        }}
+        title="Add a relevant keyword to this cluster."
       />
       <button
         type="button"
@@ -251,16 +259,18 @@ function AddKeywordInline({ onAdd }) {
         style={{
           padding: "8px 10px",
           borderRadius: 10,
-          border: "1px solid #ddd",
+          border: `1px solid ${HOUSE.primaryBlue}`,
           background: "white",
+          color: HOUSE.primaryBlue,
           cursor: "pointer",
           fontWeight: 900,
         }}
+        title="Add keyword"
       >
         Add
       </button>
-      <div style={{ fontSize: 12, color: "#6b7280" }}>
-        Note: Metrics may be unavailable in v1 (we never fake numbers).
+      <div style={{ fontSize: 12, color: HOUSE.subtext }}>
+        Metrics may be unavailable in some cases. We always report only the facts, never made up numbers.
       </div>
     </div>
   );
@@ -383,6 +393,7 @@ const [kcShortlist, setKcShortlist] = useState([]); // editable shortlist (userV
 
 const [kcExpandedPillarId, setKcExpandedPillarId] = useState(null);
 const [kcExcludedOpen, setKcExcludedOpen] = useState(false);
+	const [kcExplainOpen, setKcExplainOpen] = useState(false);
 
 const [kcDraftState, setKcDraftState] = useState("idle"); // idle | saving | saved | error
 const [kcDraftError, setKcDraftError] = useState("");
@@ -4822,9 +4833,8 @@ color: "white",
 {/* STEP 5 */}
 <StepCard
   id="step5"
-  step="Step 5"
-  title="Pillars & Clusters (Keyword Architecture)"
-  subtitle="Vyndow will filter keywords semantically, shortlist ~100, then create up to 6 pillars with clusters. You can rename pillar labels, remove keywords, or add keywords."
+  step="Step 7"
+  title="SEO Pillars and Content Cluster Architecture"
   statusTone={keywordClusteringApproved ? "success" : "warning"}
   statusText={keywordClusteringApproved ? "Locked" : "Unlocked"}
   openStep={openStep}
@@ -4832,12 +4842,90 @@ color: "white",
 >
 
 
-  <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13, lineHeight: 1.5 }}>
-    Vyndow will filter keywords semantically, shortlist ~100, then create up to 6 pillars with clusters.
-    You can rename pillar labels (label-only), remove keywords, or add keywords (metrics may show as unavailable).
+  {/* Collapsible explanation (single place) */}
+  <div
+    style={{
+      marginTop: 6,
+      padding: 12,
+      borderRadius: 12,
+      border: `1px solid rgba(30,102,255,0.18)`,
+      background: "rgba(30,102,255,0.04)",
+      color: HOUSE.subtext,
+      fontSize: 13,
+      lineHeight: 1.55,
+    }}
+  >
+    {!kcExplainOpen ? (
+      <div>
+        <div style={{ fontWeight: 800, color: HOUSE.text }}>
+          Pillars and clusters help you build authority and structure across your site.
+        </div>
+        <div style={{ marginTop: 4 }}>
+          Vyndow semantically filters keywords, shortlists ~100, then creates up to 6 pillars with clusters.
+          <button
+            type="button"
+            onClick={() => setKcExplainOpen(true)}
+            style={{
+              marginLeft: 8,
+              border: "none",
+              background: "transparent",
+              color: HOUSE.primaryBlue,
+              fontWeight: 900,
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            Read more
+          </button>
+        </div>
+      </div>
+    ) : (
+      <div>
+        <div style={{ fontWeight: 900, color: HOUSE.primaryPurple, fontSize: 14 }}>
+          Why pillars and clusters matter
+        </div>
+        <div style={{ marginTop: 6 }}>
+          Pillars create clear themes, and clusters deepen coverage within each theme. This structure helps search engines understand your authority and makes your content plan easier to execute.
+        </div>
+
+        <div style={{ marginTop: 10, fontWeight: 900, color: HOUSE.primaryPurple, fontSize: 14 }}>
+          What Vyndow does
+        </div>
+        <div style={{ marginTop: 6 }}>
+          Vyndow semantically filters your keyword pool, builds a shortlist (~100), and generates up to 6 pillars with clusters to form your SEO architecture.
+        </div>
+
+        <div style={{ marginTop: 10, fontWeight: 900, color: HOUSE.primaryPurple, fontSize: 14 }}>
+          What you can do
+        </div>
+        <div style={{ marginTop: 6 }}>
+          You can rename pillar labels (label only), remove keywords, and add new keywords under the most relevant pillar theme.
+        </div>
+
+        <div style={{ marginTop: 10, fontSize: 12, color: HOUSE.subtext, fontWeight: 800 }}>
+          Metrics may be unavailable in some cases. We always report only the facts, never made up numbers.
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setKcExplainOpen(false)}
+          style={{
+            marginTop: 10,
+            border: "none",
+            background: "transparent",
+            color: HOUSE.primaryBlue,
+            fontWeight: 900,
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          Show less
+        </button>
+      </div>
+    )}
   </div>
 
-  {/* Actions */}
+{/* Actions */}
   <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
     <button
       type="button"
@@ -4846,27 +4934,35 @@ color: "white",
       style={{
         padding: "10px 14px",
         borderRadius: 10,
-        border: "1px solid #111827",
+        border: `1px solid ${keywordClusteringExists ? "rgba(30,102,255,0.20)" : HOUSE.primaryBlue}`,
         cursor: (!businessContextApproved || keywordClusteringApproved) ? "not-allowed" : "pointer",
-        background: (!businessContextApproved || keywordClusteringApproved) ? "#f3f4f6" : "#111827",
-        color: (!businessContextApproved || keywordClusteringApproved) ? "#6b7280" : "white",
-        opacity: keywordClusteringState === "generating" ? 0.7 : 1,
+        background: (!businessContextApproved || keywordClusteringApproved)
+          ? "#f3f4f6"
+          : keywordClusteringExists
+          ? "white"
+          : HOUSE.primaryBlue,
+        color: (!businessContextApproved || keywordClusteringApproved)
+          ? "#6b7280"
+          : keywordClusteringExists
+          ? HOUSE.primaryBlue
+          : "white",
+        opacity: keywordClusteringState === "generating" ? 0.75 : 1,
         fontWeight: 900,
       }}
       title={
         !businessContextApproved
-          ? "Approve Step 4.5 to unlock Step 5"
+          ? "Approve Business Profiling to unlock this step."
           : keywordClusteringApproved
-          ? "Step 5 is approved and locked. Delete Firestore doc manually to regenerate."
+          ? "This step is approved and locked. To regenerate, delete the architecture document from Firestore."
           : ""
       }
     >
-      {keywordClusteringState === "generating" ? "Generating…" : "Generate Step 5 Architecture"}
+      {keywordClusteringState === "generating" ? "Generating…" : "Generate SEO Architecture"}
     </button>
 
 {selectedWebsiteId && businessContextApproved !== true ? (
-  <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", fontWeight: 400 }}>
-    Approve Business Context to continue.
+  <div style={{ marginTop: 6, fontSize: 12, color: HOUSE.subtext, fontWeight: 700 }}>
+    Approve Business Profiling to continue.
   </div>
 ) : null}
 
@@ -4877,9 +4973,10 @@ color: "white",
       style={{
         padding: "10px 14px",
         borderRadius: 10,
-        border: "1px solid #ddd",
+        border: `1px solid ${HOUSE.primaryBlue}`,
         cursor: (!keywordClusteringExists || keywordClusteringApproved) ? "not-allowed" : "pointer",
         background: "white",
+        color: HOUSE.primaryBlue,
         opacity: (!keywordClusteringExists || keywordClusteringApproved) ? 0.6 : 1,
         fontWeight: 900,
       }}
@@ -4895,21 +4992,21 @@ color: "white",
       style={{
         padding: "10px 14px",
         borderRadius: 10,
-        border: "1px solid #16a34a",
+        border: `1px solid ${HOUSE.primaryBlue}`,
         cursor: (!keywordClusteringExists || keywordClusteringApproved) ? "not-allowed" : "pointer",
-        background: "#16a34a",
+        background: HOUSE.primaryBlue,
         color: "white",
         opacity: (!keywordClusteringExists || keywordClusteringApproved) ? 0.6 : 1,
         fontWeight: 900,
       }}
       title={keywordClusteringApproved ? "Already approved" : ""}
     >
-      {keywordClusteringApproved ? "Approved ✓" : kcApproveState === "approving" ? "Approving…" : "Approve & Lock Step 5"}
+      {keywordClusteringApproved ? "Approved ✓" : kcApproveState === "approving" ? "Approving…" : "Approve and Lock"}
     </button>
 
-    <div style={{ marginLeft: "auto", color: "#6b7280", fontSize: 13 }}>
+    <div style={{ marginLeft: "auto", color: HOUSE.subtext, fontSize: 13 }}>
       Status:{" "}
-      <b style={{ color: keywordClusteringApproved ? "#065f46" : "#111827" }}>
+      <b style={{ color: keywordClusteringApproved ? "#065f46" : HOUSE.text }}>
         {keywordClusteringApproved
           ? "Locked"
           : keywordClusteringExists
@@ -4965,9 +5062,9 @@ color: "white",
   {/* Pillars */}
   {keywordClusteringExists ? (
     <div style={{ marginTop: 14 }}>
-      <div style={{ fontSize: 13, fontWeight: 900, color: "#111827" }}>
-        Pillars (max 6)
-      </div>
+<div style={{ fontSize: 14, fontWeight: 900, color: HOUSE.primaryPurple }}>
+  Pillar Labels (Max 6) — rename allowed (label only)
+</div>
 
      <div
   style={{
@@ -4986,28 +5083,30 @@ color: "white",
             <div
               key={p.pillarId}
 style={{
-  border: "1px solid #e5e7eb",
+  border: `1px solid rgba(30,102,255,0.22)`,
   borderRadius: 12,
   padding: 12,
   background: "#fff",
+  boxShadow: "0 8px 22px rgba(15,23,42,0.05)",
   gridColumn: expanded ? "1 / -1" : "auto",   // expanded pillar becomes full-width
 }}
             >
               <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 900 }}>
-                    Pillar label (rename allowed — label-only)
-                  </div>
+
                   <input
                     value={p.name || ""}
                     onChange={(e) => handleRenamePillarLabel(p.pillarId, e.target.value)}
                     disabled={keywordClusteringApproved}
                     style={{
-                      ...inputStyle,
-                      marginTop: 6,
-                      padding: "8px 10px",
-                      fontWeight: 900,
-                    }}
+  ...inputStyle,
+  marginTop: 6,
+  padding: "8px 10px",
+  fontWeight: 900,
+  color: HOUSE.primaryPurple,
+  border: `1px solid rgba(30,102,255,0.24)`,
+  background: "rgba(30,102,255,0.03)",
+}}
                     title="Renaming is label-only; structure remains."
                   />
                 </div>
@@ -5015,15 +5114,16 @@ style={{
                 <button
                   type="button"
                   onClick={() => setKcExpandedPillarId(expanded ? null : p.pillarId)}
-                  style={{
-                    padding: "8px 10px",
-                    borderRadius: 10,
-                    border: "1px solid #ddd",
-                    background: "white",
-                    cursor: "pointer",
-                    fontWeight: 900,
-                    height: 40,
-                  }}
+style={{
+  padding: "8px 10px",
+  borderRadius: 10,
+  border: `1px solid ${HOUSE.primaryBlue}`,
+  background: "white",
+  color: HOUSE.primaryBlue,
+  cursor: "pointer",
+  fontWeight: 900,
+  height: 40,
+}}
                 >
                   {expanded ? "Hide" : "View"}
                 </button>
@@ -5061,27 +5161,30 @@ style={{
                           <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
                               <tr>
-                             {["Keyword", "Intent", "Vol", "Score", "Action"].map((h) => (
-<th
-  key={h}
-  style={{
-    textAlign: h === "Action" ? "right" : "left",
-    width: h === "Action" ? 110 : "auto",
-    padding: "8px 10px",
-    fontSize: 12,
-    color: "#374151",
-    fontWeight: 900,
-    borderBottom: "1px solid #e5e7eb",
-    background: "#fafafa",
-    position: "sticky",
-    top: 0,
-    zIndex: 1,
-  }}
->
-  {h}
-</th>
-
-                                ))}
+                          {["Keyword", "Intent", "Vol", "Score", "Action"].map((h) => (
+  <th
+    key={h}
+    title={
+      h === "Intent"
+        ? "Search intent type (informational / commercial / navigational)."
+        : h === "Vol"
+        ? "Estimated monthly searches (where available)."
+        : h === "Score"
+        ? "Vyndow’s priority score based on relevance + opportunity."
+        : ""
+    }
+    style={{
+      textAlign: "left",
+      fontSize: 12,
+      color: "#6b7280",
+      padding: "8px 6px",
+      borderBottom: "1px solid #eee",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {h}
+  </th>
+))}
                               </tr>
                             </thead>
                             <tbody>
@@ -5091,7 +5194,7 @@ style={{
                                     {kw.keyword}
                                     {kw.metricsStatus === "unavailable" ? (
                                       <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
-                                        Metrics unavailable (not faked)
+                                        Metrics may be unavailable in some cases. We always report only the facts, never made up numbers.
                                       </div>
                                     ) : null}
                                   </td>
@@ -5150,25 +5253,34 @@ style={{
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["Keyword", "Pillar", "Cluster", "Volume", "Intent", "StrategyScore"].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        textAlign: "left",
-                        padding: "10px 10px",
-                        fontSize: 12,
-                        color: "#374151",
-                        fontWeight: 900,
-                        borderBottom: "1px solid #e5e7eb",
-                        background: "#fafafa",
-                        position: "sticky",
-                        top: 0,
-                        zIndex: 1,
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  {["Keyword", "Pillar", "Cluster", "Volume", "Intent", "Strategy Score"].map((h) => (
+  <th
+    key={h}
+    title={
+      h === "Pillar"
+        ? "Primary theme to build authority around."
+        : h === "Cluster"
+        ? "Supporting keywords that deepen coverage within the pillar."
+        : h === "Volume"
+        ? "Estimated monthly searches (where available)."
+        : h === "Intent"
+        ? "Search intent type (informational / commercial / navigational)."
+        : h === "Strategy Score"
+        ? "Vyndow’s priority score based on relevance + opportunity."
+        : ""
+    }
+    style={{
+      textAlign: "left",
+      fontSize: 12,
+      color: "#6b7280",
+      padding: "8px 6px",
+      borderBottom: "1px solid #eee",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {h}
+  </th>
+))}
                 </tr>
               </thead>
               <tbody>
@@ -5201,21 +5313,29 @@ style={{
       </div>
 
       {/* Excluded keywords (collapsed) */}
-      <div style={{ marginTop: 16 }}>
-        <button
-          type="button"
-          onClick={() => setKcExcludedOpen(!kcExcludedOpen)}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 10,
-            border: "1px solid #ddd",
-            background: "white",
-            cursor: "pointer",
-            fontWeight: 900,
-          }}
-        >
-          {kcExcludedOpen ? "Hide" : "Show"} Excluded Keywords (read-only)
-        </button>
+  <div style={{ marginTop: 16 }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+    <button
+      type="button"
+      onClick={() => setKcExcludedOpen(!kcExcludedOpen)}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: `1px solid ${HOUSE.primaryBlue}`,
+        background: "white",
+        color: HOUSE.primaryBlue,
+        cursor: "pointer",
+        fontWeight: 900,
+      }}
+      title="Read-only list of excluded keywords."
+    >
+      {kcExcludedOpen ? "Hide" : "Show"} Excluded Keywords (read-only)
+    </button>
+
+    <div style={{ fontSize: 12, color: HOUSE.subtext, fontWeight: 700 }}>
+      Tip: If you find any keyword useful here, copy it and add it under the relevant Pillar theme.
+    </div>
+  </div>
 
         {kcExcludedOpen ? (
           <div style={{ marginTop: 10, border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
@@ -5268,7 +5388,7 @@ style={{
   ) : (
     <div style={{ marginTop: 12, color: "#6b7280", fontSize: 13 }}>
       {businessContextApproved
-        ? "No Step 5 architecture generated yet for this website."
+        ? "No architecture generated yet for this website."
         : "Approve Step 4.5 to unlock Step 5."}
     </div>
   )}
