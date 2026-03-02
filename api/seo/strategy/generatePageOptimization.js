@@ -585,7 +585,27 @@ export default async function handler(req, res) {
 
       update[`pages.${pageId}`] = pageOut;
 
-      await pageOptimizationRef.set(update, { merge: true });
+          await pageOptimizationRef.set(update, { merge: true });
+
+    // Recount pages after write (prevents donePages getting stuck)
+    const afterSnap = await pageOptimizationRef.get();
+    const afterData = afterSnap.exists ? (afterSnap.data() || {}) : {};
+    const afterPages = isPlainObject(afterData?.pages) ? afterData.pages : {};
+    const donePagesNow = Object.keys(afterPages).length;
+
+    const nextStatus = donePagesNow >= totalPages ? "done" : "running";
+
+    await pageOptimizationRef.set(
+      {
+        generation: {
+          totalPages,
+          donePages: donePagesNow,
+          status: nextStatus,
+        },
+        updatedAt: nowTs(),
+      },
+      { merge: true }
+    );
 
       return res.status(200).json({ ok: true, pageId, wrote: true });
     }
