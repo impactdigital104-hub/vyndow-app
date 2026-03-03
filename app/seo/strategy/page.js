@@ -7609,8 +7609,7 @@ style={{
           </div>
         </div>
       );
-    })()
-  : null}
+    })() : null}
 
       </div>
     );
