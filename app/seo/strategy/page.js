@@ -7197,27 +7197,32 @@ style={{
             </div>
 
             {/* Slider (enabled only after plan exists) */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <input
-<div style={{ fontWeight: 600, color: HOUSE.text, marginBottom: 6 }}>Blog Volume Adjustment</div>
-                type="range"
-                min={authoritySliderMin || 0}
-                max={authoritySliderMax || 0}
-                value={authorityAdjustedTotal || 0}
-                disabled={!authorityPlanExists || authorityPlanLocked === true}
-                onChange={(e) => setAuthorityAdjustedTotal(Number(e.target.value || 0))}
-                style={{ width: 280 }}
-              />
-				                <div style={{ fontSize: 12, color: HOUSE.subtext, fontWeight: 400, marginTop: 6 }}>
-                Adjust total recommended blogs within the suggested strategic range.
-              </div>
+<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+  <div style={{ fontWeight: 600, color: HOUSE.text, marginBottom: 2 }}>
+    Blog Volume Adjustment
+  </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                {geoModeChip ? <StatusPill tone="neutral">{String(geoModeChip)}</StatusPill> : null}
-                {locationChip ? <StatusPill tone="neutral">{String(locationChip)}</StatusPill> : null}
-              </div>
-            </div>
-          </div>
+  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+    <input
+      type="range"
+      min={authoritySliderMin || 0}
+      max={authoritySliderMax || 0}
+      value={authorityAdjustedTotal || 0}
+      disabled={!authorityPlanExists || authorityPlanLocked === true}
+      onChange={(e) => setAuthorityAdjustedTotal(Number(e.target.value || 0))}
+      style={{ width: 280 }}
+    />
+
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      {geoModeChip ? <StatusPill tone="neutral">{String(geoModeChip)}</StatusPill> : null}
+      {locationChip ? <StatusPill tone="neutral">{String(locationChip)}</StatusPill> : null}
+    </div>
+  </div>
+
+  <div style={{ fontSize: 12, color: HOUSE.subtext, fontWeight: 400, marginTop: 2 }}>
+    Adjust total recommended blogs within the suggested strategic range.
+  </div>
+</div>
 
           {/* Buttons */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -7231,7 +7236,7 @@ style={{
                   border: `1px solid ${HOUSE.cardBorder}`,
                   background: !gateOk ? "#f3f4f6" : HOUSE.primaryPurple,
                   color: !gateOk ? "#6b7280" : "white",
-                  fontWeight: 900,
+                  fontWeight: 700,
                   cursor: !gateOk ? "not-allowed" : "pointer",
                 }}
               >
@@ -7251,12 +7256,10 @@ style={{
                 style={{
                   padding: "10px 12px",
                   borderRadius: 12,
-                  border: `1px solid ${HOUSE.cardBorder}`,
-                  background:
-                    !gateOk || authorityPlanLocked === true ? "#f3f4f6" : HOUSE.primaryBlue,
-                  color:
-                    !gateOk || authorityPlanLocked === true ? "#6b7280" : "white",
-                  fontWeight: 900,
+                 border: `1px solid ${HOUSE.primaryBlue}`,
+                 background: !gateOk || authorityPlanLocked === true ? "#f3f4f6" : "white",
+                 color: !gateOk || authorityPlanLocked === true ? "#6b7280" : HOUSE.primaryBlue,
+                  fontWeight: 700,
                   cursor:
                     !gateOk || authorityPlanLocked === true ? "not-allowed" : "pointer",
                 }}
@@ -7554,13 +7557,13 @@ style={{
 
             <thead>
               <tr style={{ textAlign: "left", borderBottom: `1px solid ${HOUSE.cardBorder}` }}>
-<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 190 }}>Pillar</th>
-<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 460 }}>Title</th>
-<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 180 }}>Primary KW</th>
-<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 130 }}>Intent</th>
-<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 220 }}>Audience</th>
-<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 170 }}>Impact</th>
-<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext, width: 160 }}>Action</th>
+<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 190 }}>Pillar</th>
+<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 460 }}>Title</th>
+<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 180 }}>Primary KW</th>
+<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 130 }}>Intent</th>
+<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 220 }}>Audience</th>
+<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 170 }}>Impact</th>
+<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 160 }}>Action</th>
 
               </tr>
             </thead>
