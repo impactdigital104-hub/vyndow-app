@@ -7324,7 +7324,7 @@ style={{
         ) : null}
 
         {/* Minimal “plan exists” placeholder (tables come next step) */}
-{gateOk && authorityPlanExists ? ((() => {
+{gateOk && authorityPlanExists ? (() => {
   const monthKey = authorityActiveMonth === 1 ? "month1" : authorityActiveMonth === 2 ? "month2" : "month3";
   const activeRows = (authorityMonths && authorityMonths[monthKey]) ? authorityMonths[monthKey] : [];
 
@@ -7794,7 +7794,7 @@ style={{
       </div>
     </div>
   );
-})()) : null}
+})() : null}
 
       </div>
     );
