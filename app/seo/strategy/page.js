@@ -449,6 +449,7 @@ const [poActivePageId, setPoActivePageId] = useState("");
 	const [poGenTotal, setPoGenTotal] = useState(0);
 const [poGenDone, setPoGenDone] = useState(0);
 const [poGenLastMessage, setPoGenLastMessage] = useState("");
+	const [poGenStatus, setPoGenStatus] = useState("");
 
 const [poSaveState, setPoSaveState] = useState("idle"); // idle | saving | saved | error
 const [poSaveError, setPoSaveError] = useState("");
@@ -1441,6 +1442,25 @@ function hydratePageOptimizationFromDoc(d) {
   setPoAllPagesApproved(data.allPagesApproved === true);
 
   setPoPages(pages);
+	  // Hydrate generation counters/status so UI can correctly show "done" without refresh
+  const gen = data.generation && typeof data.generation === "object" ? data.generation : {};
+  const pagesCount = Object.keys(pages || {}).length;
+
+  const total =
+    typeof gen.totalPages === "number" && Number.isFinite(gen.totalPages)
+      ? gen.totalPages
+      : pagesCount;
+
+  const done =
+    typeof gen.donePages === "number" && Number.isFinite(gen.donePages)
+      ? gen.donePages
+      : pagesCount;
+
+  const status = typeof gen.status === "string" ? gen.status : "";
+
+  setPoGenTotal(total);
+  setPoGenDone(done);
+  setPoGenStatus(status);
 
   // pick a stable active page
   const keys = Object.keys(pages);
@@ -6425,8 +6445,24 @@ style={{
   step="Step 7"
   title="On-Page Optimization Blueprint"
   subtitle="Generate a page-by-page SEO blueprint (editable, auto-saved, approval-based). Not content writing."
-  statusTone={poLocked ? "success" : poAllPagesApproved ? "neutral" : "warning"}
-  statusText={poLocked ? "Locked" : poAllPagesApproved ? "All pages approved" : "In progress"}
+  statusTone={
+  poLocked
+    ? "success"
+    : pageOptimizationExists === true && poGenTotal > 0 && poGenDone >= poGenTotal
+    ? "neutral"
+    : poAllPagesApproved
+    ? "neutral"
+    : "warning"
+}
+ statusText={
+  poLocked
+    ? "Locked"
+    : pageOptimizationExists === true && poGenTotal > 0 && poGenDone >= poGenTotal
+    ? "Generated"
+    : poAllPagesApproved
+    ? "All pages approved"
+    : "In progress"
+}
   openStep={openStep}
   setOpenStep={setOpenStep}
 >
@@ -6480,7 +6516,8 @@ style={{
             disabled={
   pageOptimizationState === "generating" ||
   pageOptimizationState === "loading" ||
-  poLocked === true
+  poLocked === true ||
+  (pageOptimizationExists === true && poGenTotal > 0 && poGenDone >= poGenTotal)
 }
               style={{
                 padding: "10px 14px",
@@ -6501,6 +6538,8 @@ style={{
             >
             {pageOptimizationState === "generating"
   ? `Generating ${poGenDone} / ${poGenTotal}…`
+  : pageOptimizationExists === true && poGenTotal > 0 && poGenDone >= poGenTotal
+  ? "Blueprint Ready"
   : pageOptimizationExists === true
   ? "Resume Generation"
   : "Generate Blueprint"}
