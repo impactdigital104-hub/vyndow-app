@@ -6442,9 +6442,9 @@ style={{
 	{/* >>> STEP 7 UI SHELL (START) */}
 <StepCard
   id="step7"
-  step="Step 7"
+  step="Step 9"
   title="On-Page Optimization Blueprint"
-  subtitle="Generate a page-by-page SEO blueprint (editable, auto-saved, approval-based). Not content writing."
+  subtitle="Generate a page-by-page On-Page SEO blueprint for publishing (Title, Meta, H1/H2, structure, internal links, and on-page improvements). Review every page and approve it — approvals are required to unlock the next step."
   statusTone={
   poLocked
     ? "success"
@@ -6546,47 +6546,62 @@ style={{
             </button>
 <button
   onClick={exportOnPageBlueprint}
-  disabled={poLocked !== true || poExportState === "exporting"}
+  disabled={poAllPagesApproved !== true || poExportState === "exporting"}
   style={{
-    padding: "10px 14px",
+    padding: "9px 12px",
     borderRadius: 12,
     border: `1px solid ${HOUSE.cardBorder}`,
-    background: poLocked === true ? "white" : "rgba(229,231,235,0.8)",
-    fontWeight: 900,
-    cursor: poLocked === true ? "pointer" : "not-allowed",
+    background: poAllPagesApproved === true ? "white" : "rgba(229,231,235,0.8)",
+    fontWeight: 700,
+    cursor: poAllPagesApproved === true ? "pointer" : "not-allowed",
   }}
   title={
-    poLocked === true
-      ? "Download Excel blueprint (final locked version)."
-      : "Lock Step 7 to enable export."
+    poAllPagesApproved === true
+      ? "Download Excel blueprint (approved pages)."
+      : "Approve all pages to enable export."
   }
 >
-  {poExportState === "exporting"
-    ? "Exporting…"
-    : "Export On-Page Blueprint"}
+  {poExportState === "exporting" ? "Exporting…" : "Export On-Page Blueprint"}
 </button>
-
-            {poAllPagesApproved === true && poLocked !== true ? (
-              <button
-                onClick={lockStep7}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 12,
-                  border: "0",
-                  background: HOUSE.primaryPurple,
-                  color: "white",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                }}
-              >
-                Approve &amp; Lock Step 7
-              </button>
-            ) : null}
+{poLocked !== true ? (
+  <button
+    onClick={lockStep7}
+    disabled={poAllPagesApproved !== true}
+    style={{
+      padding: "10px 14px",
+      borderRadius: 12,
+      border: "0",
+      background: poAllPagesApproved === true ? HOUSE.primaryPurple : "rgba(109,40,217,0.25)",
+      color: "white",
+      fontWeight: 900,
+      cursor: poAllPagesApproved === true ? "pointer" : "not-allowed",
+    }}
+    title={poAllPagesApproved === true ? "" : "Approve all pages to enable locking."}
+  >
+    Approve &amp; Lock Step 9
+  </button>
+) : null}
           </div>
         </div>
 {(pageOptimizationState === "generating" || pageOptimizationState === "error") && poGenTotal > 0 ? (
   <div style={{ marginTop: 10, color: "#6b7280", fontWeight: 800 }}>
     {poGenLastMessage}
+  </div>
+) : null}
+{pageOptimizationState === "generating" ? (
+  <div style={{ marginTop: 8, color: "#6b7280", fontWeight: 700, fontSize: 13 }}>
+    Please be patient — our AI will populate all pages with details once the generation is complete.
+  </div>
+) : null}
+
+{pageOptimizationExists === true && poGenTotal > 0 && poGenDone >= poGenTotal ? (
+  <div style={{ marginTop: 10, padding: 12, borderRadius: 12, border: "1px solid #dcfce7", background: "#f0fdf4", color: "#065f46" }}>
+    <div style={{ fontWeight: 900 }}>
+      The On-Page Optimization Blueprint is complete.
+    </div>
+    <div style={{ marginTop: 6, fontSize: 13 }}>
+      Please review each page carefully and approve it. This is required for the next step.
+    </div>
   </div>
 ) : null}
         {/* Error */}
