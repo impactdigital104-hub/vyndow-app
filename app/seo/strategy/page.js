@@ -7794,14 +7794,12 @@ style={{
       </div>
     </div>
   );
-
 })() : null}
-</StepCard>
 
-      </div>
       </div>
     );
   })()}
+</StepCard>
 
       </div>
     </VyndowShell>
