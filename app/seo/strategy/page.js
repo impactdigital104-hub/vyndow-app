@@ -7223,6 +7223,7 @@ style={{
     Adjust total recommended blogs within the suggested strategic range.
   </div>
 </div>
+	   </div>
 
           {/* Buttons */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
