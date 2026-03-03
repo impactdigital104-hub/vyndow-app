@@ -7611,9 +7611,6 @@ style={{
       );
     })() : null}
 
-      </div>
-    );
-  })()}
 </StepCard>
 
       </div>
