@@ -7115,9 +7115,9 @@ style={{
 {/* >>> STEP 8A UI SHELL (START) */}
 <StepCard
   id="step8a"
-  step="Step 8A"
+  step="Step 10"
   title="Authority Growth Plan (90-Day Blueprint)"
-  subtitle="Create a 90-day blog plan distributed across pillars using an authority demand score model. (Step 8B drafting comes later.)"
+  subtitle="Create a 90-day blog plan distributed across pillars using an authority demand score model."
   statusTone={
     businessContextApproved === true &&
     keywordClusteringApproved === true &&
@@ -7199,6 +7199,7 @@ style={{
             {/* Slider (enabled only after plan exists) */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <input
+<div style={{ fontWeight: 600, color: HOUSE.text, marginBottom: 6 }}>Blog Volume Adjustment</div>
                 type="range"
                 min={authoritySliderMin || 0}
                 max={authoritySliderMax || 0}
@@ -7207,6 +7208,9 @@ style={{
                 onChange={(e) => setAuthorityAdjustedTotal(Number(e.target.value || 0))}
                 style={{ width: 280 }}
               />
+				                <div style={{ fontSize: 12, color: HOUSE.subtext, fontWeight: 400, marginTop: 6 }}>
+                Adjust total recommended blogs within the suggested strategic range.
+              </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 {geoModeChip ? <StatusPill tone="neutral">{String(geoModeChip)}</StatusPill> : null}
@@ -7268,11 +7272,25 @@ style={{
           </div>
         </div>
 
+<div style={{ marginTop: 12, padding: 12, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "white" }}>
+  <div style={{ color: HOUSE.text, fontWeight: 400, lineHeight: 1.6 }}>
+    This 90-Day Authority Plan converts your approved keyword architecture into a structured publishing roadmap.
+  </div>
+  <div style={{ marginTop: 8, color: HOUSE.text, fontWeight: 400, lineHeight: 1.6 }}>
+    Each row represents a recommended blog topic aligned to a Pillar and supporting cluster keywords.
+  </div>
+  <div style={{ marginTop: 8, color: HOUSE.text, fontWeight: 400, lineHeight: 1.6 }}>
+    Use the Blog Volume Adjustment slider to increase or decrease the total number of recommended blogs within the allowed range.
+  </div>
+  <div style={{ marginTop: 8, color: HOUSE.text, fontWeight: 400, lineHeight: 1.6 }}>
+    After adjusting, click "Update Plan" to apply the changes.
+  </div>
+</div>
         {/* Gate message */}
         {!gateOk ? (
           <div style={{ marginTop: 12, padding: 12, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "rgba(245,158,11,0.07)" }}>
             <div style={{ fontWeight: 900, color: HOUSE.warning, marginBottom: 8 }}>
-              Step 8A is locked. Complete these first:
+             Step 10 is locked. Complete these first:
             </div>
             <ul style={{ margin: 0, paddingLeft: 18, color: HOUSE.text, fontWeight: 800, lineHeight: 1.5 }}>
               {missing.map((m, idx) => (
@@ -7293,13 +7311,12 @@ style={{
         {/* Empty state (when gate ok but no plan yet) */}
         {gateOk && !authorityPlanExists ? (
           <div style={{ marginTop: 12, padding: 14, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "white" }}>
-            <div style={{ fontWeight: 900, color: HOUSE.text }}>No plan generated yet.</div>
-            <div style={{ marginTop: 6, color: HOUSE.subtext, fontWeight: 800, lineHeight: 1.5 }}>
-              Click <b>Generate 90-Day Plan</b> to create a blueprint. After generation, you can use the slider and click <b>Update Plan</b>.
-            </div>
-            <div style={{ marginTop: 10, color: HOUSE.subtext, fontWeight: 800 }}>
-              Action column will be enabled in Step 8B. For now it will stay disabled.
-            </div>
+ <div style={{ fontWeight: 600, color: HOUSE.text }}>
+  No authority plan has been generated yet.
+</div>
+<div style={{ marginTop: 6, color: HOUSE.subtext, fontWeight: 400, lineHeight: 1.5 }}>
+  Click "Generate 90-Day Plan" to create your structured content blueprint.
+</div>
           </div>
         ) : null}
 
