@@ -7324,7 +7324,7 @@ style={{
         ) : null}
 
         {/* Minimal “plan exists” placeholder (tables come next step) */}
-{gateOk && authorityPlanExists ? (() => {
+{gateOk && authorityPlanExists ? (
   const monthKey = authorityActiveMonth === 1 ? "month1" : authorityActiveMonth === 2 ? "month2" : "month3";
   const activeRows = (authorityMonths && authorityMonths[monthKey]) ? authorityMonths[monthKey] : [];
 
@@ -7345,7 +7345,7 @@ style={{
     return t.includes(searchText) || pk.includes(searchText);
   });
 
-  return (
+
     <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Section 2 — Reasoning Summary (collapsible) */}
       <div style={{ padding: 14, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "white" }}>
@@ -7793,8 +7793,7 @@ style={{
         </div>
       </div>
     </div>
-  );
-})() : null}
+) : null}
 
       </div>
     );
