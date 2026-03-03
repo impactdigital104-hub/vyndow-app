@@ -6546,23 +6546,38 @@ style={{
             </button>
 <button
   onClick={exportOnPageBlueprint}
-  disabled={poAllPagesApproved !== true || poExportState === "exporting"}
+  disabled={poLocked !== true || poExportState === "exporting"}
   style={{
     padding: "9px 12px",
     borderRadius: 12,
     border: `1px solid ${HOUSE.cardBorder}`,
-    background: poAllPagesApproved === true ? "white" : "rgba(229,231,235,0.8)",
+    background: poLocked === true ? "white" : "rgba(229,231,235,0.8)",
     fontWeight: 700,
-    cursor: poAllPagesApproved === true ? "pointer" : "not-allowed",
+    cursor: poLocked === true ? "pointer" : "not-allowed",
   }}
   title={
-    poAllPagesApproved === true
-      ? "Download Excel blueprint (approved pages)."
-      : "Approve all pages to enable export."
+    poLocked === true
+      ? "Download Excel blueprint (final locked version)."
+      : "Lock this step to enable export."
   }
 >
   {poExportState === "exporting" ? "Exporting…" : "Export On-Page Blueprint"}
 </button>
+{poExportError && (
+  <div style={{
+    marginTop: 12,
+    padding: "10px 12px",
+    background: "#fee2e2",
+    border: "1px solid #fecaca",
+    color: "#991b1b",
+        borderRadius: 8,
+    fontSize: 14,
+    width: "100%",
+    flexBasis: "100%",
+  }}>
+    {poExportError}
+  </div>
+)}
 {poLocked !== true ? (
   <button
     onClick={lockStep7}
