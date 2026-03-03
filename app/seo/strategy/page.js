@@ -7324,476 +7324,293 @@ style={{
         ) : null}
 
         {/* Minimal “plan exists” placeholder (tables come next step) */}
-{gateOk && authorityPlanExists ? (
-  const monthKey = authorityActiveMonth === 1 ? "month1" : authorityActiveMonth === 2 ? "month2" : "month3";
-  const activeRows = (authorityMonths && authorityMonths[monthKey]) ? authorityMonths[monthKey] : [];
+{gateOk && authorityPlanExists
+  ? (() => {
+      const monthKey =
+        authorityActiveMonth === 1
+          ? "month1"
+          : authorityActiveMonth === 2
+          ? "month2"
+          : "month3";
 
-  const pillarOptions = Array.isArray(authorityPillarAllocations)
-    ? authorityPillarAllocations.map((p) => String(p.pillarName || "").trim()).filter(Boolean)
-    : [];
+      const activeRows =
+        authorityMonths && authorityMonths[monthKey] ? authorityMonths[monthKey] : [];
 
-  const searchText = String(authoritySearch || "").toLowerCase().trim();
+      const pillarOptions = Array.isArray(authorityPillarAllocations)
+        ? authorityPillarAllocations
+            .map((p) => String(p.pillarName || "").trim())
+            .filter(Boolean)
+        : [];
 
-  const filteredRows = activeRows.filter((r) => {
-    const pn = String(r?.pillarName || "").trim();
-    if (authorityFilterPillar !== "all" && pn !== authorityFilterPillar) return false;
+      const searchText = String(authoritySearch || "").toLowerCase().trim();
 
-    if (!searchText) return true;
+      const filteredRows = activeRows.filter((r) => {
+        const pn = String(r?.pillarName || "").trim();
+        if (authorityFilterPillar !== "all" && pn !== authorityFilterPillar) return false;
 
-    const t = String(r?.blogTitle || "").toLowerCase();
-    const pk = String(r?.primaryKeyword || "").toLowerCase();
-    return t.includes(searchText) || pk.includes(searchText);
-  });
+        if (!searchText) return true;
 
+        const t = String(r?.blogTitle || "").toLowerCase();
+        const pk = String(r?.primaryKeyword || "").toLowerCase();
+        return t.includes(searchText) || pk.includes(searchText);
+      });
 
-    <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-      {/* Section 2 — Reasoning Summary (collapsible) */}
-      <div style={{ padding: 14, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "white" }}>
-        <details>
-<summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 13, color: HOUSE.text, lineHeight: 1.4 }}>
-  Reasoning Summary (click to open)
-</summary>
-
-
-          <div style={{ marginTop: 10 }}>
-          <ul style={{ margin: 0, paddingLeft: 18, color: HOUSE.subtext, fontWeight: 600, fontSize: 13, lineHeight: 1.65 }}>
-              {(authorityReasoning?.bullets || []).map((b, idx) => (
-                <li key={idx}>{String(b || "")}</li>
-              ))}
-            </ul>
-
-            {authorityReasoning?.notes ? (
-             <div style={{ marginTop: 10, color: HOUSE.subtext, fontWeight: 600, fontSize: 13, lineHeight: 1.65 }}>
-                {String(authorityReasoning.notes)}
-              </div>
-            ) : null}
-          </div>
-        </details>
-      </div>
-
-      {/* Section 3 — Pillar Allocation Table (always visible) */}
-      <div style={{ padding: 14, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "white" }}>
-<div style={{ fontWeight: 900, color: HOUSE.primaryPurple, marginBottom: 10 }}>
-  Pillar Allocation
-</div>
-
-
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ textAlign: "left", borderBottom: `1px solid ${HOUSE.cardBorder}` }}>
-                <th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext }}>Pillar</th>
-<th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-    <span>Authority Score</span>
-
-    <details>
-      <summary
-      style={{
-  listStyle: "none",
-  cursor: "pointer",
-  display: "inline-block",
-  padding: "0px 5px",
-  borderRadius: 999,
-  border: `1px solid ${HOUSE.cardBorder}`,
-  background: "rgba(30,102,255,0.08)",
-  color: HOUSE.primaryBlue,
-  fontWeight: 600,
-  fontSize: 9,
-  lineHeight: "14px",
-}}
-
-      >
-        ?
-      </summary>
-
-      <div
-style={{
-  marginTop: 8,
-  padding: 8,
-  borderRadius: 10,
-  border: `1px solid ${HOUSE.cardBorder}`,
-  background: "white",
-  color: HOUSE.subtext,
-  fontWeight: 500,
-  fontSize: 11,
-  lineHeight: 1.45,
-  maxWidth: 320,
-}}
-
-      >
-       <div style={{ fontWeight: 600, fontSize: 11, color: HOUSE.text, marginBottom: 4 }}>
-          What is Authority Score?
-        </div>
-        <div>
-          A normalized score (0 to 1) based on:
-         <ul style={{ margin: "6px 0 0 16px", padding: 0, lineHeight: 1.45, fontSize: 11 }}>
-            <li>Volume (40%)</li>
-            <li>Intent diversity (25%)</li>
-            <li>Commercial density (15%)</li>
-            <li>Cluster depth (10%)</li>
-            <li>Opportunity (10%)</li>
-          </ul>
-          <div style={{ marginTop: 6, fontSize: 11, fontWeight: 500 }}>
-            Higher score = higher demand + stronger opportunity.
-          </div>
-        </div>
-      </div>
-    </details>
-  </div>
-</th>
-
-                <th style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.subtext }}>Allocated Blogs</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(authorityPillarAllocations || []).map((p, idx) => (
-                <tr key={idx} style={{ borderBottom: `1px solid ${HOUSE.cardBorder}` }}>
-                 <td style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: HOUSE.text }}>
-                    {String(p?.pillarName || "")}
-                  </td>
-                  <td style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.text }}>
-                    {typeof p?.authorityScore === "number" ? p.authorityScore.toFixed(2) : "—"}
-                  </td>
-                  <td style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.text }}>
-                    {Number(p?.allocatedBlogs || 0)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Section 4 — Month Tabs + Table */}
-      <div style={{ padding: 14, borderRadius: 14, border: `1px solid ${HOUSE.cardBorder}`, background: "white" }}>
-        {/* Month tabs */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-          <button
-            onClick={() => setAuthorityActiveMonth(1)}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 12,
-              border: `1px solid ${HOUSE.cardBorder}`,
-              background: authorityActiveMonth === 1 ? "rgba(30,102,255,0.10)" : "white",
-             fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            Month 1
-          </button>
-
-          <button
-            onClick={() => setAuthorityActiveMonth(2)}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 12,
-              border: `1px solid ${HOUSE.cardBorder}`,
-              background: authorityActiveMonth === 2 ? "rgba(30,102,255,0.10)" : "white",
-             fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            Month 2
-          </button>
-
-          <button
-            onClick={() => setAuthorityActiveMonth(3)}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 12,
-              border: `1px solid ${HOUSE.cardBorder}`,
-              background: authorityActiveMonth === 3 ? "rgba(30,102,255,0.10)" : "white",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            Month 3
-          </button>
-
-         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", maxWidth: 720 }}>
-
-            {/* Pillar filter */}
-            <select
-              value={authorityFilterPillar}
-              onChange={(e) => setAuthorityFilterPillar(e.target.value)}
-style={{
-  padding: "8px 10px",
-  borderRadius: 12,
-  border: `1px solid ${HOUSE.cardBorder}`,
-  fontWeight: 900,
-  background: "white",
-  minWidth: 220,
-}}
-
-            >
-              <option value="all">All pillars</option>
-              {pillarOptions.map((pn) => (
-                <option key={pn} value={pn}>
-                  {pn}
-                </option>
-              ))}
-            </select>
-
-            {/* Search */}
-            <input
-              value={authoritySearch}
-              onChange={(e) => setAuthoritySearch(e.target.value)}
-              placeholder="Search title or primary keyword…"
-              style={{
-                padding: "8px 10px",
-                borderRadius: 12,
-                border: `1px solid ${HOUSE.cardBorder}`,
-                fontWeight: 800,
-                minWidth: 320,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Month table */}
-        <div style={{ overflowX: "auto" }}>
-         <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
-
-            <thead>
-              <tr style={{ textAlign: "left", borderBottom: `1px solid ${HOUSE.cardBorder}` }}>
-<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 190 }}>Pillar</th>
-<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 460 }}>Title</th>
-<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 180 }}>Primary KW</th>
-<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 130 }}>Intent</th>
-<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 220 }}>Audience</th>
-<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 170 }}>Impact</th>
-<th style={{ padding: "10px 8px", fontWeight: 600, color: HOUSE.subtext, width: 160 }}>Action</th>
-
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((r, idx) => (
-                <tr
-  key={String(r?.id || idx)}
-  style={{
-    borderBottom: `1px solid ${HOUSE.cardBorder}`,
-    background: idx % 2 === 0 ? "white" : "rgba(30,102,255,0.02)",
-  }}
->
-
-<td
-  style={{
-    padding: "12px 8px",
-    fontWeight: 700,
-    fontSize: 13,
-    color: HOUSE.primaryPurple,
-  }}
->
-  {String(r?.pillarName || "")}
-</td>
-
-
-                 <td style={{ padding: "12px 8px", fontWeight: 600, fontSize: 13, color: HOUSE.text, maxWidth: 520 }}>
-
-<details>
-  <summary
-   style={{
-  cursor: "pointer",
-  fontWeight: 600,
-  fontSize: 13,
-  color: HOUSE.text,
-  lineHeight: 1.45,
-}}
-
-  >
-    {String(r?.blogTitle || "")}
-    <span style={{ marginLeft: 8, color: HOUSE.primaryBlue, fontWeight: 600, fontSize: 12 }}>
-      View details
-    </span>
-  </summary>
-
-  <div
-    style={{
-      marginTop: 10,
-      padding: 12,
-      borderRadius: 12,
-      border: `1px solid ${HOUSE.cardBorder}`,
-      background: "rgba(30,102,255,0.03)",
-      color: HOUSE.subtext,
-      fontWeight: 500,
-      lineHeight: 1.6,
-    }}
-  >
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "140px 1fr",
-        columnGap: 12,
-        rowGap: 10,
-        alignItems: "start",
-      }}
-    >
-      {r?.slug ? (
-        <>
-          <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>Slug</div>
-          <div style={{ color: HOUSE.primaryBlue, fontWeight: 700, wordBreak: "break-word" }}>
-            {String(r.slug)}
-          </div>
-        </>
-      ) : null}
-
-      {Array.isArray(r?.secondaryKeywords) && r.secondaryKeywords.length ? (
-        <>
-          <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>Secondary</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {r.secondaryKeywords.map((k, i) => (
-              <span key={i}>
-                <StatusPill tone="neutral">{String(k)}</StatusPill>
-              </span>
-            ))}
-          </div>
-        </>
-      ) : null}
-
-      {r?.synopsis ? (
-        <>
-         <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>Synopsis</div>
-          <div style={{ color: HOUSE.subtext, fontWeight: 500 }}>
-            {String(r.synopsis)}
-          </div>
-        </>
-      ) : null}
-
-      {Array.isArray(r?.internalLinkTargets) && r.internalLinkTargets.length ? (
-        <>
-         <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>Internal links</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {r.internalLinkTargets.map((x, i) => (
-              <div key={i} style={{ fontWeight: 700 }}>
-                <span style={{ fontWeight: 700, color: HOUSE.text }}>
-                  {String(x?.anchor || "")}
-                </span>{" "}
-                <span style={{ color: HOUSE.subtext }}>→</span>{" "}
-                <span style={{ color: HOUSE.primaryBlue, fontWeight: 800, wordBreak: "break-word" }}>
-                  {String(x?.url || "")}
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
-      ) : null}
-
-      {r?.ctaFocus ? (
-        <>
-          <div style={{ fontWeight: 700, fontSize: 12, color: HOUSE.subtext }}>CTA focus</div>
-          <div style={{ color: HOUSE.subtext, fontWeight: 500 }}>
-            {String(r.ctaFocus)}
-          </div>
-        </>
-      ) : null}
-    </div>
-
-  </div>
-</details>
-
-                  </td>
-
-<td style={{ padding: "12px 8px", fontWeight: 600, fontSize: 13, color: HOUSE.text }}>
-  {String(r?.primaryKeyword || "")}
-</td>
-
-
-<td style={{ padding: "12px 8px", fontWeight: 600, fontSize: 13, color: HOUSE.subtext }}>
-  {String(r?.intent || "")}
-</td>
-
-
-<td style={{ padding: "12px 8px", fontWeight: 600, fontSize: 13, color: HOUSE.text }}>
-  {String(r?.targetAudience || "")}
-</td>
-
-
-
-                  <td style={{ padding: "14px 8px" }}>
-                    <StatusPill tone="neutral">{String(r?.impactTag || "")}</StatusPill>
-                  </td>
-
-              <td style={{ padding: "14px 8px" }}>
-  {(() => {
-    const rowId = String(
-      r?.id ||
-        `${authorityActiveMonth}|${r?.pillarName || ""}|${r?.primaryKeyword || ""}|${r?.blogTitle || ""}`
-    );
-    const isCreating = blogDraftCreatingRowId === rowId;
-
-    // Hard gating:
-    // 1) website must be selected
-    // 2) Step 8A plan must exist
-    const canUse = Boolean(selectedWebsiteId) && authorityPlanExists === true;
-
-    const err = rowId ? String(blogDraftRowErrors?.[rowId] || "") : "";
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <button
-          disabled={!canUse || isCreating}
-          onClick={() => createBlogDraftAndOpenSeo(r)}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 12,
-            border: `1px solid ${HOUSE.cardBorder}`,
-            background: !canUse ? "#f3f4f6" : HOUSE.primaryBlue,
-            color: !canUse ? "#6b7280" : "white",
-            fontWeight: 900,
-            cursor: !canUse ? "not-allowed" : "pointer",
-          }}
-          title={
-            !selectedWebsiteId
-              ? "Select a website first"
-              : authorityPlanExists !== true
-              ? "Generate Step 8A plan first"
-              : ""
-          }
-        >
-          {isCreating ? "Creating…" : "Generate blog in Vyndow SEO"}
-        </button>
-
-{selectedWebsiteId && authorityPlanExists !== true ? (
-  <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 400, lineHeight: 1.35 }}>
-    Authority Plan must be generated before creating blog drafts.
-  </div>
-) : null}
-
-        {err ? (
+      return (
+        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Section 2 — Reasoning Summary (collapsible) */}
           <div
             style={{
-              fontSize: 12,
-              color: "#b91c1c",
-              fontWeight: 800,
-              lineHeight: 1.35,
+              padding: 14,
+              borderRadius: 14,
+              border: `1px solid ${HOUSE.cardBorder}`,
+              background: "white",
             }}
           >
-            {err}
+            <details>
+              <summary
+                style={{
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: HOUSE.text,
+                  lineHeight: 1.4,
+                }}
+              >
+                Reasoning Summary (click to open)
+              </summary>
+
+              <div style={{ marginTop: 10 }}>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: 18,
+                    color: HOUSE.subtext,
+                    fontWeight: 600,
+                    fontSize: 13,
+                    lineHeight: 1.65,
+                  }}
+                >
+                  {(authorityReasoning?.bullets || []).map((b, idx) => (
+                    <li key={idx}>{String(b || "")}</li>
+                  ))}
+                </ul>
+
+                {authorityReasoning?.notes ? (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      color: HOUSE.subtext,
+                      fontWeight: 600,
+                      fontSize: 13,
+                      lineHeight: 1.65,
+                    }}
+                  >
+                    {String(authorityReasoning.notes || "")}
+                  </div>
+                ) : null}
+              </div>
+            </details>
           </div>
-        ) : null}
-      </div>
-    );
-  })()}
-</td>
 
-                </tr>
-              ))}
+          {/* Section 3 — Pillar allocation */}
+          <div
+            style={{
+              padding: 14,
+              borderRadius: 14,
+              border: `1px solid ${HOUSE.cardBorder}`,
+              background: "white",
+            }}
+          >
+            <div style={{ fontWeight: 900, color: HOUSE.text, marginBottom: 8 }}>
+              Pillar Allocation
+            </div>
 
- {!filteredRows.length ? (
-  <tr>
-    <td colSpan={7} style={{ padding: "16px 10px", color: HOUSE.subtext, fontWeight: 700 }}>
-      No rows found for this filter.
-    </td>
-  </tr>
-) : null}
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
+                <thead>
+                  <tr style={{ background: "rgba(30,102,255,0.04)" }}>
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: 12, color: HOUSE.subtext }}>
+                      Pillar
+                    </th>
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: 12, color: HOUSE.subtext }}>
+                      Primary Keyword
+                    </th>
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: 12, color: HOUSE.subtext }}>
+                      Authority Score
+                    </th>
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: 12, color: HOUSE.subtext }}>
+                      Allocated Blogs
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(authorityPillarAllocations || []).map((p, idx) => (
+                    <tr key={idx} style={{ borderTop: `1px solid ${HOUSE.cardBorder}` }}>
+                      <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text }}>
+                        {String(p?.pillarName || "")}
+                      </td>
+                      <td style={{ padding: "10px 8px", fontWeight: 700, color: HOUSE.subtext }}>
+                        {String(p?.primaryKeyword || "")}
+                      </td>
+                      <td style={{ padding: "10px 8px", fontWeight: 700, color: HOUSE.subtext }}>
+                        {typeof p?.authorityScore === "number" ? p.authorityScore.toFixed(2) : "—"}
+                      </td>
+                      <td style={{ padding: "10px 8px", fontWeight: 700, color: HOUSE.text }}>
+                        {Number(p?.allocatedBlogs || 0)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-            </tbody>
-          </table>
+          {/* Section 4 — Month Tabs + Table */}
+          <div
+            style={{
+              padding: 14,
+              borderRadius: 14,
+              border: `1px solid ${HOUSE.cardBorder}`,
+              background: "white",
+            }}
+          >
+            {/* Month tabs */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                flexWrap: "wrap",
+                marginBottom: 12,
+              }}
+            >
+              <button
+                onClick={() => setAuthorityActiveMonth(1)}
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 12,
+                  border: `1px solid ${HOUSE.cardBorder}`,
+                  background: authorityActiveMonth === 1 ? "rgba(30,102,255,0.10)" : "white",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                Month 1
+              </button>
+
+              <button
+                onClick={() => setAuthorityActiveMonth(2)}
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 12,
+                  border: `1px solid ${HOUSE.cardBorder}`,
+                  background: authorityActiveMonth === 2 ? "rgba(30,102,255,0.10)" : "white",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                Month 2
+              </button>
+
+              <button
+                onClick={() => setAuthorityActiveMonth(3)}
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 12,
+                  border: `1px solid ${HOUSE.cardBorder}`,
+                  background: authorityActiveMonth === 3 ? "rgba(30,102,255,0.10)" : "white",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                Month 3
+              </button>
+
+              <div
+                style={{
+                  marginLeft: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  maxWidth: 720,
+                }}
+              >
+                {/* Pillar filter */}
+                <select
+                  value={authorityFilterPillar}
+                  onChange={(e) => setAuthorityFilterPillar(e.target.value)}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 12,
+                    border: `1px solid ${HOUSE.cardBorder}`,
+                    fontWeight: 900,
+                    background: "white",
+                    minWidth: 220,
+                  }}
+                >
+                  <option value="all">All pillars</option>
+                  {pillarOptions.map((pn) => (
+                    <option key={pn} value={pn}>
+                      {pn}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Search */}
+                <input
+                  value={authoritySearch}
+                  onChange={(e) => setAuthoritySearch(e.target.value)}
+                  placeholder="Search title or primary keyword…"
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 12,
+                    border: `1px solid ${HOUSE.cardBorder}`,
+                    fontWeight: 800,
+                    minWidth: 320,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Month table */}
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
+                <thead>
+                  <tr style={{ background: "rgba(30,102,255,0.04)" }}>
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: 12, color: HOUSE.subtext }}>
+                      Pillar
+                    </th>
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: 12, color: HOUSE.subtext }}>
+                      Blog Title
+                    </th>
+                    <th style={{ textAlign: "left", padding: "10px 8px", fontSize: 12, color: HOUSE.subtext }}>
+                      Primary Keyword
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.map((r, idx) => (
+                    <tr key={idx} style={{ borderTop: `1px solid ${HOUSE.cardBorder}` }}>
+                      <td style={{ padding: "10px 8px", fontWeight: 900, color: HOUSE.text }}>
+                        {String(r?.pillarName || "")}
+                      </td>
+                      <td style={{ padding: "10px 8px", fontWeight: 800, color: HOUSE.text }}>
+                        {String(r?.blogTitle || "")}
+                      </td>
+                      <td style={{ padding: "10px 8px", fontWeight: 700, color: HOUSE.subtext }}>
+                        {String(r?.primaryKeyword || "")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-) : null}
+      );
+    })()
+  : null}
 
       </div>
     );
