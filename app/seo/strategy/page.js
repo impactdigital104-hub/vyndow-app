@@ -7795,8 +7795,8 @@ style={{
     </div>
   );
 
-</StepCard>
 })() : null}
+</StepCard>
 
       </div>
       </div>
