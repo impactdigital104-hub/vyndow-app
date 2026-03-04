@@ -62,6 +62,20 @@ function LoginInner() {
     }
   }
 
+    async function ensureSuiteEntitlementsDoc(user) {
+    if (!user?.uid) return;
+
+    const suiteRef = doc(db, "users", user.uid, "entitlements", "suite");
+    const snap = await getDoc(suiteRef);
+
+    // If missing, create default plan=free. If exists, do NOT overwrite.
+    if (!snap.exists()) {
+      await setDoc(suiteRef, {
+        plan: "free",
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
   useEffect(() => {
     // If already logged in, go to nextUrl (or /seo)
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -78,6 +92,7 @@ function LoginInner() {
       const cred = await signInWithPopup(auth, provider);
       await ensureUserDoc(cred.user);
       await ensureSeoModuleDoc(cred.user);
+      await ensureSuiteEntitlementsDoc(cred.user);
       router.replace(nextUrl);
     } catch (e) {
       setMsg(e?.message || "Google sign-in failed.");
@@ -101,10 +116,12 @@ function LoginInner() {
         const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
         await ensureUserDoc(cred.user);
         await ensureSeoModuleDoc(cred.user);
+        await ensureSuiteEntitlementsDoc(cred.user);
       } else {
         const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
         await ensureUserDoc(cred.user);
         await ensureSeoModuleDoc(cred.user);
+        await ensureSuiteEntitlementsDoc(cred.user);
       }
       router.replace(nextUrl);
     } catch (e) {
