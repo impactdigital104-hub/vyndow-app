@@ -17,7 +17,7 @@ function AuthGateInner({ children }) {
     const next = qs ? `${pathname}?${qs}` : pathname;
     // allow only internal paths
     if (next.startsWith("/") && !next.startsWith("//")) return next;
-    return "/seo";
+   return "/growth";
   }, [pathname, searchParams]);
 
   useEffect(() => {
