@@ -1,6 +1,7 @@
 // app/VyndowShell.jsx
 "use client";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "./firebaseClient";
 
@@ -8,6 +9,18 @@ import { auth } from "./firebaseClient";
 export default function VyndowShell({ activeModule, children }) {
   const year = new Date().getFullYear();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const pathname = usePathname() || "";
+
+  const isSeoStrategyRoute = pathname.startsWith("/seo/strategy");
+  const isSeoRoute =
+    pathname === "/seo" || (pathname.startsWith("/seo/") && !isSeoStrategyRoute);
+
+  const isGeoRoute = pathname === "/geo" || pathname.startsWith("/geo/");
+
+  const isOrganicRoute = isSeoRoute || isSeoStrategyRoute || isGeoRoute;
+
+  const [organicOpen, setOrganicOpen] = useState(false);
+  const organicExpanded = organicOpen || isOrganicRoute;
 
   function closeMobileSidebar() {
     setIsMobileOpen(false);
@@ -92,35 +105,76 @@ export default function VyndowShell({ activeModule, children }) {
         <div className="sidebar-section">
           <div className="sidebar-section-label">Vyndow Suite</div>
 
-          {/* Vyndow SEO – Live */}
-          <a
-            href="/seo"
-            className={`sidebar-link${
-              activeModule === "seo" ? " is-active" : ""
-            }`}
-            onClick={closeMobileSidebar}
+          {/* Vyndow Organic (collapsible) */}
+          <button
+            type="button"
+            className={`sidebar-link${organicExpanded ? " is-active" : ""}`}
+            onClick={() => setOrganicOpen((v) => !v)}
+            style={{ cursor: "pointer", width: "100%", textAlign: "left" }}
           >
-            <span className="sidebar-link-main">Vyndow SEO</span>
-            <span className="sidebar-pill sidebar-pill-live">Live</span>
-            <span className="sidebar-info">i</span>
-            <span className="sidebar-tip">
-              Plan and generate publishing ready SEO-optimized blogs.
+            <span
+              aria-hidden="true"
+              style={{
+                width: 14,
+                display: "inline-flex",
+                justifyContent: "center",
+              }}
+            >
+              {organicExpanded ? "▾" : "▸"}
             </span>
-          </a>
+            <span className="sidebar-link-main">Vyndow Organic</span>
+          </button>
 
-          {/* Other modules – Coming Soon */}
-<a
-  href="/geo"
-  className={`sidebar-link${activeModule === "geo" ? " is-active" : ""}`}
-  onClick={closeMobileSidebar}
->
-  <span className="sidebar-link-main">Vyndow GEO</span>
-  <span className="sidebar-pill sidebar-pill-live">Live</span>
-  <span className="sidebar-info">i</span>
-  <span className="sidebar-tip">
-    Audit and get your website optimized for AI Search.
-  </span>
-</a>
+          {organicExpanded && (
+            <>
+              {/* Strategy – Live */}
+              <a
+                href="/seo/strategy"
+                className={`sidebar-link${
+                  isSeoStrategyRoute ? " is-active" : ""
+                }`}
+                onClick={closeMobileSidebar}
+                style={{ paddingLeft: 26 }}
+              >
+                <span className="sidebar-link-main">Strategy</span>
+                <span className="sidebar-pill sidebar-pill-live">Live</span>
+                <span className="sidebar-info">i</span>
+                <span className="sidebar-tip">
+                  Build your SEO strategy: pages, keywords, mapping, and on-page blueprint.
+                </span>
+              </a>
+
+              {/* SEO – Live */}
+              <a
+                href="/seo"
+                className={`sidebar-link${isSeoRoute ? " is-active" : ""}`}
+                onClick={closeMobileSidebar}
+                style={{ paddingLeft: 26 }}
+              >
+                <span className="sidebar-link-main">SEO</span>
+                <span className="sidebar-pill sidebar-pill-live">Live</span>
+                <span className="sidebar-info">i</span>
+                <span className="sidebar-tip">
+                  Plan and generate publishing ready SEO-optimized blogs.
+                </span>
+              </a>
+
+              {/* GEO – Live */}
+              <a
+                href="/geo"
+                className={`sidebar-link${isGeoRoute ? " is-active" : ""}`}
+                onClick={closeMobileSidebar}
+                style={{ paddingLeft: 26 }}
+              >
+                <span className="sidebar-link-main">GEO</span>
+                <span className="sidebar-pill sidebar-pill-live">Live</span>
+                <span className="sidebar-info">i</span>
+                <span className="sidebar-tip">
+                  Audit and get your website optimized for AI Search.
+                </span>
+              </a>
+            </>
+          )}
 
           <div className="sidebar-link is-soon">
             <span className="sidebar-link-main">Vyndow ABM</span>
