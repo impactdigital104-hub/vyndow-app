@@ -21,7 +21,7 @@ function LoginInner() {
     const n = searchParams?.get("next") || "";
     // allow only internal paths
     if (n.startsWith("/") && !n.startsWith("//")) return n;
-    return "/seo";
+    return "/growth";
   }, [searchParams]);
 
   const [mode, setMode] = useState("signin"); // "signin" | "signup"
