@@ -40,6 +40,12 @@ const HOUSE = {
   subtext: "#475569",
 };
 
+const PLAN_LIMITS = {
+  free: { step2UrlCap: 3, step9VisibleCap: 4 },
+  starter: { step2UrlCap: 10, step9VisibleCap: 15 },
+  growth: { step2UrlCap: 25, step9VisibleCap: 37 },
+  pro: { step2UrlCap: 50, step9VisibleCap: 75 },
+};
 const STEP_CARD_STYLE = {
   marginTop: 14,
   background: "white",
@@ -286,6 +292,10 @@ export default function SeoStrategyPage() {
   const [websitesLoading, setWebsitesLoading] = useState(true);
   const [websitesError, setWebsitesError] = useState("");
   const [selectedWebsiteId, setSelectedWebsiteId] = useState("");
+	  // Unified suite entitlement plan (Strategy caps source of truth)
+  const [suitePlan, setSuitePlan] = useState("free"); // "free" | "starter" | "growth" | "pro"
+  const [suitePlanLoading, setSuitePlanLoading] = useState(true);
+  const [suitePlanError, setSuitePlanError] = useState("");
   // SEO module plan — used only for Step 2 caps
 const [seoModule, setSeoModule] = useState(null);
 const [seoModuleLoading, setSeoModuleLoading] = useState(true);
@@ -2772,6 +2782,42 @@ function seoModuleDocRef() {
     "seo"
   );
 }
+	function suiteEntitlementsDocRef() {
+  if (!uid) return null;
+  return doc(db, "users", uid, "entitlements", "suite");
+}
+
+// Load Suite plan (unified entitlement) for Strategy caps
+useEffect(() => {
+  async function loadSuitePlan() {
+    const ref = suiteEntitlementsDocRef();
+    if (!ref) return;
+
+    try {
+      setSuitePlanLoading(true);
+      setSuitePlanError("");
+
+      const snap = await getDoc(ref);
+      const planRaw = snap.exists() ? snap.data()?.plan : "free";
+      const plan = String(planRaw || "free").toLowerCase();
+
+      if (plan === "starter" || plan === "growth" || plan === "pro" || plan === "free") {
+        setSuitePlan(plan);
+      } else {
+        setSuitePlan("free");
+      }
+    } catch (e) {
+      console.error("Failed to load suite plan:", e);
+      setSuitePlan("free");
+      setSuitePlanError(e?.message || "Unknown error while loading suite plan.");
+    } finally {
+      setSuitePlanLoading(false);
+    }
+  }
+
+  loadSuitePlan();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [uid]);
 
 // Load SEO module (plan) for caps (SB=10, Ent=25)
 useEffect(() => {
@@ -2800,16 +2846,9 @@ else setSeoModule(null);
 }, [uid, selectedWebsiteId, websites]);
 
 function getUrlCap() {
-  const planTypeRaw =
-    seoModule?.plan ||
-    seoModule?.planType ||
-    seoModule?.tier ||
-    seoModule?.pricingPlan ||
-    "";
-
-  const planType = String(planTypeRaw).toLowerCase();
-  if (planType.includes("enterprise")) return 25;
-  return 10; // small business OR unknown
+  const p = String(suitePlan || "free").toLowerCase();
+  const row = PLAN_LIMITS[p] || PLAN_LIMITS.free;
+  return Number(row.step2UrlCap) || 3;
 }
 
 
@@ -3010,6 +3049,12 @@ async function handleLockUrlsAndProceed() {
 
   setLockUrlsState("locking");
   setLockUrlsError("");
+	  // Hard stop: do NOT allow locking more than the plan cap
+  if (parsedUrls.valid.length > urlCap) {
+    setLockUrlsState("error");
+    setLockUrlsError(`You have ${parsedUrls.valid.length} valid URLs, but your plan allows only ${urlCap}. Please remove extra URLs, then try again.`);
+    return;
+  }
 
   try {
     // Lock MUST also persist the latest edited URL list (prevents stale audits)
