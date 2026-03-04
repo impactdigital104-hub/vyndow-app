@@ -108,7 +108,7 @@ export default function VyndowShell({ activeModule, children }) {
           {/* Vyndow Organic (collapsible) */}
           <button
             type="button"
-            className={`sidebar-link${organicExpanded ? " is-active" : ""}`}
+            className="sidebar-link is-active"
             onClick={() => setOrganicOpen((v) => !v)}
             style={{ cursor: "pointer", width: "100%", textAlign: "left" }}
           >
@@ -122,7 +122,7 @@ export default function VyndowShell({ activeModule, children }) {
             >
               {organicExpanded ? "▾" : "▸"}
             </span>
-            <span className="sidebar-link-main">Vyndow Organic</span>
+            <span className="sidebar-link-main">Vyndow Organic - Live</span>
           </button>
 
           {organicExpanded && (
