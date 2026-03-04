@@ -18,10 +18,26 @@ export default function GrowthWelcomePage() {
   return (
     <AuthGate>
       <VyndowShell activeModule="growth">
-        <div style={{ padding: 24 }}>
-          <div style={{ width: "100%", maxWidth: 980, margin: "0 auto" }}>
+       <div style={{
+  padding: 28,
+  background:
+    "linear-gradient(180deg, rgba(124,58,237,0.05) 0%, rgba(6,182,212,0.05) 100%)",
+  borderRadius: 18
+}}>
+         <div style={{ 
+  width: "100%", 
+  maxWidth: 980, 
+  margin: "0 auto",
+  paddingTop: 6
+}}>
             {/* Section 1 — Hero (Founder-led) */}
-            <h1 style={{ margin: 0, fontSize: 24, lineHeight: 1.25 }}>
+           <h1 style={{
+  margin: 0,
+  fontSize: 28,
+  lineHeight: 1.25,
+  fontWeight: 800,
+  color: "#1e66ff"
+}}>
               Hey {email || "there"} 👋
             </h1>
 
@@ -46,15 +62,16 @@ export default function GrowthWelcomePage() {
             {/* Section 2 — Start Here (Instructional) */}
             <div
               style={{
-                marginTop: 18,
-                padding: 18,
-                borderRadius: 16,
-                border: "1px solid rgba(30,102,255,0.28)",
-                background: "rgba(30,102,255,0.04)",
-                boxShadow: "0 0 0 3px rgba(30,102,255,0.06)",
-              }}
+  marginTop: 22,
+  padding: 22,
+  borderRadius: 18,
+  border: "1px solid rgba(124,58,237,0.35)",
+  background:
+    "linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(6,182,212,0.06) 100%)",
+  boxShadow: "0 8px 26px rgba(0,0,0,0.05)"
+}}
             >
-              <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
+              <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 10, color: "#111827" }}>
                 Start Here: Define Your Website
               </div>
 
@@ -77,7 +94,7 @@ export default function GrowthWelcomePage() {
 
             {/* Section 3 — Vyndow Organic (Live) */}
             <div style={{ marginTop: 22 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
+             <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 10, color: "#111827" }}>
                 Vyndow Organic (Live)
               </div>
 
@@ -94,21 +111,21 @@ export default function GrowthWelcomePage() {
               </div>
 
               <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(1, minmax(0, 1fr))", gap: 12 }}>
-                <div style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "#ffffff" }}>
+               <div style={{ padding: 14, border: "1px solid rgba(124,58,237,0.20)", borderRadius: 14, background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
                   <div style={{ fontWeight: 800, marginBottom: 6 }}>Strategy</div>
                   <div style={{ color: "#374151", lineHeight: 1.65 }}>
                     Audit your website, define your on-page SEO framework, structure your content and page architecture, and generate a clear 90-day actionable growth blueprint — complete with ready-to-publish on-page assets.
                   </div>
                 </div>
 
-                <div style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "#ffffff" }}>
+               <div style={{ padding: 14, border: "1px solid rgba(124,58,237,0.20)", borderRadius: 14, background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
                   <div style={{ fontWeight: 800, marginBottom: 6 }}>SEO</div>
                   <div style={{ color: "#374151", lineHeight: 1.65 }}>
                     Create brand-voice sensitive, ready-to-publish blogs with complete on-page assets designed to strengthen visibility and authority.
                   </div>
                 </div>
 
-                <div style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "#ffffff" }}>
+                <div style={{ padding: 14, border: "1px solid rgba(124,58,237,0.20)", borderRadius: 14, background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
                   <div style={{ fontWeight: 800, marginBottom: 6 }}>GEO (Generative Engine Optimization)</div>
                   <div style={{ color: "#374151", lineHeight: 1.65 }}>
                     Prepare your website for AI-driven discovery so your content is structured, discoverable and context-ready for generative platforms.
@@ -119,7 +136,7 @@ export default function GrowthWelcomePage() {
 
             {/* Section 4 — What’s Coming Next (Visionary) */}
             <div style={{ marginTop: 22 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
+             <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 10, color: "#111827" }}>
                 What’s Coming Next
               </div>
 
@@ -147,42 +164,42 @@ export default function GrowthWelcomePage() {
                   gap: 12,
                 }}
               >
-                <div style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "#ffffff" }}>
+               <div style={{ padding: 14, border: "1px solid rgba(30,102,255,0.18)", borderRadius: 14, background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
                   <div style={{ fontWeight: 800 }}>Vyndow Social — Launching April 2026</div>
                   <div style={{ marginTop: 6, color: "#374151", lineHeight: 1.65 }}>
                     AI-powered social media planning and execution. Think of this as having your own complete social media team working alongside you.
                   </div>
                 </div>
 
-                <div style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "#ffffff" }}>
+               <div style={{ padding: 14, border: "1px solid rgba(30,102,255,0.18)", borderRadius: 14, background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
                   <div style={{ fontWeight: 800 }}>Vyndow Ads — Launching May 2026</div>
                   <div style={{ marginTop: 6, color: "#374151", lineHeight: 1.65 }}>
                     Put your performance marketing team to work. Plan and execute structured campaigns across Google, Meta and other major platforms with clarity and control.
                   </div>
                 </div>
 
-                <div style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "#ffffff" }}>
+                <div style={{ padding: 14, border: "1px solid rgba(30,102,255,0.18)", borderRadius: 14, background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
                   <div style={{ fontWeight: 800 }}>Vyndow ABM — Launching June 2026</div>
                   <div style={{ marginTop: 6, color: "#374151", lineHeight: 1.65 }}>
                     Account-based marketing built for B2B growth. Think of it as having your own ABM team — defining your ICP, structuring your database, creating content, and executing precise outreach programs.
                   </div>
                 </div>
 
-                <div style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "#ffffff" }}>
+               <div style={{ padding: 14, border: "1px solid rgba(30,102,255,0.18)", borderRadius: 14, background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
                   <div style={{ fontWeight: 800 }}>Vyndow Analytics — Launching July 2026</div>
                   <div style={{ marginTop: 6, color: "#374151", lineHeight: 1.65 }}>
                     Unified growth performance visibility across your entire digital marketing ecosystem — website, SEO, social, advertising, email and ABM.
                   </div>
                 </div>
 
-                <div style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "#ffffff" }}>
+               <div style={{ padding: 14, border: "1px solid rgba(30,102,255,0.18)", borderRadius: 14, background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
                   <div style={{ fontWeight: 800 }}>Vyndow GTM — Launching August 2026</div>
                   <div style={{ marginTop: 6, color: "#374151", lineHeight: 1.65 }}>
                     Go-to-market frameworks designed to help you launch new brands digitally with confidence, structure and strategic clarity.
                   </div>
                 </div>
 
-                <div style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "#ffffff" }}>
+               <div style={{ padding: 14, border: "1px solid rgba(30,102,255,0.18)", borderRadius: 14, background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
                   <div style={{ fontWeight: 800 }}>Vyndow CMO — Launching September 2026</div>
                   <div style={{ marginTop: 6, color: "#374151", lineHeight: 1.65 }}>
                     Your AI-enhanced Chief Marketing Officer — working alongside you to guide, coordinate and elevate all your digital and marketing efforts seamlessly.
@@ -193,7 +210,7 @@ export default function GrowthWelcomePage() {
 
             {/* Section 5 — Strategic Guidance (Warm) */}
             <div style={{ marginTop: 22 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
+              <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 10, color: "#111827" }}>
                 Need Strategic Guidance?
               </div>
 
@@ -213,7 +230,7 @@ export default function GrowthWelcomePage() {
 
             {/* Section 6 — Founder Access (Warm) */}
             <div style={{ marginTop: 22, paddingBottom: 6 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
+              <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 10, color: "#111827" }}>
                 Have Something to Say to Me?
               </div>
 
