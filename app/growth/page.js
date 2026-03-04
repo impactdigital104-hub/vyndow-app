@@ -21,7 +21,7 @@ export default function GrowthWelcomePage() {
        <div style={{
   padding: 28,
   background:
-    "linear-gradient(180deg, rgba(124,58,237,0.05) 0%, rgba(6,182,212,0.05) 100%)",
+    "linear-gradient(180deg, rgba(124,58,237,0.08) 0%, rgba(6,182,212,0.06) 50%, rgba(30,102,255,0.05) 100%)",
   borderRadius: 18
 }}>
          <div style={{ 
@@ -36,7 +36,9 @@ export default function GrowthWelcomePage() {
   fontSize: 28,
   lineHeight: 1.25,
   fontWeight: 800,
-  color: "#1e66ff"
+  background: "linear-gradient(90deg, #7c3aed, #1e66ff)",
+WebkitBackgroundClip: "text",
+WebkitTextFillColor: "transparent",
 }}>
               Hey {email || "there"} 👋
             </h1>
