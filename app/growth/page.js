@@ -31,16 +31,16 @@ export default function GrowthWelcomePage() {
   paddingTop: 6
 }}>
             {/* Section 1 — Hero (Founder-led) */}
-           <h1 style={{
+<h1 style={{
   margin: 0,
-  fontSize: 28,
-  lineHeight: 1.25,
-  fontWeight: 800,
+  fontSize: 22,
+  lineHeight: 1.3,
+  fontWeight: 600,
   background: "linear-gradient(90deg, #7c3aed, #1e66ff)",
 WebkitBackgroundClip: "text",
 WebkitTextFillColor: "transparent",
 }}>
-              Hey {email || "there"} 👋
+              Hey {email || "there"}
             </h1>
 
             <div style={{ marginTop: 10, color: "#111827", fontSize: 18, fontWeight: 700 }}>
