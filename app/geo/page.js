@@ -26,6 +26,10 @@ export default function GeoPage() {
   // Auth
   const [uid, setUid] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+    // Suite plan (single source of truth for plan label)
+  const [suitePlan, setSuitePlan] = useState("free");
+  const [suitePlanLoading, setSuitePlanLoading] = useState(false);
+  const [suitePlanError, setSuitePlanError] = useState("");
 
   // Websites
   const [websites, setWebsites] = useState([]);
@@ -99,6 +103,31 @@ useEffect(() => {
       if (typeof unsub === "function") unsub();
     };
   }, [router]);
+    // Load suite plan label (users/{uid}/entitlements/suite.plan)
+  useEffect(() => {
+    async function loadSuitePlan() {
+      if (!uid) return;
+
+      try {
+        setSuitePlanLoading(true);
+        setSuitePlanError("");
+
+        const suiteRef = doc(db, "users", uid, "entitlements", "suite");
+        const snap = await getDoc(suiteRef);
+        const planRaw = snap.exists() ? snap.data()?.plan : "free";
+        const plan = String(planRaw || "free").toLowerCase().trim();
+        setSuitePlan(plan || "free");
+      } catch (e) {
+        console.error("Failed to load suite plan:", e);
+        setSuitePlan("free");
+        setSuitePlanError(e?.message || "Unknown error while loading suite plan.");
+      } finally {
+        setSuitePlanLoading(false);
+      }
+    }
+
+    loadSuitePlan();
+  }, [uid]);
 
   // -----------------------------
   // Load websites
