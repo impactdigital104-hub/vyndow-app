@@ -165,13 +165,44 @@ function mergeContentBlocks(existing, incoming) {
   return out;
 }
 
-// recompute allPagesApproved
-function computeAllApproved(pagesObj) {
+// recompute allPagesApproved (PLAN-GATED: only the visible pages per suite plan)
+const PLAN_LIMITS = {
+  free: { step9VisibleCap: 4 },
+  starter: { step9VisibleCap: 15 },
+  growth: { step9VisibleCap: 37 },
+  pro: { step9VisibleCap: 75 },
+};
+
+function normalizeSuitePlan(p) {
+  const s = String(p || "free").toLowerCase().trim();
+  if (s === "starter" || s === "growth" || s === "pro" || s === "free") return s;
+  return "free";
+}
+
+function orderPageIdsForPlan(pagesObj) {
+  const entries = Object.entries(pagesObj || {});
+  entries.sort((a, b) => {
+    const pa = a?.[1] || {};
+    const pb = b?.[1] || {};
+    const aHasUrl = Boolean(String(pa?.url || "").trim());
+    const bHasUrl = Boolean(String(pb?.url || "").trim());
+    if (aHasUrl !== bHasUrl) return aHasUrl ? -1 : 1;
+    return String(a?.[0] || "").localeCompare(String(b?.[0] || ""));
+  });
+  return entries.map(([pid]) => pid);
+}
+
+function computeVisibleAllApproved(pagesObj, visibleCap) {
   if (!pagesObj || typeof pagesObj !== "object") return false;
-  const keys = Object.keys(pagesObj);
-  if (!keys.length) return false;
-  for (const k of keys) {
-    if (pagesObj[k]?.approved !== true) return false;
+
+  const orderedIds = orderPageIdsForPlan(pagesObj);
+  if (!orderedIds.length) return false;
+
+  const cap = Number(visibleCap) || 0;
+  const visibleIds = orderedIds.slice(0, Math.max(1, cap));
+
+  for (const pid of visibleIds) {
+    if (pagesObj?.[pid]?.approved !== true) return false;
   }
   return true;
 }
@@ -204,7 +235,12 @@ export default async function handler(req, res) {
 
     // -------------------- LOCK STEP (global) --------------------
     if (act === "lockStep") {
-      const allOk = doc.allPagesApproved === true || computeAllApproved(doc.pages);
+      const suiteSnap = await db.doc(`users/${effectiveUid}/entitlements/suite`).get();
+      const suitePlan = normalizeSuitePlan((suiteSnap.exists ? (suiteSnap.data() || {}).plan : "free"));
+
+      const step9VisibleCap = (PLAN_LIMITS[suitePlan] || PLAN_LIMITS.free).step9VisibleCap || 4;
+
+      const allOk = doc.allPagesApproved === true || computeVisibleAllApproved(doc.pages || {}, step9VisibleCap);
       if (!allOk) {
         return res.status(400).json({ error: "Cannot lock Step 7 until all pages are approved." });
       }
@@ -240,8 +276,12 @@ export default async function handler(req, res) {
       // recompute allPagesApproved (needs latest values)
       const afterSnap = await pageOptimizationRef.get();
       const after = afterSnap.data() || {};
-      const allPagesApproved = computeAllApproved(after.pages || {});
+      const suiteSnap = await db.doc(`users/${effectiveUid}/entitlements/suite`).get();
+      const suitePlan = normalizeSuitePlan((suiteSnap.exists ? (suiteSnap.data() || {}).plan : "free"));
 
+      const step9VisibleCap = (PLAN_LIMITS[suitePlan] || PLAN_LIMITS.free).step9VisibleCap || 4;
+
+      const allPagesApproved = computeVisibleAllApproved(after.pages || {}, step9VisibleCap);
       if (allPagesApproved !== (after.allPagesApproved === true)) {
         await pageOptimizationRef.update({
           allPagesApproved,
