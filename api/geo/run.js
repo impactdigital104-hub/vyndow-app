@@ -177,11 +177,8 @@ export default async function handler(req, res) {
     if (valid.length === 0) {
       return res.status(400).json({ ok: false, error: "No valid URLs provided." });
     }
-// Phase 5C: questions are allowed only for single-URL runs (to avoid ambiguity)
-let safeQuestions = [];
-if (valid.length === 1) {
-  safeQuestions = sanitizeQuestions(aiQuestions).slice(0, 5);
-}
+// Phase 5C: questions are optional and apply to all URLs in the run
+const safeQuestions = sanitizeQuestions(aiQuestions).slice(0, 5);
 
     const { ownerUid, websiteData } = await resolveWebsiteContext({ uid, websiteId });
 
