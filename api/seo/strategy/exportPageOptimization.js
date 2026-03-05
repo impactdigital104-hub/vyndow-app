@@ -180,6 +180,8 @@ export default async function handler(req, res) {
 
     // One row per page
     for (const [pageId, p] of Object.entries(pagesObj)) {
+            // Export ONLY approved (locked-visible) pages
+      if ((p || {})?.approved !== true) continue;
       const page = p || {};
       rows.push([
         safeStr(page.url),
