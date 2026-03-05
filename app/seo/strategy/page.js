@@ -2858,7 +2858,53 @@ const cappedValidUrls = useMemo(
   () => parsedUrls.valid.slice(0, urlCap),
   [parsedUrls.valid, urlCap]
 );
+	function getStep9VisibleCap() {
+  const p = String(suitePlan || "free").toLowerCase();
+  const row = PLAN_LIMITS[p] || PLAN_LIMITS.free;
+  return Number(row.step9VisibleCap) || 4;
+}
 
+const step9VisibleCap = getStep9VisibleCap();
+
+// Step 9 gating: order pages (Step 2 URLs first, then gap pages), then cap visibility by plan
+const poOrderedEntries = useMemo(() => {
+  const entries = Object.entries(poPages || {});
+  entries.sort((a, b) => {
+    const pa = a?.[1] || {};
+    const pb = b?.[1] || {};
+
+    const aHasUrl = Boolean(String(pa?.url || "").trim());
+    const bHasUrl = Boolean(String(pb?.url || "").trim());
+
+    // Step 2 URLs first
+    if (aHasUrl !== bHasUrl) return aHasUrl ? -1 : 1;
+
+    // Stable tie-breaker
+    return String(a?.[0] || "").localeCompare(String(b?.[0] || ""));
+  });
+  return entries;
+}, [poPages]);
+
+const poTotalGenerated = poOrderedEntries.length;
+
+const poVisibleEntries = useMemo(() => {
+  return poOrderedEntries.slice(0, step9VisibleCap);
+}, [poOrderedEntries, step9VisibleCap]);
+
+const poVisibleCount = poVisibleEntries.length;
+const poNeedsUpgradeMsg = poTotalGenerated > step9VisibleCap;
+
+// Ensure active page always stays within visible pages
+useEffect(() => {
+  if (!poVisibleEntries || poVisibleEntries.length === 0) {
+    return;
+  }
+  const visibleIds = poVisibleEntries.map(([pid]) => pid);
+  if (!visibleIds.includes(poActivePageId)) {
+    setPoActivePageId(visibleIds[0]);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [poVisibleEntries]);
 // Load existing Step 2 page discovery (resume)
 useEffect(() => {
   async function loadPageDiscovery() {
@@ -6673,8 +6719,19 @@ style={{
 
         {/* Page selector pills */}
         <div style={{ marginTop: 14 }}>
-          <div style={{ fontWeight: 900, color: HOUSE.text, marginBottom: 8 }}>
-            Pages
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+            <div style={{ fontWeight: 900, color: HOUSE.text }}>
+              Pages
+              <span style={{ marginLeft: 10, color: HOUSE.subtext, fontWeight: 900, fontSize: 12 }}>
+                {poVisibleCount} / {poTotalGenerated} pages generated
+              </span>
+            </div>
+
+            {poNeedsUpgradeMsg ? (
+              <div style={{ color: HOUSE.primaryBlue, fontWeight: 800, fontSize: 12 }}>
+                ⚡ You have more pages available. Upgrade your plan to unlock additional SEO opportunities.
+              </div>
+            ) : null}
           </div>
           <div
             style={{
@@ -6685,12 +6742,12 @@ style={{
               WebkitOverflowScrolling: "touch",
             }}
           >
-            {Object.keys(poPages || {}).length === 0 ? (
+                     {poTotalGenerated === 0 ? (
               <div style={{ color: HOUSE.subtext, fontWeight: 700 }}>
                 No pages loaded yet. Click “Generate Blueprint”.
               </div>
             ) : (
-              Object.entries(poPages || {}).map(([pid, p]) => {
+                      (poVisibleEntries || []).map(([pid, p]) => {
                 const st = computePageStatus(p);
                 const isActive = pid === poActivePageId;
                 const urlLabel = (p?.url || "").trim() || "(new page)";
