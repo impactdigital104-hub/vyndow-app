@@ -43,6 +43,10 @@ useEffect(() => {
     // Step 8B draft banner/state
 const [loadedFromStrategy, setLoadedFromStrategy] = useState(false);
 const [draftLoadError, setDraftLoadError] = useState("");
+    // Suite plan (single source of truth for plan label)
+const [suitePlan, setSuitePlan] = useState("free");
+const [suitePlanLoading, setSuitePlanLoading] = useState(false);
+const [suitePlanError, setSuitePlanError] = useState("");
 
 useEffect(() => {
   const unsub = onAuthStateChanged(auth, (user) => {
@@ -58,6 +62,31 @@ useEffect(() => {
     if (typeof unsub === "function") unsub();
   };
 }, [router]);
+    // Load suite plan label (users/{uid}/entitlements/suite.plan)
+useEffect(() => {
+  async function loadSuitePlan() {
+    if (!uid) return;
+
+    try {
+      setSuitePlanLoading(true);
+      setSuitePlanError("");
+
+      const suiteRef = doc(db, "users", uid, "entitlements", "suite");
+      const snap = await getDoc(suiteRef);
+      const planRaw = snap.exists() ? snap.data()?.plan : "free";
+      const plan = String(planRaw || "free").toLowerCase().trim();
+      setSuitePlan(plan || "free");
+    } catch (e) {
+      console.error("Failed to load suite plan:", e);
+      setSuitePlan("free");
+      setSuitePlanError(e?.message || "Unknown error while loading suite plan.");
+    } finally {
+      setSuitePlanLoading(false);
+    }
+  }
+
+  loadSuitePlan();
+}, [uid]);
     const [selectedWebsite, setSelectedWebsite] = useState("");
 useEffect(() => {
   async function loadWebsites() {
@@ -114,17 +143,11 @@ if (rows.length && !selectedWebsite) {
       setSeoModuleError("");
 
       // users/{uid}/modules/seo
-const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsite);
-
-// If user has no websites yet, do NOT try to load website module plan
-if (!effectiveWebsiteId) {
-  setSeoModule(null);
-  setSeoModuleError("");
-  return;
-}
-
-const ref = doc(db, "users", effectiveUid, "websites", effectiveWebsiteId, "modules", "seo");
-const snap = await getDoc(ref);
+      // Legacy SEO module doc (numeric limits are synced here in Phase A)
+      // users/{uid}/modules/seo
+      const { effectiveUid } = getEffectiveContext(selectedWebsite);
+      const ref = doc(db, "users", effectiveUid, "modules", "seo");
+      const snap = await getDoc(ref);
 
 
       if (snap.exists()) {
@@ -392,19 +415,20 @@ function buildUsageSummary() {
   if (seoModuleError) return "SEO plan load error";
  if (!selectedWebsite) return "No websites yet — please create a website first.";
 if (!seoModule) return "SEO plan not set for this website yet.";
-
+  // Plan label is sourced from suite entitlements (single source of truth)
+  if (suitePlanLoading) return "Loading plan…";
+  if (suitePlanError) return "Plan load error";
 
 if (usageLoading) return "Loading usage…";
 const used = usedThisMonth;
 
 
   const total = seoModule.blogsPerWebsitePerMonth ?? "?";
-  const planType = (seoModule.plan || "").toLowerCase();
-
-  let planLabel = "Plan";
-  if (planType === "free") planLabel = "Free Plan";
-  else if (planType === "small_business") planLabel = "Small Business Plan";
-  else if (planType === "enterprise") planLabel = "Enterprise Plan";
+  const p = String(suitePlan || "free").toLowerCase().trim();
+  let planLabel = "Free Plan";
+  if (p === "starter") planLabel = "Starter Plan";
+  else if (p === "growth") planLabel = "Growth Plan";
+  else if (p === "pro") planLabel = "Pro Plan";
 
 const extra = seoModule.extraBlogCreditsThisMonth ?? 0;
 const extraText = extra > 0 ? ` (+${extra})` : "";
