@@ -657,7 +657,7 @@ export default async function handler(req, res) {
 
     const runsSnap = await db
       .collection("geoRuns")
-      .where("status", "==", "queued")
+     .where("status", "in", ["queued", "processing"])
       .orderBy("createdAt", "asc")
       .limit(1)
       .get();
@@ -682,6 +682,20 @@ export default async function handler(req, res) {
       .where("status", "==", "queued")
       .limit(3)
       .get();
+        // If nothing left to process, close the run
+    if (pagesSnap.empty) {
+      await runDoc.ref.update({
+        status: "done",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return res.json({
+        ok: true,
+        runId,
+        analyzedCount: 0,
+        message: "Run completed (no queued pages left).",
+      });
+    }
 
     const analyzed = [];
 
