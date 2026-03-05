@@ -658,7 +658,6 @@ export default async function handler(req, res) {
     const runsSnap = await db
       .collection("geoRuns")
      .where("status", "in", ["queued", "processing"])
-      .orderBy("createdAt", "asc")
       .limit(1)
       .get();
 
