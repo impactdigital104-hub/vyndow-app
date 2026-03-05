@@ -294,7 +294,7 @@ setGeoModule(data?.module || data?.modules?.geo || null);
     };
   }, [aiQuestionsRaw]);
 
-  const aiQuestionsEnabled = parsed.valid.length === 1;
+  const aiQuestionsEnabled = parsed.valid.length >= 1;
 
 
   const canCreateRun =
@@ -392,11 +392,11 @@ return `${used} / ${total} used · ${planLabel}`;
         body: JSON.stringify({
           websiteId: selectedWebsite,
           urls: parsed.valid,
-          // Phase 5C: allow questions only when exactly one URL is being audited
-          aiQuestions:
-            aiQuestionsEnabled && !aiParsed.tooMany && aiParsed.questions.length
-              ? aiParsed.questions.slice(0, 5)
-              : [],
+// Phase 5C: optional AI questions (apply to all URLs in the run)
+aiQuestions:
+  aiQuestionsEnabled && !aiParsed.tooMany && aiParsed.questions.length
+    ? aiParsed.questions.slice(0, 5)
+    : [],
         }),
       });
 
