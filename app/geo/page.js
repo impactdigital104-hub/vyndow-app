@@ -339,15 +339,14 @@ setGeoModule(data?.module || data?.modules?.geo || null);
     if (geoModuleError) return "Usage unavailable";
     if (!geoModule) return "Free Plan";
 
-    const plan = (geoModule.plan || "free").toString();
-    const pagesPerMonth = Number(geoModule.pagesPerMonth ?? 0);
+    if (suitePlanLoading) return "Loading…";
+    if (suitePlanError) return "Plan load error";
 
-    const planLabel =
-      plan === "enterprise"
-        ? "Enterprise Plan"
-        : plan === "small_business"
-        ? "Small Business Plan"
-        : "Free Plan";
+    const p = String(suitePlan || "free").toLowerCase().trim();
+    let planLabel = "Free Plan";
+    if (p === "starter") planLabel = "Starter Plan";
+    else if (p === "growth") planLabel = "Growth Plan";
+    else if (p === "pro") planLabel = "Pro Plan";
 // If quota notice is showing, reflect usage instantly in the pill
 if (geoQuotaNotice?.details?.used != null && geoQuotaNotice?.details?.limit != null) {
   const used = geoQuotaNotice.details.used;
