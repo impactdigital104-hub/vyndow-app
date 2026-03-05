@@ -76,6 +76,67 @@ function LoginInner() {
       });
     }
   }
+    async function ensureSuitePlanSyncedToLegacyModules(user) {
+    if (!user?.uid) return;
+
+    // 1) Read suite plan (default to free)
+    const suiteRef = doc(db, "users", user.uid, "entitlements", "suite");
+    const suiteSnap = await getDoc(suiteRef);
+    const suitePlanRaw = suiteSnap.exists() ? suiteSnap.data()?.plan : "free";
+    const suitePlan = String(suitePlanRaw || "free").toLowerCase().trim();
+
+    // 2) Locked mapping (Suite → numeric limits)
+    const MAP = {
+      free:   { seoBlogs: 2,  geoPages: 2,  websitesIncluded: 1 },
+      starter:{ seoBlogs: 6,  geoPages: 10, websitesIncluded: 1 },
+      growth: { seoBlogs: 15, geoPages: 25, websitesIncluded: 1 },
+      pro:    { seoBlogs: 25, geoPages: 50, websitesIncluded: 2 },
+    };
+
+    const limits = MAP[suitePlan] || MAP.free;
+
+    // 3) Update SEO legacy module doc (numeric fields only; merge update)
+    const seoRef = doc(db, "users", user.uid, "modules", "seo");
+    await setDoc(
+      seoRef,
+      {
+        blogsPerWebsitePerMonth: Number(limits.seoBlogs),
+        websitesIncluded: Number(limits.websitesIncluded),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // 4) Update GEO legacy module doc (numeric fields only; merge update)
+    // IMPORTANT safety: if GEO doc does NOT exist, create a minimal correct base
+    // so later server-side ensure logic doesn’t get blocked by an incomplete doc.
+    const geoRef = doc(db, "users", user.uid, "modules", "geo");
+    const geoSnap = await getDoc(geoRef);
+
+    if (!geoSnap.exists()) {
+      await setDoc(
+        geoRef,
+        {
+          moduleId: "geo",
+          plan: "free",
+          pagesPerMonth: Number(limits.geoPages),
+          extraGeoCreditsThisMonth: 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } else {
+      await setDoc(
+        geoRef,
+        {
+          pagesPerMonth: Number(limits.geoPages),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+  }
   useEffect(() => {
     // If already logged in, go to nextUrl (or /seo)
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -93,6 +154,7 @@ function LoginInner() {
       await ensureUserDoc(cred.user);
       await ensureSeoModuleDoc(cred.user);
       await ensureSuiteEntitlementsDoc(cred.user);
+            await ensureSuitePlanSyncedToLegacyModules(cred.user);
       router.replace(nextUrl);
     } catch (e) {
       setMsg(e?.message || "Google sign-in failed.");
@@ -117,11 +179,13 @@ function LoginInner() {
         await ensureUserDoc(cred.user);
         await ensureSeoModuleDoc(cred.user);
         await ensureSuiteEntitlementsDoc(cred.user);
+                await ensureSuitePlanSyncedToLegacyModules(cred.user);
       } else {
         const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
         await ensureUserDoc(cred.user);
         await ensureSeoModuleDoc(cred.user);
         await ensureSuiteEntitlementsDoc(cred.user);
+                await ensureSuitePlanSyncedToLegacyModules(cred.user);
       }
       router.replace(nextUrl);
     } catch (e) {
