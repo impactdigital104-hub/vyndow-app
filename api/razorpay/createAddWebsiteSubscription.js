@@ -1,9 +1,10 @@
 // api/razorpay/createAddWebsiteSubscription.js
 import admin from "../firebaseAdmin";
 
-function getAddonPlanIdFor(currentPlan) {
-  if (currentPlan === "small_business") return process.env.RAZORPAY_SEO_ADD_WEBSITE_SB_PLAN_USD;
-  if (currentPlan === "enterprise") return process.env.RAZORPAY_SEO_ADD_WEBSITE_ENT_PLAN_USD;
+function getAddonPlanIdFor(currentSuitePlan) {
+  if (currentSuitePlan === "starter") return process.env.RAZORPAY_ADD_WEBSITE_PLAN_USD;
+  if (currentSuitePlan === "growth") return process.env.RAZORPAY_ADD_WEBSITE_PLAN_USD;
+  if (currentSuitePlan === "pro") return process.env.RAZORPAY_ADD_WEBSITE_PLAN_USD;
   return null;
 }
 
@@ -53,20 +54,26 @@ export default async function handler(req, res) {
     const uid = decoded.uid;
     const email = decoded.email || "";
 
-    // 2) Determine user's current base plan from Firestore (DON'T trust frontend)
+    // 2) Determine user's current Suite plan from Firestore (DON'T trust frontend)
     const db = admin.firestore();
-    const seoSnap = await db.doc(`users/${uid}/modules/seo`).get();
-    const currentPlan = seoSnap.exists ? (seoSnap.data()?.plan || "free") : "free";
+    const suiteSnap = await db.doc(`users/${uid}/entitlements/suite`).get();
+    const currentSuitePlan = suiteSnap.exists
+      ? (suiteSnap.data()?.plan || "free")
+      : "free";
 
-    if (currentPlan !== "small_business" && currentPlan !== "enterprise") {
+    if (
+      currentSuitePlan !== "starter" &&
+      currentSuitePlan !== "growth" &&
+      currentSuitePlan !== "pro"
+    ) {
       return res.status(400).json({
         ok: false,
         error: "UPGRADE_REQUIRED",
-        details: "Additional Website add-on is available only for paid plans.",
+        details: "Additional Website add-on is available only for paid Suite plans.",
       });
     }
 
-    const addonPlanId = getAddonPlanIdFor(currentPlan);
+    const addonPlanId = getAddonPlanIdFor(currentSuitePlan);
     if (!addonPlanId) throw new Error("Missing add-on plan ID in env vars.");
 
     // 3) Reuse/create Razorpay customer (one per user)
@@ -114,23 +121,24 @@ export default async function handler(req, res) {
         customer_id: customer.id,
         total_count: 120,
         customer_notify: 1,
-        notes: {
+          notes: {
           uid,
           email,
           addonType: "additional_website",
           qty: "1",
-          basePlan: currentPlan,
+          module: "suite",
+          suitePlan: currentSuitePlan,
         },
       },
     });
 
-    return res.status(200).json({
-      ok: true,
-      addonType: "additional_website",
-      basePlan: currentPlan,
-      subscriptionId: subscription.id,
-      razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-    });
+return res.status(200).json({
+  ok: true,
+  addonType: "additional_website",
+  subscriptionId: subscription.id,
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+});
+     
   } catch (e) {
     console.error("razorpay/createAddWebsiteSubscription error:", e);
     return res.status(500).json({ ok: false, error: e?.message || "Unknown error" });
