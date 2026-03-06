@@ -1,6 +1,9 @@
 // api/razorpay/webhook.js
 const admin = require("../firebaseAdmin").default;
 const crypto = require("crypto");
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const PAID_SUITE_PLANS = ["starter", "growth", "pro"];
 
 
 // IMPORTANT: We need RAW body for signature verification in Next API routes
@@ -124,7 +127,7 @@ async function applyPlanToUserAndWebsites({ uid, plan }) {
     console.error("Webhook plan propagation failed:", e);
   }
 }
-async function applySuitePlanToUser({ uid, plan }) {
+async function applySuitePlanToUser({ uid, plan, lifecyclePatch = null }) {
   const db = admin.firestore();
   const base = getSuiteModuleForPlan(plan);
 
@@ -146,6 +149,7 @@ async function applySuitePlanToUser({ uid, plan }) {
       suiteRef,
       {
         plan: base.plan,
+        ...(lifecyclePatch || {}),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
@@ -197,6 +201,44 @@ async function applySuitePlanToUser({ uid, plan }) {
   } catch (e) {
     console.error("Webhook suite propagation failed:", e);
   }
+}
+
+function makePaidLifecyclePatch(now = new Date()) {
+  const cycleStart = admin.firestore.Timestamp.fromDate(now);
+  const cycleEndDate = new Date(now.getTime() + THIRTY_DAYS_MS);
+  const graceUntilDate = new Date(cycleEndDate.getTime() + SEVEN_DAYS_MS);
+
+  return {
+    cycleStart,
+    cycleEnd: admin.firestore.Timestamp.fromDate(cycleEndDate),
+    graceUntil: admin.firestore.Timestamp.fromDate(graceUntilDate),
+  };
+}
+
+async function getSuiteState(uid) {
+  const db = admin.firestore();
+  const suiteRef = db.doc(`users/${uid}/entitlements/suite`);
+  const snap = await suiteRef.get();
+
+  if (!snap.exists) {
+    return {
+      exists: false,
+      plan: "free",
+      cycleStart: null,
+      cycleEnd: null,
+      graceUntil: null,
+    };
+  }
+
+  const data = snap.data() || {};
+
+  return {
+    exists: true,
+    plan: String(data.plan || "free").toLowerCase().trim(),
+    cycleStart: data.cycleStart || null,
+    cycleEnd: data.cycleEnd || null,
+    graceUntil: data.graceUntil || null,
+  };
 }
 // ===== ADD-ON HELPERS (inserted) =====
 
@@ -381,11 +423,31 @@ if ((event === "subscription.activated" || event === "subscription.charged") && 
       ? "starter"
       : "free";
 
-  await applySuitePlanToUser({ uid, plan: normalizedSuitePlan });
+  if (event === "subscription.charged") {
+    await applySuitePlanToUser({
+      uid,
+      plan: normalizedSuitePlan,
+      lifecyclePatch: makePaidLifecyclePatch(new Date()),
+    });
+  } else {
+    const suiteState = await getSuiteState(uid);
+    const hasPaidLifecycle =
+      PAID_SUITE_PLANS.includes(String(suiteState.plan || "").toLowerCase().trim()) &&
+      !!suiteState.cycleStart &&
+      !!suiteState.cycleEnd &&
+      !!suiteState.graceUntil;
+
+    await applySuitePlanToUser({
+      uid,
+      plan: normalizedSuitePlan,
+      lifecyclePatch: hasPaidLifecycle ? null : makePaidLifecyclePatch(new Date()),
+    });
+  }
 }
 
 if ((event === "subscription.cancelled" || event === "subscription.completed") && moduleName === "suite") {
-  await applySuitePlanToUser({ uid, plan: "free" });
+  // Do not downgrade immediately here.
+  // AuthGate will downgrade only after graceUntil has passed.
 }
 
 if ((event === "payment.authorized" || event === "payment.captured") && moduleName === "suite" && !addonType) {
@@ -398,7 +460,18 @@ if ((event === "payment.authorized" || event === "payment.captured") && moduleNa
       ? "starter"
       : "free";
 
-  await applySuitePlanToUser({ uid, plan: normalizedSuitePlan });
+  const suiteState = await getSuiteState(uid);
+  const hasPaidLifecycle =
+    PAID_SUITE_PLANS.includes(String(suiteState.plan || "").toLowerCase().trim()) &&
+    !!suiteState.cycleStart &&
+    !!suiteState.cycleEnd &&
+    !!suiteState.graceUntil;
+
+  await applySuitePlanToUser({
+    uid,
+    plan: normalizedSuitePlan,
+    lifecyclePatch: hasPaidLifecycle ? null : makePaidLifecyclePatch(new Date()),
+  });
 
   if (payId) {
     await admin.firestore().doc(`users/${uid}/razorpayPayments/${payId}`).set(
@@ -415,7 +488,6 @@ if ((event === "payment.authorized" || event === "payment.captured") && moduleNa
     );
   }
 }
-
   // ===== BUNDLE SUBSCRIPTIONS (SEO + GEO together) =====
 if ((event === "subscription.activated" || event === "subscription.charged") && (moduleName === "bundle" || bundleName === "growth")) {
   const planToApply = vyndowPlan === "enterprise" ? "enterprise" : "small_business";
