@@ -176,8 +176,8 @@ setUserGeoEntitlements(geoSnap.exists() ? geoSnap.data() : null);
 const websitesIncluded = userSeoEntitlements?.websitesIncluded ?? 1;
 const extraWebsitesPurchased = userSeoEntitlements?.extraWebsitesPurchased ?? 0;
 
-const geoExtraWebsitesPurchased = userGeoEntitlements?.extraWebsitesPurchased ?? 0;
-const allowedWebsites = websitesIncluded + extraWebsitesPurchased + geoExtraWebsitesPurchased;
+
+const allowedWebsites = websitesIncluded + extraWebsitesPurchased;
 
 const currentWebsiteCount = websites.length;
 
@@ -201,7 +201,7 @@ const canAddWebsite =
 
     if (!canAddWebsite) {
       setMsg(
-        `Website limit reached for your plan. Allowed: ${allowedWebsites}.`
+        "You have reached your website limit. Purchase an additional website for $10 to add more clients."
       );
       return;
     }
@@ -235,7 +235,7 @@ try {
         const err = data?.error || "Add website failed.";
         if (err === "WEBSITE_LIMIT_REACHED") {
           setMsg(
-            `Website limit reached for your plan. Allowed: ${allowedWebsites}.`
+            "You have reached your website limit. Purchase an additional website for $10 to add more clients."
           );
         } else {
           setMsg(err);
@@ -370,7 +370,7 @@ async function handleSaveProfile(e) {
                 <div>
                   <b>Websites allowed:</b> {allowedWebsites}{" "}
                   <span style={{ color: "#6b7280" }}>
-             ({websitesIncluded} included + {extraWebsitesPurchased} SEO add-on + {geoExtraWebsitesPurchased} GEO add-on)
+             ({websitesIncluded} included + {extraWebsitesPurchased} additional website purchase)
                   </span>
                 </div>
                 <div>
@@ -384,9 +384,11 @@ async function handleSaveProfile(e) {
            <h2 style={{ color: "#6D28D9" }}>Add Website</h2>
 
  {!canAddWebsite && !loadingUserEntitlements ? (
-              <p style={{ color: "#b91c1c" }}>
-                Website limit reached. You can’t add more websites on this plan.
-              </p>
+<p style={{ color: "#b91c1c" }}>
+  You have reached your website limit.
+  <br />
+  Purchase an additional website for $10 to add more clients.
+</p>
             ) : null}
 
             <form
