@@ -71,18 +71,11 @@ const seoNowSnap = await seoRef.get();
 const seo = seoNowSnap.exists ? seoNowSnap.data() : {};
 const websitesIncluded = seo?.websitesIncluded ?? 1;
 const seoExtraWebsitesPurchased = seo?.extraWebsitesPurchased ?? 0;
-
-// GEO extra websites (account-level capacity)
-const geoRef = db.doc(`users/${uid}/modules/geo`);
-const geoSnap = await geoRef.get();
-const geo = geoSnap.exists ? geoSnap.data() : {};
-const geoExtraWebsitesPurchased = geo?.extraWebsitesPurchased ?? 0;
-
-// ✅ total account-level websites allowed
-const allowedWebsites =
+    const allowedWebsites =
   websitesIncluded +
-  seoExtraWebsitesPurchased +
-  geoExtraWebsitesPurchased;
+  seoExtraWebsitesPurchased;
+
+
 
 
     // 5) Count current websites
