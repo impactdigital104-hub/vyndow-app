@@ -9,7 +9,7 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebaseClient";
 
@@ -62,16 +62,23 @@ function LoginInner() {
     }
   }
 
-    async function ensureSuiteEntitlementsDoc(user) {
+  async function ensureSuiteEntitlementsDoc(user) {
     if (!user?.uid) return;
 
     const suiteRef = doc(db, "users", user.uid, "entitlements", "suite");
     const snap = await getDoc(suiteRef);
 
-    // If missing, create default plan=free. If exists, do NOT overwrite.
+    // If missing, create default free lifecycle foundation.
+    // If exists, do NOT overwrite existing plan or cycle fields here.
     if (!snap.exists()) {
+      const now = new Date();
+      const cycleEndDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
       await setDoc(suiteRef, {
         plan: "free",
+        cycleStart: Timestamp.fromDate(now),
+        cycleEnd: Timestamp.fromDate(cycleEndDate),
+        graceUntil: null,
         updatedAt: serverTimestamp(),
       });
     }
