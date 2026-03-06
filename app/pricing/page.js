@@ -365,8 +365,8 @@ export default function PricingPage() {
                 style={{
                   display: "grid",
                   gridTemplateColumns: "1fr",
-                  gap: 20,
-                  marginBottom: 20,
+                  gap: 14,
+                  marginBottom: 14,
                 }}
               >
                 <PlanCard
@@ -387,11 +387,11 @@ export default function PricingPage() {
                 </PlanCard>
               </section>
 
-              <section
+                        <section
                 style={{
                   display: "grid",
                   gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                  gap: 20,
+                  gap: 14,
                   marginBottom: 20,
                 }}
               >
@@ -399,7 +399,8 @@ export default function PricingPage() {
                   title="Starter"
                   price="$29 / month"
                   highlight={false}
-                  muted={currentSuitePlan === "starter"}
+                  muted={false}
+                  current={currentSuitePlan === "starter"}
                   features={[
                     "1 website",
                     "Audit up to 10 pages",
@@ -418,8 +419,9 @@ export default function PricingPage() {
                 <PlanCard
                   title="Growth"
                   price="$49 / month"
-                  highlight={true}
-                  muted={currentSuitePlan === "growth"}
+                  highlight={false}
+                  muted={false}
+                  current={currentSuitePlan === "growth"}
                   badge="⭐ Most Popular"
                   features={[
                     "1 website",
@@ -439,9 +441,10 @@ export default function PricingPage() {
                 <PlanCard
                   title="Pro"
                   price="$79 / month"
-                  highlight={false}
-                  muted={currentSuitePlan === "pro"}
-                  badge="🚀 Best for Agencies"
+                  highlight={true}
+                  muted={false}
+                  current={currentSuitePlan === "pro"}
+                  badge="🚀 Best for Agencies/Multi-brand"
                   features={[
                     "2 websites",
                     "Audit up to 50 pages per website",
@@ -569,15 +572,21 @@ export default function PricingPage() {
   );
 }
 
-function PlanCard({ title, price, features, children, highlight, muted, badge }) {
+function PlanCard({ title, price, features, children, highlight, muted, current, badge }) {
   return (
     <div
       style={{
-        border: highlight || muted ? "2px solid #6D28D9" : "1px solid #E5E7EB",
+        border: highlight
+          ? "2px solid #6D28D9"
+          : current
+          ? "2px solid #C4B5FD"
+          : "1px solid #E5E7EB",
         borderRadius: 22,
-        padding: 24,
-        background: highlight || muted ? "#F5F3FF" : "#FFFFFF",
-        boxShadow: "0 16px 34px rgba(2,6,23,0.08)",
+        padding: title === "Free" ? 18 : 20,
+        background: highlight ? "#F5F3FF" : "#FFFFFF",
+        boxShadow: highlight
+          ? "0 18px 38px rgba(109,40,217,0.12)"
+          : "0 10px 24px rgba(2,6,23,0.06)",
       }}
     >
       {badge && (
@@ -599,12 +608,19 @@ function PlanCard({ title, price, features, children, highlight, muted, badge })
         </div>
       )}
 
-      <h3>{title}</h3>
-      <div style={{ fontWeight: 700, marginBottom: 12 }}>{price}</div>
+      <h3 style={{ margin: 0, marginBottom: 8, fontSize: 18 }}>{title}</h3>
+      <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 16 }}>{price}</div>
 
-      <ul style={{ paddingLeft: 18, marginBottom: 16, lineHeight: 1.65 }}>
+      <ul
+        style={{
+          paddingLeft: 26,
+          marginTop: 0,
+          marginBottom: 14,
+          lineHeight: 1.45,
+        }}
+      >
         {features.map((f) => (
-          <li key={f} style={{ marginBottom: 8 }}>
+          <li key={f} style={{ marginBottom: 5 }}>
             {f}
           </li>
         ))}
