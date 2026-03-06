@@ -61,6 +61,41 @@ async function syncLegacyModulesToFree(uid) {
     { merge: true }
   );
 }
+async function syncLegacyModulesToPlan(uid, plan) {
+  const normalizedPlan = String(plan || "free").toLowerCase().trim();
+
+  const planMap = {
+    free: { blogsPerWebsitePerMonth: 2, websitesIncluded: 1, pagesPerMonth: 2 },
+    starter: { blogsPerWebsitePerMonth: 6, websitesIncluded: 1, pagesPerMonth: 10 },
+    growth: { blogsPerWebsitePerMonth: 10, websitesIncluded: 1, pagesPerMonth: 25 },
+    pro: { blogsPerWebsitePerMonth: 15, websitesIncluded: 2, pagesPerMonth: 50 },
+  };
+
+  const chosen = planMap[normalizedPlan] || planMap.free;
+
+  const seoRef = doc(db, "users", uid, "modules", "seo");
+  const geoRef = doc(db, "users", uid, "modules", "geo");
+
+  await setDoc(
+    seoRef,
+    {
+      blogsPerWebsitePerMonth: chosen.blogsPerWebsitePerMonth,
+      websitesIncluded: chosen.websitesIncluded,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  await setDoc(
+    geoRef,
+    {
+      moduleId: "geo",
+      pagesPerMonth: chosen.pagesPerMonth,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
 
 async function ensureSuiteLifecycleForUser(user) {
   if (!user?.uid) return;
@@ -106,6 +141,8 @@ async function ensureSuiteLifecycleForUser(user) {
 
   // Free user: if cycle expired, roll free cycle forward.
   if (!isPaidPlan) {
+    await syncLegacyModulesToPlan(user.uid, "free");
+
     if (now > cycleEnd) {
       await setDoc(
         suiteRef,
@@ -118,7 +155,7 @@ async function ensureSuiteLifecycleForUser(user) {
     }
     return;
   }
-
+  await syncLegacyModulesToPlan(user.uid, plan);
   // Paid user still inside active cycle.
   if (now <= cycleEnd) return;
 
@@ -136,7 +173,7 @@ async function ensureSuiteLifecycleForUser(user) {
     { merge: true }
   );
 
-  await syncLegacyModulesToFree(user.uid);
+    await syncLegacyModulesToPlan(user.uid, "free");
 }
 
 function AuthGateInner({ children }) {
