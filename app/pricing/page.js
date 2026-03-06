@@ -223,6 +223,25 @@ export default function PricingPage() {
     };
 
     if (plan === "free") {
+      if (currentSuitePlan === "free") {
+        return (
+          <button
+            type="button"
+            disabled
+            style={{
+              ...base,
+              cursor: "not-allowed",
+              background: "#E5E7EB",
+              color: "#111827",
+              boxShadow: "none",
+              opacity: 0.9,
+            }}
+          >
+            Current Plan
+          </button>
+        );
+      }
+
       return (
         <button
           type="button"
@@ -230,13 +249,13 @@ export default function PricingPage() {
           style={{
             ...base,
             cursor: "not-allowed",
-            background: "#E5E7EB",
-            color: "#111827",
+            background: "#F9FAFB",
+            color: "#6B7280",
             boxShadow: "none",
-            opacity: 0.9,
+            opacity: 1,
           }}
         >
-          Current Plan
+          Free Plan
         </button>
       );
     }
@@ -345,7 +364,7 @@ export default function PricingPage() {
               <section
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                  gridTemplateColumns: "1fr",
                   gap: 20,
                   marginBottom: 20,
                 }}
@@ -366,7 +385,16 @@ export default function PricingPage() {
                 >
                   {renderPlanButton("free", "Current Plan")}
                 </PlanCard>
+              </section>
 
+              <section
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gap: 20,
+                  marginBottom: 20,
+                }}
+              >
                 <PlanCard
                   title="Starter"
                   price="$29 / month"
