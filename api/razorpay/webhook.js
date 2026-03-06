@@ -12,6 +12,45 @@ function getSeoModuleForPlan(plan) {
   if (plan === "enterprise") return { plan, websitesIncluded: 1, blogsPerWebsitePerMonth: 15, usersIncluded: 3 };
   throw new Error("INVALID_PLAN");
 }
+function getSuiteModuleForPlan(plan) {
+  if (plan === "free") {
+    return {
+      plan: "free",
+      websitesIncluded: 1,
+      blogsPerWebsitePerMonth: 2,
+      pagesPerMonth: 2,
+    };
+  }
+
+  if (plan === "starter") {
+    return {
+      plan: "starter",
+      websitesIncluded: 1,
+      blogsPerWebsitePerMonth: 6,
+      pagesPerMonth: 10,
+    };
+  }
+
+  if (plan === "growth") {
+    return {
+      plan: "growth",
+      websitesIncluded: 1,
+      blogsPerWebsitePerMonth: 15,
+      pagesPerMonth: 25,
+    };
+  }
+
+  if (plan === "pro") {
+    return {
+      plan: "pro",
+      websitesIncluded: 2,
+      blogsPerWebsitePerMonth: 25,
+      pagesPerMonth: 50,
+    };
+  }
+
+  throw new Error("INVALID_SUITE_PLAN");
+}
 
 async function readRawBody(req) {
   const chunks = [];
@@ -83,6 +122,80 @@ async function applyPlanToUserAndWebsites({ uid, plan }) {
     }
   } catch (e) {
     console.error("Webhook plan propagation failed:", e);
+  }
+}
+async function applySuitePlanToUser({ uid, plan }) {
+  const db = admin.firestore();
+  const base = getSuiteModuleForPlan(plan);
+
+  const userRef = db.doc(`users/${uid}`);
+  const suiteRef = db.doc(`users/${uid}/entitlements/suite`);
+  const seoRef = db.doc(`users/${uid}/modules/seo`);
+  const geoRef = db.doc(`users/${uid}/modules/geo`);
+
+  await db.runTransaction(async (tx) => {
+    tx.set(
+      userRef,
+      {
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    tx.set(
+      suiteRef,
+      {
+        plan: base.plan,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    tx.set(
+      seoRef,
+      {
+        blogsPerWebsitePerMonth: base.blogsPerWebsitePerMonth,
+        websitesIncluded: base.websitesIncluded,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    tx.set(
+      geoRef,
+      {
+        moduleId: "geo",
+        pagesPerMonth: base.pagesPerMonth,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+
+  try {
+    const websitesSnap = await db.collection(`users/${uid}/websites`).get();
+
+    if (!websitesSnap.empty) {
+      const batch = db.batch();
+
+      websitesSnap.forEach((wDoc) => {
+        const websiteSeoRef = db.doc(`users/${uid}/websites/${wDoc.id}/modules/seo`);
+
+        batch.set(
+          websiteSeoRef,
+          {
+            blogsPerWebsitePerMonth: base.blogsPerWebsitePerMonth,
+            websitesIncluded: base.websitesIncluded,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      });
+
+      await batch.commit();
+    }
+  } catch (e) {
+    console.error("Webhook suite propagation failed:", e);
   }
 }
 // ===== ADD-ON HELPERS (inserted) =====
@@ -244,8 +357,9 @@ console.log("RP_NOTES_RAW:", JSON.stringify({
 
     const uid = (notes.uid || "").trim();
     const vyndowPlan = (notes.vyndowPlan || "").trim(); // "small_business" | "enterprise"
-   const addonType = (notes.addonType || "").trim();
-const moduleName = (notes.module || "").trim();
+    const suitePlan = (notes.suitePlan || "").trim(); // "starter" | "growth" | "pro"
+    const addonType = (notes.addonType || "").trim();
+    const moduleName = (notes.module || "").trim();
     const bundleName = (notes.bundle || "").trim(); // e.g. "growth"
 
 
@@ -255,6 +369,52 @@ const moduleName = (notes.module || "").trim();
     }
 
  // Decide what to do based on event
+
+// ===== SUITE MAIN PLAN SUBSCRIPTIONS =====
+if ((event === "subscription.activated" || event === "subscription.charged") && moduleName === "suite") {
+  const normalizedSuitePlan =
+    suitePlan === "pro"
+      ? "pro"
+      : suitePlan === "growth"
+      ? "growth"
+      : suitePlan === "starter"
+      ? "starter"
+      : "free";
+
+  await applySuitePlanToUser({ uid, plan: normalizedSuitePlan });
+}
+
+if ((event === "subscription.cancelled" || event === "subscription.completed") && moduleName === "suite") {
+  await applySuitePlanToUser({ uid, plan: "free" });
+}
+
+if ((event === "payment.authorized" || event === "payment.captured") && moduleName === "suite" && !addonType) {
+  const normalizedSuitePlan =
+    suitePlan === "pro"
+      ? "pro"
+      : suitePlan === "growth"
+      ? "growth"
+      : suitePlan === "starter"
+      ? "starter"
+      : "free";
+
+  await applySuitePlanToUser({ uid, plan: normalizedSuitePlan });
+
+  if (payId) {
+    await admin.firestore().doc(`users/${uid}/razorpayPayments/${payId}`).set(
+      {
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        type: "suite_subscription",
+        event,
+        amount: payload?.payload?.payment?.entity?.amount || null,
+        currency: payload?.payload?.payment?.entity?.currency || null,
+        module: moduleName,
+        plan: normalizedSuitePlan,
+      },
+      { merge: true }
+    );
+  }
+}
 
   // ===== BUNDLE SUBSCRIPTIONS (SEO + GEO together) =====
 if ((event === "subscription.activated" || event === "subscription.charged") && (moduleName === "bundle" || bundleName === "growth")) {
