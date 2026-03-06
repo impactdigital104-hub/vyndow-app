@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useMemo } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "../firebaseClient";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -67,8 +67,8 @@ async function syncLegacyModulesToPlan(uid, plan) {
   const planMap = {
     free: { blogsPerWebsitePerMonth: 2, websitesIncluded: 1, pagesPerMonth: 2 },
     starter: { blogsPerWebsitePerMonth: 6, websitesIncluded: 1, pagesPerMonth: 10 },
-    growth: { blogsPerWebsitePerMonth: 10, websitesIncluded: 1, pagesPerMonth: 25 },
-    pro: { blogsPerWebsitePerMonth: 15, websitesIncluded: 2, pagesPerMonth: 50 },
+    growth: { blogsPerWebsitePerMonth: 15, websitesIncluded: 1, pagesPerMonth: 25 },
+    pro: { blogsPerWebsitePerMonth: 25, websitesIncluded: 2, pagesPerMonth: 50 },
   };
 
   const chosen = planMap[normalizedPlan] || planMap.free;
@@ -79,6 +79,7 @@ async function syncLegacyModulesToPlan(uid, plan) {
   await setDoc(
     seoRef,
     {
+      plan: normalizedPlan,
       blogsPerWebsitePerMonth: chosen.blogsPerWebsitePerMonth,
       websitesIncluded: chosen.websitesIncluded,
       updatedAt: serverTimestamp(),
@@ -90,13 +91,43 @@ async function syncLegacyModulesToPlan(uid, plan) {
     geoRef,
     {
       moduleId: "geo",
+      plan: normalizedPlan,
       pagesPerMonth: chosen.pagesPerMonth,
       updatedAt: serverTimestamp(),
     },
     { merge: true }
   );
-}
 
+  const websitesRef = collection(db, "users", uid, "websites");
+  const websitesSnap = await getDocs(websitesRef);
+
+  for (const websiteDoc of websitesSnap.docs) {
+    const websiteSeoRef = doc(db, "users", uid, "websites", websiteDoc.id, "modules", "seo");
+    const websiteGeoRef = doc(db, "users", uid, "websites", websiteDoc.id, "modules", "geo");
+
+    await setDoc(
+      websiteSeoRef,
+      {
+        moduleId: "seo",
+        plan: normalizedPlan,
+        blogsPerWebsitePerMonth: chosen.blogsPerWebsitePerMonth,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    await setDoc(
+      websiteGeoRef,
+      {
+        moduleId: "geo",
+        plan: normalizedPlan,
+        pagesPerMonth: chosen.pagesPerMonth,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+}
 async function ensureSuiteLifecycleForUser(user) {
   if (!user?.uid) return;
 
@@ -113,9 +144,10 @@ async function ensureSuiteLifecycleForUser(user) {
         ...buildFreeCycle(now),
         updatedAt: serverTimestamp(),
       },
-      { merge: true }
+       { merge: true }
     );
-    return;
+    await syncLegacyModulesToPlan(user.uid, "free");
+    return; 
   }
 
   const data = suiteSnap.data() || {};
@@ -136,6 +168,19 @@ async function ensureSuiteLifecycleForUser(user) {
       },
       { merge: true }
     );
+      // If lifecycle fields are missing, initialize safely based on current plan.
+  if (!cycleStart || !cycleEnd || (isPaidPlan && !graceUntil)) {
+    await setDoc(
+      suiteRef,
+      {
+        ...(isPaidPlan ? buildPaidCycle(now) : buildFreeCycle(now)),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    await syncLegacyModulesToPlan(user.uid, plan);
+    return;
+  }
     return;
   }
 
