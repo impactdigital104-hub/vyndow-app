@@ -464,7 +464,7 @@ if ((event === "subscription.activated" || event === "subscription.charged") && 
 
 if ((event === "subscription.cancelled" || event === "subscription.completed") && moduleName === "suite") {
   // Do not downgrade immediately here.
-  // AuthGate will downgrade only after graceUntil has passed.
+  // The page-level lifecycle check will downgrade only after graceUntil has passed.
 }
 
 if ((event === "payment.authorized" || event === "payment.captured") && moduleName === "suite" && !addonType) {
