@@ -8,6 +8,7 @@ import { collection, getDocs, orderBy, query, doc, getDoc } from "firebase/fires
 
 import VyndowShell from "../VyndowShell";
 import { auth, db } from "../firebaseClient";
+import { runSuiteLifecycleCheck } from "../suiteLifecycleClient";
 
 import { GEO_RUNS_COLLECTION, GEO_RUN_PAGES_SUBCOLLECTION } from "./geoModel";
 import { GeoCard } from "../components/GeoUI";
@@ -90,11 +91,18 @@ useEffect(() => {
   // Auth gate (same as SEO)
   // -----------------------------
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         router.replace("/login");
         return;
       }
+
+      try {
+        await runSuiteLifecycleCheck(user.uid);
+      } catch (e) {
+        console.error("Suite lifecycle check failed:", e);
+      }
+
       setUid(user.uid);
       setAuthReady(true);
     });
