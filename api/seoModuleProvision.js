@@ -5,22 +5,32 @@
 
 export function normalizePlan(plan) {
   const p = (plan || "").toLowerCase().trim();
-  if (p === "small_business") return "small_business";
-if (p === "small-business") return "small_business";
-  if (p === "small business") return "small_business";
-  if (p === "smallbusiness") return "small_business";
-  if (p === "enterprise") return "enterprise";
+
+  if (p === "pro") return "pro";
+  if (p === "growth") return "growth";
+  if (p === "starter") return "starter";
   if (p === "free") return "free";
+
+  // Legacy normalization safety
+  if (p === "enterprise") return "growth";
+  if (p === "small_business") return "starter";
+  if (p === "small-business") return "starter";
+  if (p === "small business") return "starter";
+  if (p === "smallbusiness") return "starter";
+
   return "free";
 }
 
 export function planDefaults(planRaw) {
   const plan = normalizePlan(planRaw);
 
-  if (plan === "enterprise") {
+  if (plan === "pro") {
+    return { plan, blogsPerWebsitePerMonth: 25, seatsIncluded: 3 };
+  }
+  if (plan === "growth") {
     return { plan, blogsPerWebsitePerMonth: 15, seatsIncluded: 3 };
   }
-  if (plan === "small_business") {
+  if (plan === "starter") {
     return { plan, blogsPerWebsitePerMonth: 6, seatsIncluded: 1 };
   }
   return { plan: "free", blogsPerWebsitePerMonth: 2, seatsIncluded: 1 };
