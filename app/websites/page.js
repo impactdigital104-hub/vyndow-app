@@ -2,7 +2,7 @@
 
 // app/websites/page.js
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import VyndowShell from "../VyndowShell";
 import AuthGate from "../components/AuthGate";
 import { auth, db } from "../firebaseClient";
@@ -13,11 +13,7 @@ import {
   getDocs,
   orderBy,
   query,
-  serverTimestamp,
-  updateDoc,
 } from "firebase/firestore";
-
-
 
 const cellStyle = {
   padding: "8px 10px",
@@ -33,12 +29,6 @@ const headerCellStyle = {
   whiteSpace: "nowrap",
 };
 
-// TODO [Phase 7]:
-// - Protect this page behind authentication.
-// - Load websites from backend instead of using sampleWebsites.
-// - Allow creating, editing, and deleting websites from this screen.
-// - Connect the "+ Add Website" button to a drawer / modal form that
-//   posts to /api/websites and refreshes the list.
 export default function WebsitesPage() {
   const [uid, setUid] = useState(null);
 
@@ -47,29 +37,39 @@ export default function WebsitesPage() {
   const [websitesError, setWebsitesError] = useState("");
 
   const [seoModule, setSeoModule] = useState(null);
- const [loadingSeoModule, setLoadingSeoModule] = useState(false);
-    const [userSeoEntitlements, setUserSeoEntitlements] = useState(null);
+  const [loadingSeoModule, setLoadingSeoModule] = useState(false);
+  const [userSeoEntitlements, setUserSeoEntitlements] = useState(null);
   const [userGeoEntitlements, setUserGeoEntitlements] = useState(null);
   const [loadingUserEntitlements, setLoadingUserEntitlements] = useState(true);
-
 
   const [name, setName] = useState("");
   const [domain, setDomain] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
-const [editingSiteId, setEditingSiteId] = useState(null);
+  const [editingSiteId, setEditingSiteId] = useState(null);
 
-const [pBrandDescription, setPBrandDescription] = useState("");
-const [pTargetAudience, setPTargetAudience] = useState("");
-const [pToneOfVoice, setPToneOfVoice] = useState(""); // comma-separated text
-const [pReadingLevel, setPReadingLevel] = useState("");
-const [pGeoTarget, setPGeoTarget] = useState("");
-const [pIndustry, setPIndustry] = useState("");
+  const [pBrandDescription, setPBrandDescription] = useState("");
+  const [pTargetAudience, setPTargetAudience] = useState("");
+  const [pToneOfVoice, setPToneOfVoice] = useState("");
+  const [pReadingLevel, setPReadingLevel] = useState("");
+  const [pGeoTarget, setPGeoTarget] = useState("");
+  const [pIndustry, setPIndustry] = useState("");
 
-const [savingProfile, setSavingProfile] = useState(false);
-const [profileMsg, setProfileMsg] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMsg, setProfileMsg] = useState("");
 
-  // 1) Track auth state (uid)
+  const [gscBySite, setGscBySite] = useState({});
+  const [loadingGscState, setLoadingGscState] = useState(false);
+  const [gscBlockMsg, setGscBlockMsg] = useState("");
+  const [gscBlockMsgColor, setGscBlockMsgColor] = useState("#065f46");
+  const [startingGscForSiteId, setStartingGscForSiteId] = useState("");
+  const [disconnectingGscForSiteId, setDisconnectingGscForSiteId] = useState("");
+  const [loadingGscProperties, setLoadingGscProperties] = useState(false);
+  const [gscProperties, setGscProperties] = useState([]);
+  const [selectedGscProperty, setSelectedGscProperty] = useState("");
+  const [connectingPropertyForSiteId, setConnectingPropertyForSiteId] = useState("");
+  const [autoOpenedFromGoogle, setAutoOpenedFromGoogle] = useState(false);
+
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((u) => {
       setUid(u?.uid || null);
@@ -77,58 +77,49 @@ const [profileMsg, setProfileMsg] = useState("");
     return () => unsub();
   }, []);
 
-// 2) Load SEO module plan/limits per WEBSITE (workspace-scoped)
-useEffect(() => {
-  if (!uid) return;
+  useEffect(() => {
+    if (!uid) return;
 
-  async function loadSeoModulesForWebsites() {
-    setLoadingSeoModule(true);
-    try {
-      // If user has no websites yet, don't try to load website modules.
-      // IMPORTANT: still flip loading to false so the page doesn't get stuck.
-      if (!websites || websites.length === 0) {
+    async function loadSeoModulesForWebsites() {
+      setLoadingSeoModule(true);
+      try {
+        if (!websites || websites.length === 0) {
+          setSeoModule({});
+          return;
+        }
+
+        const map = {};
+        for (const w of websites) {
+          const ref = doc(db, "users", uid, "websites", w.id, "modules", "seo");
+          const snap = await getDoc(ref);
+          map[w.id] = snap.exists() ? snap.data() : null;
+        }
+
+        setSeoModule(map);
+      } catch (e) {
+        console.error("Failed to load SEO modules:", e);
         setSeoModule({});
-        return;
+      } finally {
+        setLoadingSeoModule(false);
       }
-
-      const map = {};
-      for (const w of websites) {
-        const ref = doc(db, "users", uid, "websites", w.id, "modules", "seo");
-        const snap = await getDoc(ref);
-        map[w.id] = snap.exists() ? snap.data() : null;
-      }
-
-      setSeoModule(map);
-    } catch (e) {
-      console.error("Failed to load SEO modules:", e);
-      setSeoModule({});
-    } finally {
-      setLoadingSeoModule(false);
     }
-  }
 
-  loadSeoModulesForWebsites();
-}, [uid, websites]);
+    loadSeoModulesForWebsites();
+  }, [uid, websites]);
 
-  // 2B) Load SEO entitlements from the canonical user-level module doc
-  // Source of truth for website count limits:
-  // users/{uid}/modules/seo -> websitesIncluded + extraWebsitesPurchased
   useEffect(() => {
     if (!uid) return;
 
     async function loadUserEntitlements() {
       setLoadingUserEntitlements(true);
       try {
-// SEO entitlements
-const seoRef = doc(db, "users", uid, "modules", "seo");
-const seoSnap = await getDoc(seoRef);
-setUserSeoEntitlements(seoSnap.exists() ? seoSnap.data() : null);
+        const seoRef = doc(db, "users", uid, "modules", "seo");
+        const seoSnap = await getDoc(seoRef);
+        setUserSeoEntitlements(seoSnap.exists() ? seoSnap.data() : null);
 
-// GEO entitlements (for GEO add-website)
-const geoRef = doc(db, "users", uid, "modules", "geo");
-const geoSnap = await getDoc(geoRef);
-setUserGeoEntitlements(geoSnap.exists() ? geoSnap.data() : null);
-
+        const geoRef = doc(db, "users", uid, "modules", "geo");
+        const geoSnap = await getDoc(geoRef);
+        setUserGeoEntitlements(geoSnap.exists() ? geoSnap.data() : null);
       } catch (e) {
         console.error("Failed to load user SEO entitlements:", e);
         setUserSeoEntitlements(null);
@@ -140,7 +131,6 @@ setUserGeoEntitlements(geoSnap.exists() ? geoSnap.data() : null);
     loadUserEntitlements();
   }, [uid]);
 
-  // 3) Load websites list for this user
   useEffect(() => {
     if (!uid) return;
 
@@ -170,20 +160,91 @@ setUserGeoEntitlements(geoSnap.exists() ? geoSnap.data() : null);
     loadWebsites();
   }, [uid]);
 
-// 4) Compute allowed websites using canonical entitlements (user-level module doc)
+  useEffect(() => {
+    if (!uid) return;
+
+    async function loadGscState() {
+      setLoadingGscState(true);
+      try {
+        if (!websites || websites.length === 0) {
+          setGscBySite({});
+          return;
+        }
+
+        const map = {};
+        for (const site of websites) {
+          const gscRef = doc(db, "users", uid, "websites", site.id, "integrations", "gsc");
+          const gscSnap = await getDoc(gscRef);
+          map[site.id] = gscSnap.exists() ? gscSnap.data() : { connected: false };
+        }
+        setGscBySite(map);
+      } catch (e) {
+        console.error("Failed to load GSC state:", e);
+        setGscBySite({});
+      } finally {
+        setLoadingGscState(false);
+      }
+    }
+
+    loadGscState();
+  }, [uid, websites]);
+
   const plan = userSeoEntitlements?.plan ?? "free";
+  const websitesIncluded = userSeoEntitlements?.websitesIncluded ?? 1;
+  const extraWebsitesPurchased = userSeoEntitlements?.extraWebsitesPurchased ?? 0;
+  const allowedWebsites = websitesIncluded + extraWebsitesPurchased;
+  const currentWebsiteCount = websites.length;
+  const canAddWebsite = !loadingUserEntitlements && currentWebsiteCount < allowedWebsites;
 
-const websitesIncluded = userSeoEntitlements?.websitesIncluded ?? 1;
-const extraWebsitesPurchased = userSeoEntitlements?.extraWebsitesPurchased ?? 0;
+  const editingSite = useMemo(
+    () => websites.find((w) => w.id === editingSiteId) || null,
+    [websites, editingSiteId]
+  );
 
+  useEffect(() => {
+    if (loadingWebsites || !websites.length || autoOpenedFromGoogle) return;
+    if (typeof window === "undefined") return;
 
-const allowedWebsites = websitesIncluded + extraWebsitesPurchased;
+    const params = new URLSearchParams(window.location.search);
+    const gscWebsiteId = params.get("gscWebsiteId") || "";
+    const gscAuth = params.get("gscAuth") || "";
+    const gscMessage = params.get("gscMessage") || "";
 
-const currentWebsiteCount = websites.length;
+    if (!gscWebsiteId) return;
 
-const canAddWebsite =
-  !loadingUserEntitlements &&
-  currentWebsiteCount < allowedWebsites;
+    const site = websites.find((w) => w.id === gscWebsiteId);
+    if (site) {
+      startEditProfile(site);
+    }
+
+    if (gscAuth === "success") {
+      setGscBlockMsg("Google account connected. Now choose the matching Search Console property below.");
+      setGscBlockMsgColor("#065f46");
+      void loadGscPropertiesForSite(gscWebsiteId, true);
+    } else if (gscAuth === "error") {
+      setGscBlockMsg(gscMessage || "Google connection could not be completed.");
+      setGscBlockMsgColor("#b91c1c");
+    }
+
+    window.history.replaceState({}, "", "/websites");
+    setAutoOpenedFromGoogle(true);
+  }, [loadingWebsites, websites, autoOpenedFromGoogle]);
+
+  function startEditProfile(site) {
+    setProfileMsg("");
+    setGscBlockMsg("");
+    setEditingSiteId(site.id);
+
+    const p = site.profile || {};
+    setPBrandDescription(p.brandDescription || "");
+    setPTargetAudience(p.targetAudience || "");
+    setPToneOfVoice(Array.isArray(p.toneOfVoice) ? p.toneOfVoice.join(", ") : "");
+    setPReadingLevel(p.readingLevel || "");
+    setPGeoTarget(p.geoTarget || "");
+    setPIndustry(p.industry || "");
+    setGscProperties([]);
+    setSelectedGscProperty("");
+  }
 
   async function handleAddWebsite(e) {
     e.preventDefault();
@@ -223,13 +284,12 @@ const canAddWebsite =
         }),
       });
 
-   let data = {};
-try {
-  data = await resp.json();
-} catch (e) {
-  data = {};
-}
-
+      let data = {};
+      try {
+        data = await resp.json();
+      } catch (e) {
+        data = {};
+      }
 
       if (!resp.ok || !data?.ok) {
         const err = data?.error || "Add website failed.";
@@ -243,12 +303,10 @@ try {
         return;
       }
 
-
       setName("");
       setDomain("");
       setMsg("Website added.");
 
-      // Refresh list
       const q = query(colRef, orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
       const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -260,89 +318,260 @@ try {
       setSaving(false);
     }
   }
-function startEditProfile(site) {
-  setProfileMsg("");
-  setEditingSiteId(site.id);
 
-  const p = site.profile || {};
-  setPBrandDescription(p.brandDescription || "");
-  setPTargetAudience(p.targetAudience || "");
-  setPToneOfVoice(Array.isArray(p.toneOfVoice) ? p.toneOfVoice.join(", ") : "");
-  setPReadingLevel(p.readingLevel || "");
-  setPGeoTarget(p.geoTarget || "");
-  setPIndustry(p.industry || "");
-}
+  async function handleSaveProfile(e) {
+    e.preventDefault();
+    setProfileMsg("");
 
-async function handleSaveProfile(e) {
-  e.preventDefault();
-  setProfileMsg("");
+    if (!uid || !editingSiteId) return;
 
-  if (!uid || !editingSiteId) return;
+    setSavingProfile(true);
+    try {
+      const toneArray = pToneOfVoice
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const token = await auth.currentUser.getIdToken();
 
-  setSavingProfile(true);
-  try {
-    const ref = doc(db, "users", uid, "websites", editingSiteId);
-
-    const toneArray = pToneOfVoice
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const token = await auth.currentUser.getIdToken();
-
-    const resp = await fetch("/api/websites/updateProfile", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        websiteId: editingSiteId,
-        profile: {
-          brandDescription: pBrandDescription.trim(),
-          targetAudience: pTargetAudience.trim(),
-          toneOfVoice: toneArray,
-          readingLevel: pReadingLevel.trim(),
-          geoTarget: pGeoTarget.trim(),
-          industry: pIndustry.trim(),
+      const resp = await fetch("/api/websites/updateProfile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      }),
-    });
+        body: JSON.stringify({
+          websiteId: editingSiteId,
+          profile: {
+            brandDescription: pBrandDescription.trim(),
+            targetAudience: pTargetAudience.trim(),
+            toneOfVoice: toneArray,
+            readingLevel: pReadingLevel.trim(),
+            geoTarget: pGeoTarget.trim(),
+            industry: pIndustry.trim(),
+          },
+        }),
+      });
 
-    const data = await resp.json();
+      const data = await resp.json();
 
-    if (!resp.ok || !data?.ok) {
-   setProfileMsg(data?.error || "Failed to save profile.");
+      if (!resp.ok || !data?.ok) {
+        setProfileMsg(data?.error || "Failed to save profile.");
+        return;
+      }
+
+      setWebsites((prev) =>
+        prev.map((w) =>
+          w.id === editingSiteId
+            ? {
+                ...w,
+                profile: {
+                  ...(w.profile || {}),
+                  brandDescription: pBrandDescription.trim(),
+                  targetAudience: pTargetAudience.trim(),
+                  toneOfVoice: toneArray,
+                  readingLevel: pReadingLevel.trim(),
+                  geoTarget: pGeoTarget.trim(),
+                  industry: pIndustry.trim(),
+                },
+              }
+            : w
+        )
+      );
+
+      setProfileMsg("Profile saved.");
+    } catch (e) {
+      console.error("Save profile failed:", e);
+      setProfileMsg(e?.message || "Save profile failed.");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function handleStartGscConnect(siteId) {
+    if (!siteId) return;
+
+    setGscBlockMsg("");
+    setStartingGscForSiteId(siteId);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const resp = await fetch("/api/gsc/startAuth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ websiteId: siteId }),
+      });
+
+      const data = await resp.json();
+      if (!resp.ok || !data?.ok || !data?.authUrl) {
+        setGscBlockMsg(data?.error || "Could not start Google Search Console connection.");
+        setGscBlockMsgColor("#b91c1c");
+        return;
+      }
+
+      window.location.href = data.authUrl;
+    } catch (e) {
+      console.error("Start GSC connect failed:", e);
+      setGscBlockMsg(e?.message || "Could not start Google Search Console connection.");
+      setGscBlockMsgColor("#b91c1c");
+    } finally {
+      setStartingGscForSiteId("");
+    }
+  }
+
+  async function loadGscPropertiesForSite(siteId, silentSuccess = false) {
+    if (!siteId) return;
+
+    setLoadingGscProperties(true);
+    if (!silentSuccess) {
+      setGscBlockMsg("");
+    }
+
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const resp = await fetch(`/api/gsc/listProperties?websiteId=${encodeURIComponent(siteId)}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await resp.json();
+      if (!resp.ok || !data?.ok) {
+        setGscProperties([]);
+        setSelectedGscProperty("");
+        setGscBlockMsg(data?.error || "Could not load Google Search Console properties.");
+        setGscBlockMsgColor("#b91c1c");
+        return;
+      }
+
+      setGscProperties(Array.isArray(data?.properties) ? data.properties : []);
+
+      const firstMatching = (Array.isArray(data?.properties) ? data.properties : []).find(
+        (row) => row?.matchesWebsite
+      );
+      setSelectedGscProperty(firstMatching?.propertyValue || "");
+
+      if (!silentSuccess) {
+        setGscBlockMsg("Search Console properties loaded. Choose the matching property for this website.");
+        setGscBlockMsgColor("#065f46");
+      }
+    } catch (e) {
+      console.error("Load GSC properties failed:", e);
+      setGscProperties([]);
+      setSelectedGscProperty("");
+      setGscBlockMsg(e?.message || "Could not load Google Search Console properties.");
+      setGscBlockMsgColor("#b91c1c");
+    } finally {
+      setLoadingGscProperties(false);
+    }
+  }
+
+  async function handleConnectSelectedProperty(siteId) {
+    if (!siteId) return;
+    if (!selectedGscProperty) {
+      setGscBlockMsg("Please choose a Google Search Console property first.");
+      setGscBlockMsgColor("#b91c1c");
       return;
     }
 
+    setConnectingPropertyForSiteId(siteId);
+    setGscBlockMsg("");
 
-    setWebsites((prev) =>
-      prev.map((w) =>
-        w.id === editingSiteId
-          ? {
-              ...w,
-              profile: {
-                ...(w.profile || {}),
-                brandDescription: pBrandDescription.trim(),
-                targetAudience: pTargetAudience.trim(),
-                toneOfVoice: toneArray,
-                readingLevel: pReadingLevel.trim(),
-                geoTarget: pGeoTarget.trim(),
-                industry: pIndustry.trim(),
-              },
-            }
-          : w
-      )
-    );
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const resp = await fetch("/api/gsc/connectProperty", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          websiteId: siteId,
+          propertyValue: selectedGscProperty,
+        }),
+      });
 
-    setProfileMsg("Profile saved.");
-  } catch (e) {
-    console.error("Save profile failed:", e);
-    setProfileMsg(e?.message || "Save profile failed.");
-  } finally {
-    setSavingProfile(false);
+      const data = await resp.json();
+      if (!resp.ok || !data?.ok) {
+        setGscBlockMsg(
+          data?.error ||
+            "The selected Google Search Console property could not be connected."
+        );
+        setGscBlockMsgColor("#b91c1c");
+        return;
+      }
+
+      const saved = {
+        connected: true,
+        propertyValue: selectedGscProperty,
+      };
+
+      setGscBySite((prev) => ({
+        ...prev,
+        [siteId]: {
+          ...(prev[siteId] || {}),
+          ...saved,
+        },
+      }));
+
+      setGscBlockMsg(`Google Search Console connected to: ${selectedGscProperty}`);
+      setGscBlockMsgColor("#065f46");
+    } catch (e) {
+      console.error("Connect selected GSC property failed:", e);
+      setGscBlockMsg(e?.message || "Could not connect the selected Search Console property.");
+      setGscBlockMsgColor("#b91c1c");
+    } finally {
+      setConnectingPropertyForSiteId("");
+    }
   }
-}
+
+  async function handleDisconnectGsc(siteId) {
+    if (!siteId) return;
+
+    setDisconnectingGscForSiteId(siteId);
+    setGscBlockMsg("");
+
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const resp = await fetch("/api/gsc/disconnect", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ websiteId: siteId }),
+      });
+
+      const data = await resp.json();
+      if (!resp.ok || !data?.ok) {
+        setGscBlockMsg(data?.error || "Could not disconnect Google Search Console.");
+        setGscBlockMsgColor("#b91c1c");
+        return;
+      }
+
+      setGscBySite((prev) => ({
+        ...prev,
+        [siteId]: {
+          connected: false,
+          propertyValue: "",
+          propertyType: "",
+          matchedDomain: "",
+        },
+      }));
+      setGscProperties([]);
+      setSelectedGscProperty("");
+      setGscBlockMsg("Google Search Console connection removed for this website.");
+      setGscBlockMsgColor("#065f46");
+    } catch (e) {
+      console.error("Disconnect GSC failed:", e);
+      setGscBlockMsg(e?.message || "Could not disconnect Google Search Console.");
+      setGscBlockMsgColor("#b91c1c");
+    } finally {
+      setDisconnectingGscForSiteId("");
+    }
+  }
 
   return (
     <AuthGate>
@@ -358,19 +587,19 @@ async function handleSaveProfile(e) {
           </header>
 
           <section style={{ marginBottom: 18 }}>
-        <h2 style={{ color: "#6D28D9" }}>Website Plan Limits (for this account)</h2>
+            <h2 style={{ color: "#6D28D9" }}>Website Plan Limits (for this account)</h2>
 
-     {loadingUserEntitlements ? (
-  <p style={{ color: "#6b7280" }}>Loading plan…</p>
-) : (
+            {loadingUserEntitlements ? (
+              <p style={{ color: "#6b7280" }}>Loading plan…</p>
+            ) : (
               <div style={{ display: "grid", gap: 6 }}>
                 <div>
-               <b>Plan:</b> {plan}
+                  <b>Plan:</b> {plan}
                 </div>
                 <div>
                   <b>Websites allowed:</b> {allowedWebsites}{" "}
                   <span style={{ color: "#6b7280" }}>
-             ({websitesIncluded} included + {extraWebsitesPurchased} additional website purchase)
+                    ({websitesIncluded} included + {extraWebsitesPurchased} additional website purchase)
                   </span>
                 </div>
                 <div>
@@ -381,14 +610,14 @@ async function handleSaveProfile(e) {
           </section>
 
           <section style={{ marginBottom: 18 }}>
-           <h2 style={{ color: "#6D28D9" }}>Add Website</h2>
+            <h2 style={{ color: "#6D28D9" }}>Add Website</h2>
 
- {!canAddWebsite && !loadingUserEntitlements ? (
-<p style={{ color: "#b91c1c" }}>
-  You have reached your website limit.
-  <br />
-  Purchase an additional website for $10 to add more clients.
-</p>
+            {!canAddWebsite && !loadingUserEntitlements ? (
+              <p style={{ color: "#b91c1c" }}>
+                You have reached your website limit.
+                <br />
+                Purchase an additional website for $10 to add more clients.
+              </p>
             ) : null}
 
             <form
@@ -424,7 +653,7 @@ async function handleSaveProfile(e) {
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <button
                   type="submit"
-            disabled={saving || loadingUserEntitlements || !canAddWebsite}
+                  disabled={saving || loadingUserEntitlements || !canAddWebsite}
                   style={{
                     padding: "10px 14px",
                     borderRadius: "999px",
@@ -448,11 +677,9 @@ async function handleSaveProfile(e) {
           </section>
 
           <section>
-           <h2 style={{ color: "#6D28D9" }}>Current Websites</h2>
+            <h2 style={{ color: "#6D28D9" }}>Current Websites</h2>
 
-            {websitesError ? (
-              <p style={{ color: "#b91c1c" }}>{websitesError}</p>
-            ) : null}
+            {websitesError ? <p style={{ color: "#b91c1c" }}>{websitesError}</p> : null}
 
             {loadingWebsites ? (
               <p style={{ color: "#6b7280" }}>Loading websites…</p>
@@ -469,49 +696,62 @@ async function handleSaveProfile(e) {
                     <tr>
                       <th style={headerCellStyle}>Website / Brand</th>
                       <th style={headerCellStyle}>Domain</th>
+                      <th style={headerCellStyle}>Google Search Console</th>
                       <th style={headerCellStyle}>Created</th>
-                  <th style={headerCellStyle}>Actions</th>
+                      <th style={headerCellStyle}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {websites.map((site) => (
-                      <tr key={site.id}>
-                        <td style={cellStyle}>
-                          <div style={{ fontWeight: 600 }}>{site.name}</div>
-                        </td>
-                        <td style={cellStyle}>
-                          <code>{site.domain}</code>
-                        </td>
-                        <td style={cellStyle}>
-                          {site.createdAt?.toDate
-                            ? site.createdAt.toDate().toLocaleString()
-                            : "—"}
-                        </td>
-                       <td style={cellStyle}>
- <button
-  type="button"
-  onClick={() => startEditProfile(site)}
-  style={{
-    padding: "6px 12px",
-    borderRadius: 999,
-    border: "0",
-    background: "#6D28D9",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: 700,
-    boxShadow: "0 14px 30px rgba(109,40,217,0.18)",
-  }}
->
-  Edit Profile
-</button>
+                    {websites.map((site) => {
+                      const gscState = gscBySite[site.id] || { connected: false };
 
-</td>
-           
-                      </tr>
-                    ))}
+                      return (
+                        <tr key={site.id}>
+                          <td style={cellStyle}>
+                            <div style={{ fontWeight: 600 }}>{site.name}</div>
+                          </td>
+                          <td style={cellStyle}>
+                            <code>{site.domain}</code>
+                          </td>
+                          <td style={cellStyle}>
+                            {loadingGscState ? (
+                              <span style={{ color: "#6b7280" }}>Loading…</span>
+                            ) : gscState?.connected ? (
+                              <div style={{ display: "grid", gap: 4 }}>
+                                <span style={{ color: "#065f46", fontWeight: 700 }}>Connected</span>
+                                <span style={{ color: "#374151" }}>{gscState?.propertyValue || "—"}</span>
+                              </div>
+                            ) : (
+                              <span style={{ color: "#6b7280" }}>Not connected</span>
+                            )}
+                          </td>
+                          <td style={cellStyle}>
+                            {site.createdAt?.toDate ? site.createdAt.toDate().toLocaleString() : "—"}
+                          </td>
+                          <td style={cellStyle}>
+                            <button
+                              type="button"
+                              onClick={() => startEditProfile(site)}
+                              style={{
+                                padding: "6px 12px",
+                                borderRadius: 999,
+                                border: "0",
+                                background: "#6D28D9",
+                                color: "#fff",
+                                cursor: "pointer",
+                                fontWeight: 700,
+                                boxShadow: "0 14px 30px rgba(109,40,217,0.18)",
+                              }}
+                            >
+                              Edit Profile
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {!websites.length ? (
                       <tr>
-                        <td style={cellStyle} colSpan={4}>
+                        <td style={cellStyle} colSpan={5}>
                           No websites yet.
                         </td>
                       </tr>
@@ -521,197 +761,366 @@ async function handleSaveProfile(e) {
               </div>
             )}
           </section>
-              {editingSiteId ? (
-  <section style={{ marginTop: 18 }}>
-    <h2 style={{ color: "#6D28D9" }}>Edit Website Profile</h2>
-    <p style={{ color: "#6b7280" }}>
-      These are your saved defaults for this website. You can still override
-      Brand Description / Tone / Reading Level per blog inside the SEO page.
-    </p>
 
-    <form
-      onSubmit={handleSaveProfile}
-style={{
-  display: "grid",
-  gap: 10,
-  maxWidth: 760,
-  padding: 22,
-  border: "1px solid #e5e7eb",
-  borderRadius: 18,
-  background: "#fff",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
-}}
+          {editingSiteId ? (
+            <section style={{ marginTop: 18 }}>
+              <h2 style={{ color: "#6D28D9" }}>Edit Website Profile</h2>
+              <p style={{ color: "#6b7280" }}>
+                These are your saved defaults for this website. You can still override Brand Description / Tone /
+                Reading Level per blog inside the SEO page.
+              </p>
 
-    >
-      <label style={{ display: "grid", gap: 6 }}>
-        <span style={{ fontWeight: 600 }}>Brand Description</span>
-        <textarea
-style={{ width: "100%", minHeight: 120 }}
-          value={pBrandDescription}
-          onChange={(e) => setPBrandDescription(e.target.value)}
-          rows={6}
-          placeholder="Describe the brand in 2–5 lines."
-        />
-      </label>
+              <form
+                onSubmit={handleSaveProfile}
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  maxWidth: 760,
+                  padding: 22,
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 18,
+                  background: "#fff",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 10,
+                    padding: 16,
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 14,
+                    background: "#faf5ff",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700, color: "#4C1D95", marginBottom: 6 }}>
+                      Google Search Console
+                    </div>
+                    <div style={{ color: "#5b6472", fontSize: "0.95rem" }}>
+                      Organic Growth Intelligence can only analyze the same website that has been added in Vyndow.
+                      Please connect the matching Google Search Console property.
+                    </div>
+                  </div>
 
-      <label style={{ display: "grid", gap: 6 }}>
-        <span style={{ fontWeight: 600 }}>Target Audience</span>
-        <input
-          value={pTargetAudience}
-          onChange={(e) => setPTargetAudience(e.target.value)}
-          placeholder="e.g. CFOs at mid-to-large enterprises"
-        />
-      </label>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div>
+                      <b>Website in Vyndow:</b> {editingSite?.domain || "—"}
+                    </div>
+                    <div>
+                      <b>Connection status:</b>{" "}
+                      {gscBySite[editingSiteId]?.connected ? (
+                        <span style={{ color: "#065f46", fontWeight: 700 }}>Connected</span>
+                      ) : (
+                        <span style={{ color: "#6b7280" }}>Not connected</span>
+                      )}
+                    </div>
+                    {gscBySite[editingSiteId]?.connected ? (
+                      <div>
+                        <b>Connected property:</b> {gscBySite[editingSiteId]?.propertyValue || "—"}
+                      </div>
+                    ) : null}
+                  </div>
 
-      <label style={{ display: "grid", gap: 6 }}>
-        <span style={{ fontWeight: 600 }}>Tone of Voice (comma separated)</span>
-     <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
-  {[
-    "Warm & Empathetic",
-    "Expert & Authoritative",
-    "Educational & Insightful",
-    "Conversational & Easy-to-read",
-  ].map((label) => {
-    const selected = (pToneOfVoice || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                    <button
+                      type="button"
+                      onClick={() => handleStartGscConnect(editingSiteId)}
+                      disabled={startingGscForSiteId === editingSiteId}
+                      style={{
+                        padding: "10px 16px",
+                        borderRadius: "999px",
+                        border: "0",
+                        background: "#2563EB",
+                        color: "#fff",
+                        fontWeight: 700,
+                        cursor: startingGscForSiteId === editingSiteId ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {startingGscForSiteId === editingSiteId
+                        ? "Opening Google…"
+                        : "Connect Google Search Console"}
+                    </button>
 
-    const isChecked = selected.includes(label);
+                    <button
+                      type="button"
+                      onClick={() => loadGscPropertiesForSite(editingSiteId)}
+                      disabled={loadingGscProperties}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: "999px",
+                        border: "1px solid #d1d5db",
+                        background: "#fff",
+                        fontWeight: 600,
+                        cursor: loadingGscProperties ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {loadingGscProperties ? "Loading properties…" : "Load My Search Console Properties"}
+                    </button>
 
-    return (
-      <label key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <input
-          type="checkbox"
-          checked={isChecked}
-          onChange={(e) => {
-            const next = e.target.checked
-              ? [...selected, label]
-              : selected.filter((x) => x !== label);
+                    {gscBySite[editingSiteId]?.connected ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDisconnectGsc(editingSiteId)}
+                        disabled={disconnectingGscForSiteId === editingSiteId}
+                        style={{
+                          padding: "10px 14px",
+                          borderRadius: "999px",
+                          border: "1px solid #fecaca",
+                          background: "#fff1f2",
+                          color: "#b91c1c",
+                          fontWeight: 700,
+                          cursor:
+                            disconnectingGscForSiteId === editingSiteId ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {disconnectingGscForSiteId === editingSiteId ? "Disconnecting…" : "Disconnect"}
+                      </button>
+                    ) : null}
+                  </div>
 
-            setPToneOfVoice(next.join(", "));
-          }}
-        />
-        {label}
-      </label>
-    );
-  })}
-</div>
+                  {gscProperties.length ? (
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: 10,
+                        padding: 14,
+                        borderRadius: 12,
+                        background: "#fff",
+                        border: "1px solid #e5e7eb",
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, color: "#111827" }}>Choose the property for this website</div>
+                      <select
+                        value={selectedGscProperty}
+                        onChange={(e) => setSelectedGscProperty(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "10px 12px",
+                          borderRadius: 10,
+                          border: "1px solid #d1d5db",
+                        }}
+                      >
+                        <option value="">Select a Google Search Console property</option>
+                        {gscProperties.map((row) => (
+                          <option key={row.propertyValue} value={row.propertyValue}>
+                            {row.propertyValue}
+                            {row.matchesWebsite ? " — matches this website" : " — does not match"}
+                          </option>
+                        ))}
+                      </select>
 
-      </label>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        {gscProperties.map((row) => (
+                          <div
+                            key={`${row.propertyValue}-note`}
+                            style={{
+                              fontSize: "0.92rem",
+                              color: row.matchesWebsite ? "#065f46" : "#b91c1c",
+                            }}
+                          >
+                            {row.propertyValue} — {row.matchesWebsite ? "Matches this website" : "Does not match this website"}
+                          </div>
+                        ))}
+                      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontWeight: 600 }}>Reading Level</span>
-<select
-  value={pReadingLevel || "Grade 8–9 (Standard blog readability)"}
-  onChange={(e) => setPReadingLevel(e.target.value)}
-  style={{
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-  }}
->
-  <option value="Grade 6–7 (Very easy)">Grade 6–7 (Very easy)</option>
-  <option value="Grade 8–9 (Standard blog readability)">Grade 8–9 (Standard blog readability)</option>
-  <option value="Grade 10–12 (Advanced)">Grade 10–12 (Advanced)</option>
-  <option value="Expert / Professional audience">Expert / Professional audience</option>
-</select>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => handleConnectSelectedProperty(editingSiteId)}
+                          disabled={connectingPropertyForSiteId === editingSiteId}
+                          style={{
+                            padding: "10px 16px",
+                            borderRadius: "999px",
+                            border: "0",
+                            background: "#059669",
+                            color: "#fff",
+                            fontWeight: 700,
+                            cursor:
+                              connectingPropertyForSiteId === editingSiteId ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {connectingPropertyForSiteId === editingSiteId
+                            ? "Saving connection…"
+                            : "Use This Property"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
 
-        </label>
+                  {gscBlockMsg ? (
+                    <div style={{ color: gscBlockMsgColor, fontWeight: 600 }}>{gscBlockMsg}</div>
+                  ) : null}
+                </div>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontWeight: 600 }}>Geo Target (locked in SEO)</span>
-          <input
-            value={pGeoTarget}
-            onChange={(e) => setPGeoTarget(e.target.value)}
-            placeholder="e.g. India"
-          />
-        </label>
-      </div>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={{ fontWeight: 600 }}>Brand Description</span>
+                  <textarea
+                    style={{ width: "100%", minHeight: 120 }}
+                    value={pBrandDescription}
+                    onChange={(e) => setPBrandDescription(e.target.value)}
+                    rows={6}
+                    placeholder="Describe the brand in 2–5 lines."
+                  />
+                </label>
 
-      <label style={{ display: "grid", gap: 6 }}>
-        <span style={{ fontWeight: 600 }}>Industry (locked in SEO)</span>
-   <select
-  value={pIndustry}
-  onChange={(e) => setPIndustry(e.target.value)}
-  style={{
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #e5e7eb",
-  }}
->
- <option value="">Select an industry</option>
-<option value="general">General (not set)</option>
-<option value="health_recovery">Rehab, Mental Health & Recovery</option>
-<option value="healthcare_clinic">Healthcare / Medical Clinic</option>
-<option value="finance">Finance / Investing / Banking</option>
-<option value="legal">Legal / Law Firms</option>
-<option value="education">Education / EdTech / Coaching</option>
-<option value="ecommerce_fmcg">Ecommerce, FMCG & Retail</option>
-<option value="travel_hospitality">Travel, Tourism & Hospitality</option>
-<option value="saas_tech">Technology / B2B SaaS / Software</option>
-<option value="entertainment_media">Entertainment, Media & Creators</option>
-<option value="real_estate_home">Real Estate & Home Services</option>
-<option value="spirituality_wellness">Spirituality, Wellness & Faith</option>
-<option value="other">Other</option>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={{ fontWeight: 600 }}>Target Audience</span>
+                  <input
+                    value={pTargetAudience}
+                    onChange={(e) => setPTargetAudience(e.target.value)}
+                    placeholder="e.g. CFOs at mid-to-large enterprises"
+                  />
+                </label>
 
-</select>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={{ fontWeight: 600 }}>Tone of Voice (comma separated)</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+                    {[
+                      "Warm & Empathetic",
+                      "Expert & Authoritative",
+                      "Educational & Insightful",
+                      "Conversational & Easy-to-read",
+                    ].map((label) => {
+                      const selected = (pToneOfVoice || "")
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean);
 
+                      const isChecked = selected.includes(label);
 
-      </label>
+                      return (
+                        <label key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? [...selected, label]
+                                : selected.filter((x) => x !== label);
 
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-        <button
-          type="submit"
-          disabled={savingProfile}
-          style={{
-  padding: "10px 16px",
-  borderRadius: "999px",
-  border: "0",
-  background: savingProfile ? "#E5E7EB" : "#6D28D9",
-  color: savingProfile ? "#111827" : "#fff",
-  fontSize: "0.9rem",
-  fontWeight: 700,
-  cursor: savingProfile ? "not-allowed" : "pointer",
-  boxShadow: savingProfile ? "none" : "0 14px 30px rgba(109,40,217,0.18)",
-  opacity: savingProfile ? 0.9 : 1,
-}}
-        >
-          {savingProfile ? "Saving…" : "Save Profile"}
-        </button>
+                              setPToneOfVoice(next.join(", "));
+                            }}
+                          />
+                          {label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </label>
 
-        <button
-          type="button"
-          onClick={() => {
-            setEditingSiteId(null);
-            setProfileMsg("");
-          }}
-          style={{
-            padding: "10px 14px",
-            borderRadius: "999px",
-            border: "1px solid #e5e7eb",
-            background: "#fff",
-            fontSize: "0.9rem",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          Close
-        </button>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontWeight: 600 }}>Reading Level</span>
+                    <select
+                      value={pReadingLevel || "Grade 8–9 (Standard blog readability)"}
+                      onChange={(e) => setPReadingLevel(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #d1d5db",
+                      }}
+                    >
+                      <option value="Grade 6–7 (Very easy)">Grade 6–7 (Very easy)</option>
+                      <option value="Grade 8–9 (Standard blog readability)">
+                        Grade 8–9 (Standard blog readability)
+                      </option>
+                      <option value="Grade 10–12 (Advanced)">Grade 10–12 (Advanced)</option>
+                      <option value="Expert / Professional audience">Expert / Professional audience</option>
+                    </select>
+                  </label>
 
-        {profileMsg ? (
-          <span style={{ color: profileMsg === "Profile saved." ? "#065f46" : "#b91c1c" }}>
-            {profileMsg}
-          </span>
-        ) : null}
-      </div>
-    </form>
-  </section>
-) : null}
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontWeight: 600 }}>Geo Target (locked in SEO)</span>
+                    <input
+                      value={pGeoTarget}
+                      onChange={(e) => setPGeoTarget(e.target.value)}
+                      placeholder="e.g. India"
+                    />
+                  </label>
+                </div>
 
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={{ fontWeight: 600 }}>Industry (locked in SEO)</span>
+                  <select
+                    value={pIndustry}
+                    onChange={(e) => setPIndustry(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <option value="">Select an industry</option>
+                    <option value="general">General (not set)</option>
+                    <option value="health_recovery">Rehab, Mental Health & Recovery</option>
+                    <option value="healthcare_clinic">Healthcare / Medical Clinic</option>
+                    <option value="finance">Finance / Investing / Banking</option>
+                    <option value="legal">Legal / Law Firms</option>
+                    <option value="education">Education / EdTech / Coaching</option>
+                    <option value="ecommerce_fmcg">Ecommerce, FMCG & Retail</option>
+                    <option value="travel_hospitality">Travel, Tourism & Hospitality</option>
+                    <option value="saas_tech">Technology / B2B SaaS / Software</option>
+                    <option value="entertainment_media">Entertainment, Media & Creators</option>
+                    <option value="real_estate_home">Real Estate & Home Services</option>
+                    <option value="spirituality_wellness">Spirituality, Wellness & Faith</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <button
+                    type="submit"
+                    disabled={savingProfile}
+                    style={{
+                      padding: "10px 16px",
+                      borderRadius: "999px",
+                      border: "0",
+                      background: savingProfile ? "#E5E7EB" : "#6D28D9",
+                      color: savingProfile ? "#111827" : "#fff",
+                      fontSize: "0.9rem",
+                      fontWeight: 700,
+                      cursor: savingProfile ? "not-allowed" : "pointer",
+                      boxShadow: savingProfile ? "none" : "0 14px 30px rgba(109,40,217,0.18)",
+                      opacity: savingProfile ? 0.9 : 1,
+                    }}
+                  >
+                    {savingProfile ? "Saving…" : "Save Profile"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingSiteId(null);
+                      setProfileMsg("");
+                      setGscBlockMsg("");
+                      setGscProperties([]);
+                      setSelectedGscProperty("");
+                    }}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "999px",
+                      border: "1px solid #e5e7eb",
+                      background: "#fff",
+                      fontSize: "0.9rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Close
+                  </button>
+
+                  {profileMsg ? (
+                    <span style={{ color: profileMsg === "Profile saved." ? "#065f46" : "#b91c1c" }}>
+                      {profileMsg}
+                    </span>
+                  ) : null}
+                </div>
+              </form>
+            </section>
+          ) : null}
         </main>
       </VyndowShell>
     </AuthGate>
