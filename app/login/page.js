@@ -12,6 +12,7 @@ import {
 import { collection, doc, getDoc, getDocs, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebaseClient";
+import { ensureSuiteLifecycleBaseline } from "../suiteLifecycleClient";
 
 function LoginInner() {
   const router = useRouter();
@@ -64,24 +65,7 @@ function LoginInner() {
 
   async function ensureSuiteEntitlementsDoc(user) {
     if (!user?.uid) return;
-
-    const suiteRef = doc(db, "users", user.uid, "entitlements", "suite");
-    const snap = await getDoc(suiteRef);
-
-    // If missing, create default free lifecycle foundation.
-    // If exists, do NOT overwrite existing plan or cycle fields here.
-    if (!snap.exists()) {
-      const now = new Date();
-      const cycleEndDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-      await setDoc(suiteRef, {
-        plan: "free",
-        cycleStart: Timestamp.fromDate(now),
-        cycleEnd: Timestamp.fromDate(cycleEndDate),
-        graceUntil: null,
-        updatedAt: serverTimestamp(),
-      });
-    }
+    await ensureSuiteLifecycleBaseline(user.uid);
   }
   async function ensureSuitePlanSyncedToLegacyModules(user) {
     if (!user?.uid) return;
