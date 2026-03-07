@@ -18,6 +18,7 @@ import {
 
 import VyndowShell from "../../VyndowShell";
 import { auth, db } from "../../firebaseClient";
+import { runSuiteLifecycleCheck } from "../../suiteLifecycleClient";
 
 // =========================
 // Step 1 — Business Profile (save + resume)
@@ -2644,11 +2645,18 @@ const placeholderKw = {
     process.env.NEXT_PUBLIC_SEO_STRATEGY_ENABLED === "true";
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         router.replace("/login");
         return;
       }
+
+      try {
+        await runSuiteLifecycleCheck(user.uid);
+      } catch (e) {
+        console.error("Suite lifecycle check failed:", e);
+      }
+
       setUid(user.uid);
       setAuthReady(true);
     });
