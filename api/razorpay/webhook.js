@@ -158,8 +158,10 @@ async function applySuitePlanToUser({ uid, plan, lifecyclePatch = null }) {
     tx.set(
       seoRef,
       {
+        plan: base.plan,
         blogsPerWebsitePerMonth: base.blogsPerWebsitePerMonth,
         websitesIncluded: base.websitesIncluded,
+        seatsIncluded: base.plan === "starter" ? 1 : base.plan === "free" ? 1 : 3,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
@@ -169,6 +171,7 @@ async function applySuitePlanToUser({ uid, plan, lifecyclePatch = null }) {
       geoRef,
       {
         moduleId: "geo",
+        plan: base.plan,
         pagesPerMonth: base.pagesPerMonth,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
@@ -184,12 +187,26 @@ async function applySuitePlanToUser({ uid, plan, lifecyclePatch = null }) {
 
       websitesSnap.forEach((wDoc) => {
         const websiteSeoRef = db.doc(`users/${uid}/websites/${wDoc.id}/modules/seo`);
+        const websiteGeoRef = db.doc(`users/${uid}/websites/${wDoc.id}/modules/geo`);
 
         batch.set(
           websiteSeoRef,
           {
+            moduleId: "seo",
+            plan: base.plan,
             blogsPerWebsitePerMonth: base.blogsPerWebsitePerMonth,
-            websitesIncluded: base.websitesIncluded,
+            seatsIncluded: base.plan === "starter" ? 1 : base.plan === "free" ? 1 : 3,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        batch.set(
+          websiteGeoRef,
+          {
+            moduleId: "geo",
+            plan: base.plan,
+            pagesPerMonth: base.pagesPerMonth,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true }
