@@ -11,6 +11,7 @@ import { collection, getDocs, orderBy, query, doc, getDoc, updateDoc, serverTime
 
 import VyndowShell from "../VyndowShell";
 import { db, auth } from "../firebaseClient";
+import { runSuiteLifecycleCheck } from "../suiteLifecycleClient";
 
 
 
@@ -49,12 +50,19 @@ const [suitePlanLoading, setSuitePlanLoading] = useState(false);
 const [suitePlanError, setSuitePlanError] = useState("");
 
 useEffect(() => {
-  const unsub = onAuthStateChanged(auth, (user) => {
+  const unsub = onAuthStateChanged(auth, async (user) => {
     if (!user) {
       router.replace("/login");
       return;
     }
-      setUid(user.uid);
+
+    try {
+      await runSuiteLifecycleCheck(user.uid);
+    } catch (e) {
+      console.error("Suite lifecycle check failed:", e);
+    }
+
+    setUid(user.uid);
     setAuthReady(true);
   });
 
