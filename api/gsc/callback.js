@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     const { tokens } = await client.getToken(code);
 
     const db = admin.firestore();
-    await db.doc(`users/${state.uid}/integrations/google/searchConsole`).set(
+   await db.doc(`users/${state.uid}/integrations/google_search_console`).set(
       {
         refreshToken: tokens.refresh_token || "",
         accessToken: tokens.access_token || "",
