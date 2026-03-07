@@ -31,7 +31,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ ok: false, error: "Website not found." });
     }
 
-    const tokenSnap = await db.doc(`users/${uid}/integrations/google/searchConsole`).get();
+    const tokenSnap = await db.doc(`users/${uid}/integrations/google_search_console`).get();
     if (!tokenSnap.exists) {
       return res.status(400).json({ ok: false, error: "Google Search Console is not connected yet." });
     }
