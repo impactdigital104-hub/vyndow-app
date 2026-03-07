@@ -269,10 +269,12 @@ export async function runSuiteLifecycleCheck(uid) {
   }
 
   if (now <= cycleEnd) {
+    await syncSuitePlanToAllRuntimeDocs(uid, plan);
     return { ok: true, action: "paid_active" };
   }
 
   if (graceUntil && now <= graceUntil) {
+    await syncSuitePlanToAllRuntimeDocs(uid, plan);
     return { ok: true, action: "paid_in_grace" };
   }
 
