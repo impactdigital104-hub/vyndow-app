@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
 
 import VyndowShell from "../../VyndowShell";
 import { auth, db } from "../../firebaseClient";
@@ -26,6 +26,7 @@ export default function GeoRunsListPage() {
   const [geoModule, setGeoModule] = useState(null);
   const [geoModuleLoading, setGeoModuleLoading] = useState(false);
   const [geoModuleError, setGeoModuleError] = useState("");
+    const [suitePlan, setSuitePlan] = useState("free");
 
   // Runs list
   const [runsLoading, setRunsLoading] = useState(false);
@@ -86,6 +87,25 @@ export default function GeoRunsListPage() {
     try { localStorage.setItem("vyndow_selectedWebsiteId", selectedWebsite); } catch {}
   }, [selectedWebsite]);
 
+    // Load suite plan label (users/{uid}/entitlements/suite.plan)
+  useEffect(() => {
+    async function loadSuitePlan() {
+      if (!uid) return;
+
+      try {
+        const suiteRef = doc(db, "users", uid, "entitlements", "suite");
+        const snap = await getDoc(suiteRef);
+        const planRaw = snap.exists() ? snap.data()?.plan : "free";
+        const plan = String(planRaw || "free").toLowerCase().trim();
+        setSuitePlan(plan || "free");
+      } catch (e) {
+        console.error("Failed to load suite plan:", e);
+        setSuitePlan("free");
+      }
+    }
+
+    loadSuitePlan();
+  }, [uid]);
   // Ensure GEO module for pill
   useEffect(() => {
     async function ensureGeo() {
@@ -123,12 +143,12 @@ export default function GeoRunsListPage() {
     if (geoModuleError) return "Usage unavailable";
     if (!geoModule) return "Free Plan";
 
-    const plan = (geoModule.plan || "free").toString();
     const pagesPerMonth = Number(geoModule.pagesPerMonth ?? 0);
 
     const planLabel =
-      plan === "enterprise" ? "Enterprise Plan"
-      : plan === "small_business" ? "Small Business Plan"
+      suitePlan === "pro" ? "Pro Plan"
+      : suitePlan === "growth" ? "Growth Plan"
+      : suitePlan === "starter" ? "Starter Plan"
       : "Free Plan";
 
     return `${pagesPerMonth} pages / month · ${planLabel}`;
