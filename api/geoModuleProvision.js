@@ -4,26 +4,34 @@
 
 function normalizePlan(plan) {
   const p = (plan || "").toLowerCase().trim();
-  if (p === "small_business") return "small_business";
-  if (p === "small-business") return "small_business";
-  if (p === "small business") return "small_business";
-  if (p === "smallbusiness") return "small_business";
-  if (p === "enterprise") return "enterprise";
+
+  if (p === "pro") return "pro";
+  if (p === "growth") return "growth";
+  if (p === "starter") return "starter";
   if (p === "free") return "free";
+
+  // Legacy normalization safety
+  if (p === "enterprise") return "growth";
+  if (p === "small_business") return "starter";
+  if (p === "small-business") return "starter";
+  if (p === "small business") return "starter";
+  if (p === "smallbusiness") return "starter";
+
   return "free";
 }
-
 function geoPlanDefaults(planRaw) {
   const plan = normalizePlan(planRaw);
 
-  // Phase 7 locked limits
-  if (plan === "enterprise") {
+  if (plan === "pro") {
     return { plan, pagesPerMonth: 50 };
   }
-  if (plan === "small_business") {
-    return { plan, pagesPerMonth: 20 };
+  if (plan === "growth") {
+    return { plan, pagesPerMonth: 25 };
   }
-  return { plan: "free", pagesPerMonth: 5 };
+  if (plan === "starter") {
+    return { plan, pagesPerMonth: 10 };
+  }
+  return { plan: "free", pagesPerMonth: 2 };
 }
 
 
@@ -47,7 +55,7 @@ async function ensureWebsiteGeoModule({ admin, ownerUid, websiteId }) {
       {
         moduleId: "geo",
         plan: baseUser.plan,
-        pagesPerMonth: baseUser.pagesPerMonth, // free = 5 (we fixed this)
+                pagesPerMonth: baseUser.pagesPerMonth, // free = 2
         extraGeoCreditsThisMonth: 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
