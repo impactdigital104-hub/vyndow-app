@@ -2,6 +2,7 @@
 // api/websites/create.js
 import admin from "../firebaseAdmin";
 import { planDefaults } from "../seoModuleProvision";
+import { geoPlanDefaults } from "../geoModuleProvision";
 
 
 export default async function handler(req, res) {
@@ -74,6 +75,9 @@ const seoExtraWebsitesPurchased = seo?.extraWebsitesPurchased ?? 0;
     const allowedWebsites =
   websitesIncluded +
   seoExtraWebsitesPurchased;
+        const geoRef = db.doc(`users/${uid}/modules/geo`);
+    const geoNowSnap = await geoRef.get();
+    const geo = geoNowSnap.exists ? geoNowSnap.data() : {};
 
 
 
@@ -122,7 +126,19 @@ await websiteSeoRef.set(
   },
   { merge: true }
 );
-
+const geoBase = geoPlanDefaults(geo?.plan || "free");
+const websiteGeoRef = db.doc(`users/${uid}/websites/${newRef.id}/modules/geo`);
+await websiteGeoRef.set(
+  {
+    moduleId: "geo",
+    plan: geoBase.plan,
+    pagesPerMonth: Number(geo?.pagesPerMonth ?? geoBase.pagesPerMonth),
+    extraGeoCreditsThisMonth: Number(geo?.extraGeoCreditsThisMonth ?? 0),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  { merge: true }
+);
 
     return res.status(200).json({
       ok: true,
