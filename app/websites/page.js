@@ -855,7 +855,7 @@ export default function WebsitesPage() {
                         cursor: loadingGscProperties ? "not-allowed" : "pointer",
                       }}
                     >
-                      {loadingGscProperties ? "Loading properties…" : "Load My Search Console Properties"}
+                      {loadingGscProperties ? "Loading properties…" : "Reload Property List"}
                     </button>
 
                     {gscBySite[editingSiteId]?.connected ? (
