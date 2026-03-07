@@ -9,7 +9,7 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebaseClient";
 
@@ -83,7 +83,7 @@ function LoginInner() {
       });
     }
   }
-    async function ensureSuitePlanSyncedToLegacyModules(user) {
+  async function ensureSuitePlanSyncedToLegacyModules(user) {
     if (!user?.uid) return;
 
     // 1) Read suite plan (default to free)
@@ -94,29 +94,29 @@ function LoginInner() {
 
     // 2) Locked mapping (Suite → numeric limits)
     const MAP = {
-      free:   { seoBlogs: 2,  geoPages: 2,  websitesIncluded: 1 },
-      starter:{ seoBlogs: 6,  geoPages: 10, websitesIncluded: 1 },
-      growth: { seoBlogs: 15, geoPages: 25, websitesIncluded: 1 },
-      pro:    { seoBlogs: 25, geoPages: 50, websitesIncluded: 2 },
+      free:    { seoBlogs: 2,  geoPages: 2,  websitesIncluded: 1, seoPlan: "free",    geoPlan: "free",    seatsIncluded: 1 },
+      starter: { seoBlogs: 6,  geoPages: 10, websitesIncluded: 1, seoPlan: "starter", geoPlan: "starter", seatsIncluded: 1 },
+      growth:  { seoBlogs: 15, geoPages: 25, websitesIncluded: 1, seoPlan: "growth",  geoPlan: "growth",  seatsIncluded: 3 },
+      pro:     { seoBlogs: 25, geoPages: 50, websitesIncluded: 2, seoPlan: "pro",     geoPlan: "pro",     seatsIncluded: 3 },
     };
 
     const limits = MAP[suitePlan] || MAP.free;
 
-    // 3) Update SEO legacy module doc (numeric fields only; merge update)
+    // 3) Update root SEO module doc
     const seoRef = doc(db, "users", user.uid, "modules", "seo");
     await setDoc(
       seoRef,
       {
+        plan: limits.seoPlan,
         blogsPerWebsitePerMonth: Number(limits.seoBlogs),
         websitesIncluded: Number(limits.websitesIncluded),
+        seatsIncluded: Number(limits.seatsIncluded),
         updatedAt: serverTimestamp(),
       },
       { merge: true }
     );
 
-    // 4) Update GEO legacy module doc (numeric fields only; merge update)
-    // IMPORTANT safety: if GEO doc does NOT exist, create a minimal correct base
-    // so later server-side ensure logic doesn’t get blocked by an incomplete doc.
+    // 4) Update root GEO module doc
     const geoRef = doc(db, "users", user.uid, "modules", "geo");
     const geoSnap = await getDoc(geoRef);
 
@@ -125,7 +125,7 @@ function LoginInner() {
         geoRef,
         {
           moduleId: "geo",
-          plan: "free",
+          plan: limits.geoPlan,
           pagesPerMonth: Number(limits.geoPages),
           extraGeoCreditsThisMonth: 0,
           createdAt: serverTimestamp(),
@@ -137,6 +137,41 @@ function LoginInner() {
       await setDoc(
         geoRef,
         {
+          moduleId: "geo",
+          plan: limits.geoPlan,
+          pagesPerMonth: Number(limits.geoPages),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    // 5) Propagate to all existing website-level SEO/GEO module docs
+    const sitesRef = collection(db, "users", user.uid, "websites");
+    const sitesSnap = await getDocs(sitesRef);
+
+    for (const siteDoc of sitesSnap.docs) {
+      const websiteId = siteDoc.id;
+
+      const websiteSeoRef = doc(db, "users", user.uid, "websites", websiteId, "modules", "seo");
+      await setDoc(
+        websiteSeoRef,
+        {
+          moduleId: "seo",
+          plan: limits.seoPlan,
+          blogsPerWebsitePerMonth: Number(limits.seoBlogs),
+          seatsIncluded: Number(limits.seatsIncluded),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      const websiteGeoRef = doc(db, "users", user.uid, "websites", websiteId, "modules", "geo");
+      await setDoc(
+        websiteGeoRef,
+        {
+          moduleId: "geo",
+          plan: limits.geoPlan,
           pagesPerMonth: Number(limits.geoPages),
           updatedAt: serverTimestamp(),
         },
