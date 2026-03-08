@@ -9,6 +9,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
   setDoc,
@@ -84,6 +85,60 @@ function getWebsiteLabel(w) {
 
 function getWebsiteSubtext(w) {
   return safeStr(w?.websiteUrl) || safeStr(w?.domain) || "";
+}
+
+function getExecutiveSummary(report) {
+  return safeStr(report?.summary?.executiveSummary || report?.executiveSummary);
+}
+
+function getSummaryPreview(report, maxLength = 220) {
+  const text = getExecutiveSummary(report);
+  if (!text) return "Summary preview not available for this report.";
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength).trim()}…`;
+}
+
+function getInsightsCount(report) {
+  if (Array.isArray(report?.insights)) return report.insights.length;
+  return Number(report?.insightsCount || 0);
+}
+
+function getBillingCycleLabel(report) {
+  const start = toDateOrNull(report?.billingCycle?.start || report?.cycleStart);
+  if (start) {
+    try {
+      return start.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+      });
+    } catch (e) {}
+  }
+
+  const cycleKey = safeStr(report?.billingCycle?.cycleKey || report?.cycleKey);
+  if (cycleKey.includes("__")) {
+    const startPart = cycleKey.split("__")[0];
+    const parsed = new Date(startPart);
+    if (!Number.isNaN(parsed.getTime())) {
+      try {
+        return parsed.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "long",
+        });
+      } catch (e) {}
+    }
+  }
+
+  const createdAt = toDateOrNull(report?.createdAt || report?.generatedAt);
+  if (createdAt) {
+    try {
+      return createdAt.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+      });
+    } catch (e) {}
+  }
+
+  return "—";
 }
 
 function StatusPill({ tone = "neutral", children }) {
@@ -199,6 +254,8 @@ export default function OrganicGrowthIntelligencePage() {
 
   const [currentCycleReport, setCurrentCycleReport] = useState(null);
   const [latestReport, setLatestReport] = useState(null);
+  const [latestReportLoading, setLatestReportLoading] = useState(false);
+  const [latestReportError, setLatestReportError] = useState("");
 
   const [generateState, setGenerateState] = useState("idle");
   const [generateError, setGenerateError] = useState("");
@@ -311,22 +368,10 @@ export default function OrganicGrowthIntelligencePage() {
           "dashboard",
           "currentCycle"
         );
-        const latestSnapRef = doc(
-          db,
-          "users",
-          effectiveUid,
-          "websites",
-          effectiveWebsiteId,
-          "modules",
-          "ogi",
-          "dashboard",
-          "latest"
-        );
 
-        const [suiteSnap, currentSnap, latestSnap] = await Promise.all([
+        const [suiteSnap, currentSnap] = await Promise.all([
           getDoc(suiteRef),
           getDoc(currentSnapRef),
-          getDoc(latestSnapRef),
         ]);
 
         const suiteData = suiteSnap.exists() ? suiteSnap.data() || {} : {};
@@ -338,14 +383,11 @@ export default function OrganicGrowthIntelligencePage() {
             : "";
 
         setCycleInfo({ cycleKey, cycleStart, cycleEnd });
-
         setCurrentCycleReport(currentSnap.exists() ? currentSnap.data() || {} : null);
-        setLatestReport(latestSnap.exists() ? latestSnap.data() || {} : null);
       } catch (e) {
         console.error("Failed to load OGI dashboard status:", e);
         setStatusError(e?.message || "Failed to load Organic Growth Intelligence status.");
         setCurrentCycleReport(null);
-        setLatestReport(null);
       } finally {
         setStatusLoading(false);
       }
@@ -353,6 +395,46 @@ export default function OrganicGrowthIntelligencePage() {
 
     loadStatus();
   }, [uid, selectedWebsiteId, websites]);
+
+  useEffect(() => {
+    async function loadLatestReport() {
+      if (!uid || !selectedWebsiteId || websitesLoading) return;
+
+      try {
+        setLatestReportLoading(true);
+        setLatestReportError("");
+        setLatestReport(null);
+
+        const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
+        const reportsCol = collection(
+          db,
+          "users",
+          effectiveUid,
+          "websites",
+          effectiveWebsiteId,
+          "ogiReports"
+        );
+        const reportsQuery = query(reportsCol, orderBy("createdAt", "desc"), limit(1));
+        const snap = await getDocs(reportsQuery);
+
+        if (snap.empty) {
+          setLatestReport(null);
+          return;
+        }
+
+        const firstDoc = snap.docs[0];
+        setLatestReport({ id: firstDoc.id, ...firstDoc.data() });
+      } catch (e) {
+        console.error("Failed to load latest OGI report:", e);
+        setLatestReport(null);
+        setLatestReportError(e?.message || "Failed to load latest report.");
+      } finally {
+        setLatestReportLoading(false);
+      }
+    }
+
+    loadLatestReport();
+  }, [uid, selectedWebsiteId, websites, websitesLoading]);
 
   const selectedWebsite = useMemo(() => {
     return websites.find((w) => w.id === selectedWebsiteId) || null;
@@ -733,8 +815,7 @@ export default function OrganicGrowthIntelligencePage() {
                                 lineHeight: 1.65,
                               }}
                             >
-                              Next report available on:{" "}
-                              <strong>{formatDate(cycleInfo.cycleEnd)}</strong>
+                              Next report available on: <strong>{formatDate(cycleInfo.cycleEnd)}</strong>
                             </div>
                           </>
                         ) : (
@@ -832,10 +913,48 @@ export default function OrganicGrowthIntelligencePage() {
 
               <div style={{ display: "grid", gap: 18 }}>
                 <SectionCard
-                  title="Most Recent Report"
-                  subtitle="This remains a lightweight dashboard placeholder until archive/history is built."
+                  title="Latest Report"
+                  subtitle="Preview the most recent Organic Growth Intelligence report for this website."
+                  right={
+                    selectedWebsiteId ? (
+                      <button
+                        onClick={() =>
+                          router.push(
+                            `/growth/intelligence/history?websiteId=${encodeURIComponent(selectedWebsiteId)}`
+                          )
+                        }
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 12,
+                          border: `1px solid ${HOUSE.cardBorder}`,
+                          background: "white",
+                          color: HOUSE.primaryBlue,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                        }}
+                      >
+                        View All Reports
+                      </button>
+                    ) : null
+                  }
                 >
-                  {!latestReport?.generatedAt ? (
+                  {latestReportError ? (
+                    <div
+                      style={{
+                        padding: 12,
+                        borderRadius: 12,
+                        background: "rgba(220,38,38,0.08)",
+                        color: HOUSE.danger,
+                        border: "1px solid rgba(220,38,38,0.15)",
+                      }}
+                    >
+                      {latestReportError}
+                    </div>
+                  ) : latestReportLoading ? (
+                    <div style={{ color: HOUSE.subtext }}>Loading latest report…</div>
+                  ) : !selectedWebsiteId ? (
+                    <div style={{ color: HOUSE.subtext }}>Select a website to view report history.</div>
+                  ) : !latestReport?.id ? (
                     <div
                       style={{
                         padding: 16,
@@ -846,10 +965,9 @@ export default function OrganicGrowthIntelligencePage() {
                         lineHeight: 1.65,
                       }}
                     >
-                      <div style={{ fontWeight: 800 }}>Not generated yet</div>
+                      <div style={{ fontWeight: 800 }}>No reports generated yet.</div>
                       <div style={{ marginTop: 8, color: HOUSE.subtext }}>
-                        Once you generate your first Organic Growth Intelligence report,
-                        the latest generated timestamp will appear here.
+                        Generate your first Organic Growth Intelligence report to see insights here.
                       </div>
                     </div>
                   ) : (
@@ -861,27 +979,56 @@ export default function OrganicGrowthIntelligencePage() {
                         background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
                       }}
                     >
-                      <div style={{ fontSize: 14, color: HOUSE.subtext }}>
-                        Last generated report
-                      </div>
+                      <div style={{ fontSize: 14, color: HOUSE.subtext }}>Latest Report</div>
                       <div
                         style={{
                           marginTop: 6,
-                          fontSize: 18,
+                          fontSize: 20,
                           fontWeight: 900,
                           color: HOUSE.text,
                         }}
                       >
-                        {formatDate(latestReport.generatedAt)}
+                        {getBillingCycleLabel(latestReport)}
                       </div>
 
-                      <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 10 }}>
+                      <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                        <div style={{ color: HOUSE.text, fontSize: 14, lineHeight: 1.55 }}>
+                          <strong>Generated on:</strong> {formatDate(latestReport.createdAt)}
+                        </div>
+                        <div style={{ color: HOUSE.text, fontSize: 14, lineHeight: 1.55 }}>
+                          <strong>Billing cycle:</strong> {getBillingCycleLabel(latestReport)}
+                        </div>
+                        <div style={{ color: HOUSE.text, fontSize: 14, lineHeight: 1.65 }}>
+                          <strong>Executive summary:</strong> {getSummaryPreview(latestReport, 190)}
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 10 }}>
                         <StatusPill tone="neutral">
-                          Insights: {Number(latestReport?.insightsCount || 0)}
+                          Insights generated: {getInsightsCount(latestReport)}
                         </StatusPill>
-                        <StatusPill tone="neutral">
-                          Actions: {Number(latestReport?.actionPlanCount || 0)}
-                        </StatusPill>
+                      </div>
+
+                      <div style={{ marginTop: 16 }}>
+                        <button
+                          onClick={() =>
+                            router.push(
+                              `/growth/intelligence/report/${latestReport.id}?websiteId=${encodeURIComponent(selectedWebsiteId)}`
+                            )
+                          }
+                          style={{
+                            padding: "11px 14px",
+                            borderRadius: 12,
+                            border: "none",
+                            background: HOUSE.primaryBlue,
+                            color: "white",
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            boxShadow: "0 10px 22px rgba(30,102,255,0.22)",
+                          }}
+                        >
+                          View Full Report
+                        </button>
                       </div>
                     </div>
                   )}
