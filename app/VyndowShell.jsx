@@ -5,19 +5,20 @@ import { usePathname } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "./firebaseClient";
 
-
 export default function VyndowShell({ activeModule, children }) {
   const year = new Date().getFullYear();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-    const pathname = usePathname() || "";
+  const pathname = usePathname() || "";
 
   const isSeoStrategyRoute = pathname.startsWith("/seo/strategy");
   const isSeoRoute =
     pathname === "/seo" || (pathname.startsWith("/seo/") && !isSeoStrategyRoute);
 
   const isGeoRoute = pathname === "/geo" || pathname.startsWith("/geo/");
+  const isOgiRoute =
+    pathname === "/growth/intelligence" || pathname.startsWith("/growth/intelligence/");
 
-  const isOrganicRoute = isSeoRoute || isSeoStrategyRoute || isGeoRoute;
+  const isOrganicRoute = isSeoRoute || isSeoStrategyRoute || isGeoRoute || isOgiRoute;
 
   const [organicOpen, setOrganicOpen] = useState(false);
   const organicExpanded = organicOpen || isOrganicRoute;
@@ -36,15 +37,12 @@ export default function VyndowShell({ activeModule, children }) {
     }
   }
 
-
   return (
     <div className="app-shell">
-      {/* LEFT: Global sidebar */}
       <aside
         className={`sidebar ${isMobileOpen ? "sidebar--open" : ""}`}
         aria-label="Main navigation"
       >
-        {/* Brand block */}
         <div className="sidebar-brand">
           <div className="sidebar-logo-circle">V</div>
           <div className="sidebar-brand-text">
@@ -53,26 +51,23 @@ export default function VyndowShell({ activeModule, children }) {
           </div>
         </div>
 
-        {/* Quick Actions */}
         <div className="sidebar-section">
           <div className="sidebar-section-label">Quick Actions</div>
 
-<a
-  href="/websites"
-  className={`sidebar-link sidebar-link-muted${
-    activeModule === "websites" ? " is-active" : ""
-  }`}
-  onClick={closeMobileSidebar}
->
-  <span className="sidebar-link-main">Websites &amp; Clients</span>
-  <span className="sidebar-pill sidebar-pill-soft">Global</span>
-  <span className="sidebar-info">i</span>
-  <span className="sidebar-tip">
-    Create and manage all your websites, brands and clients in one
-    place.
-  </span>
-</a>
-
+          <a
+            href="/websites"
+            className={`sidebar-link sidebar-link-muted${
+              activeModule === "websites" ? " is-active" : ""
+            }`}
+            onClick={closeMobileSidebar}
+          >
+            <span className="sidebar-link-main">Websites &amp; Clients</span>
+            <span className="sidebar-pill sidebar-pill-soft">Global</span>
+            <span className="sidebar-info">i</span>
+            <span className="sidebar-tip">
+              Create and manage all your websites, brands and clients in one place.
+            </span>
+          </a>
 
           <a
             href="/invite-team"
@@ -89,23 +84,19 @@ export default function VyndowShell({ activeModule, children }) {
             </span>
           </a>
 
-
-      <a href="/pricing" className="sidebar-link sidebar-link-muted">
-  <span className="sidebar-link-main">Billing &amp; Plans</span>
-  <span className="sidebar-pill sidebar-pill-soft">Owner only</span>
-  <span className="sidebar-info">i</span>
-  <span className="sidebar-tip">
-    Manage subscriptions, per-website modules and usage limits.
-  </span>
-</a>
-
+          <a href="/pricing" className="sidebar-link sidebar-link-muted">
+            <span className="sidebar-link-main">Billing &amp; Plans</span>
+            <span className="sidebar-pill sidebar-pill-soft">Owner only</span>
+            <span className="sidebar-info">i</span>
+            <span className="sidebar-tip">
+              Manage subscriptions, per-website modules and usage limits.
+            </span>
+          </a>
         </div>
 
-        {/* Vyndow Suite */}
         <div className="sidebar-section">
           <div className="sidebar-section-label">Vyndow Suite</div>
 
-          {/* Vyndow Organic (collapsible) */}
           <button
             type="button"
             className="sidebar-link is-active"
@@ -127,12 +118,9 @@ export default function VyndowShell({ activeModule, children }) {
 
           {organicExpanded && (
             <>
-              {/* Strategy – Live */}
               <a
                 href="/seo/strategy"
-                className={`sidebar-link${
-                  isSeoStrategyRoute ? " is-active" : ""
-                }`}
+                className={`sidebar-link${isSeoStrategyRoute ? " is-active" : ""}`}
                 onClick={closeMobileSidebar}
                 style={{ paddingLeft: 26 }}
               >
@@ -144,7 +132,6 @@ export default function VyndowShell({ activeModule, children }) {
                 </span>
               </a>
 
-              {/* SEO – Live */}
               <a
                 href="/seo"
                 className={`sidebar-link${isSeoRoute ? " is-active" : ""}`}
@@ -159,7 +146,6 @@ export default function VyndowShell({ activeModule, children }) {
                 </span>
               </a>
 
-              {/* GEO – Live */}
               <a
                 href="/geo"
                 className={`sidebar-link${isGeoRoute ? " is-active" : ""}`}
@@ -171,6 +157,20 @@ export default function VyndowShell({ activeModule, children }) {
                 <span className="sidebar-info">i</span>
                 <span className="sidebar-tip">
                   Audit and get your website optimized for AI Search.
+                </span>
+              </a>
+
+              <a
+                href="/growth/intelligence"
+                className={`sidebar-link${isOgiRoute ? " is-active" : ""}`}
+                onClick={closeMobileSidebar}
+                style={{ paddingLeft: 26 }}
+              >
+                <span className="sidebar-link-main">Organic Growth Intelligence</span>
+                <span className="sidebar-pill sidebar-pill-live">Live</span>
+                <span className="sidebar-info">i</span>
+                <span className="sidebar-tip">
+                  Generate intelligence report using GSC and Vyndow strategy context.
                 </span>
               </a>
             </>
@@ -194,21 +194,19 @@ export default function VyndowShell({ activeModule, children }) {
             </span>
           </div>
 
-<a
-  href="/social"
-  className="sidebar-link is-soon"
-  onClick={closeMobileSidebar}
-  title="Vyndow Social (internal)"
->
-  <span className="sidebar-link-main">Vyndow Social</span>
-  <span className="sidebar-pill sidebar-pill-soon">Soon</span>
-  <span className="sidebar-info">i</span>
-  <span className="sidebar-tip">
-    Strategize, plan, implement and analyze your social media
-    presence.
-  </span>
-</a>
-
+          <a
+            href="/social"
+            className="sidebar-link is-soon"
+            onClick={closeMobileSidebar}
+            title="Vyndow Social (internal)"
+          >
+            <span className="sidebar-link-main">Vyndow Social</span>
+            <span className="sidebar-pill sidebar-pill-soon">Soon</span>
+            <span className="sidebar-info">i</span>
+            <span className="sidebar-tip">
+              Strategize, plan, implement and analyze your social media presence.
+            </span>
+          </a>
 
           <div className="sidebar-link is-soon">
             <span className="sidebar-link-main">Vyndow Analytics</span>
@@ -229,9 +227,7 @@ export default function VyndowShell({ activeModule, children }) {
           </div>
 
           <div className="sidebar-link is-soon">
-            <span className="sidebar-link-main">
-              Vyndow CMO (Command Center)
-            </span>
+            <span className="sidebar-link-main">Vyndow CMO (Command Center)</span>
             <span className="sidebar-pill sidebar-pill-soon">Vision</span>
             <span className="sidebar-info">i</span>
             <span className="sidebar-tip">
@@ -239,7 +235,7 @@ export default function VyndowShell({ activeModule, children }) {
             </span>
           </div>
         </div>
-        {/* Account */}
+
         <div className="sidebar-section">
           <div className="sidebar-section-label">Account</div>
 
@@ -262,19 +258,16 @@ export default function VyndowShell({ activeModule, children }) {
           </button>
         </div>
 
-               {/* Sidebar footer */}
-
         <div className="sidebar-footer">
           <div className="sidebar-footer-title">Vyndow Terms</div>
 
-<div className="sidebar-footer-links">
-  <a href="/terms" onClick={closeMobileSidebar}>Terms of Use</a>
-  <a href="/privacy" onClick={closeMobileSidebar}>Privacy Policy</a>
-  <a href="/refund" onClick={closeMobileSidebar}>Refund &amp; Cancellation Policy</a>
-  <a href="/contact" onClick={closeMobileSidebar}>Contact Us</a>
-  <a href="/about" onClick={closeMobileSidebar}>About Vyndow</a>
-</div>
-
+          <div className="sidebar-footer-links">
+            <a href="/terms" onClick={closeMobileSidebar}>Terms of Use</a>
+            <a href="/privacy" onClick={closeMobileSidebar}>Privacy Policy</a>
+            <a href="/refund" onClick={closeMobileSidebar}>Refund &amp; Cancellation Policy</a>
+            <a href="/contact" onClick={closeMobileSidebar}>Contact Us</a>
+            <a href="/about" onClick={closeMobileSidebar}>About Vyndow</a>
+          </div>
 
           <div className="sidebar-footer-meta">
             © {year} Vyndow
@@ -282,7 +275,6 @@ export default function VyndowShell({ activeModule, children }) {
         </div>
       </aside>
 
-      {/* BACKDROP on mobile when sidebar is open */}
       {isMobileOpen && (
         <div
           className="sidebar-backdrop"
@@ -291,7 +283,6 @@ export default function VyndowShell({ activeModule, children }) {
         />
       )}
 
-      {/* RIGHT: main content + mobile hamburger button */}
       <div className="main-panel">
         <button
           type="button"
