@@ -181,56 +181,71 @@ function MetricCard({ label, metric, invertPositive = false }) {
   const change = safeNum(metric?.changePercent, 0);
   const changeUi = formatChange(change, invertPositive);
 
+  const isPercentMetric = label === "CTR";
+  const formattedLast28 = isPercentMetric ? `${last28}%` : last28.toLocaleString();
+  const formattedPrevious28 = isPercentMetric ? `${previous28}%` : previous28.toLocaleString();
+
   return (
     <div
       style={{
         ...CARD_STYLE,
-        padding: 16,
-        minHeight: 150,
+        padding: 18,
+        minHeight: 165,
+        background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
       }}
     >
       <div style={{ fontSize: 13, fontWeight: 800, color: HOUSE.subtext }}>
         {label}
       </div>
 
-      <div
-        style={{
-          marginTop: 10,
-          display: "grid",
-          gap: 8,
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 11, color: HOUSE.subtext }}>Last 28 days</div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: HOUSE.text }}>
-            {last28}
-          </div>
+      <div style={{ marginTop: 12 }}>
+        <div style={{ fontSize: 11, color: HOUSE.subtext }}>Last 28 days</div>
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: 28,
+            fontWeight: 900,
+            color: HOUSE.text,
+            lineHeight: 1.1,
+          }}
+        >
+          {formattedLast28}
         </div>
+      </div>
 
-        <div>
-          <div style={{ fontSize: 11, color: HOUSE.subtext }}>Previous 28 days</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: HOUSE.text }}>
-            {previous28}
-          </div>
+      <div style={{ marginTop: 12 }}>
+        <div style={{ fontSize: 11, color: HOUSE.subtext }}>Previous 28 days</div>
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: 17,
+            fontWeight: 800,
+            color: HOUSE.subtext,
+            lineHeight: 1.1,
+          }}
+        >
+          {formattedPrevious28}
         </div>
+      </div>
 
-        <div>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "7px 10px",
-              borderRadius: 999,
-              border: `1px solid ${changeUi.border}`,
-              background: changeUi.bg,
-              color: changeUi.color,
-              fontWeight: 800,
-              fontSize: 12,
-            }}
-          >
-            Change: {changeUi.text}
-          </span>
-        </div>
+      <div style={{ marginTop: 14 }}>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "7px 10px",
+            borderRadius: 999,
+            border: `1px solid ${changeUi.border}`,
+            background: changeUi.bg,
+            color: changeUi.color,
+            fontWeight: 800,
+            fontSize: 12,
+          }}
+        >
+          <span>{changeUi.text.startsWith("-") ? "↓" : changeUi.text === "0%" ? "→" : "↑"}</span>
+          <span>{changeUi.text}</span>
+        </span>
       </div>
     </div>
   );
@@ -297,79 +312,130 @@ function GeneratedFixBlock({ generatedFix }) {
 }
 
 function InsightCard({ insight, index }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <div
       style={{
         ...CARD_STYLE,
         border: `1px solid ${HOUSE.cardBorder}`,
+        transition: "all 0.18s ease",
       }}
     >
-      <div
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
         style={{
+          width: "100%",
           padding: 16,
-          borderBottom: `1px solid ${HOUSE.cardBorder}`,
-          background: "linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,250,252,1) 100%)",
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          textAlign: "left",
         }}
       >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-          <StatusPill tone="neutral">Insight {index + 1}</StatusPill>
-          {safeStr(insight?.type) ? <StatusPill tone="neutral">{safeStr(insight?.type)}</StatusPill> : null}
-          {safeStr(insight?.actionType) ? <StatusPill tone="warning">{safeStr(insight?.actionType)}</StatusPill> : null}
-        </div>
-
         <div
           style={{
-            marginTop: 12,
-            fontSize: 20,
-            lineHeight: 1.35,
-            fontWeight: 900,
-            color: HOUSE.text,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
           }}
         >
-          {safeStr(insight?.title) || `Insight ${index + 1}`}
-        </div>
-      </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+              <StatusPill tone="neutral">Insight {index + 1}</StatusPill>
+              {safeStr(insight?.type) ? (
+                <StatusPill tone="neutral">{safeStr(insight?.type)}</StatusPill>
+              ) : null}
+              {safeStr(insight?.actionType) ? (
+                <StatusPill tone="warning">{safeStr(insight?.actionType)}</StatusPill>
+              ) : null}
+            </div>
 
-      <div style={{ padding: 18, display: "grid", gap: 16 }}>
-        <div>
-          <div style={{ fontWeight: 800, color: HOUSE.text }}>Problem</div>
-          <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
-            {safeStr(insight?.diagnosis) || "—"}
+            <div
+              style={{
+                marginTop: 12,
+                fontSize: 20,
+                lineHeight: 1.35,
+                fontWeight: 900,
+                color: HOUSE.text,
+              }}
+            >
+              {safeStr(insight?.title) || `Insight ${index + 1}`}
+            </div>
+          </div>
+
+          <div
+            style={{
+              minWidth: 28,
+              height: 28,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 999,
+              border: `1px solid ${HOUSE.cardBorder}`,
+              background: "white",
+              color: HOUSE.primaryPurple,
+              fontSize: 16,
+              fontWeight: 900,
+            }}
+          >
+            {open ? "▾" : "▸"}
           </div>
         </div>
+      </button>
 
-        <div>
-          <div style={{ fontWeight: 800, color: HOUSE.text }}>Why It Matters</div>
-          <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
-            {safeStr(insight?.whyItMatters) || "—"}
-          </div>
-        </div>
-
-        <div>
-          <div style={{ fontWeight: 800, color: HOUSE.text }}>Recommended Action</div>
-          <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
-            {safeStr(insight?.recommendation) || "—"}
-          </div>
-        </div>
-
+      {open ? (
         <div
           style={{
-            padding: 14,
-            borderRadius: 14,
-            border: `1px solid ${HOUSE.cardBorder}`,
-            background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+            padding: 18,
+            paddingTop: 0,
+            display: "grid",
+            gap: 16,
+            borderTop: `1px solid ${HOUSE.cardBorder}`,
+            background: "linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,250,252,1) 100%)",
           }}
         >
-          <div style={{ fontWeight: 800, color: HOUSE.text }}>Generated Fix</div>
-          <div style={{ marginTop: 8 }}>
-            <GeneratedFixBlock generatedFix={insight?.generatedFix || {}} />
+          <div style={{ paddingTop: 18 }}>
+            <div style={{ fontWeight: 800, color: HOUSE.text }}>Problem</div>
+            <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
+              {safeStr(insight?.diagnosis) || "—"}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 800, color: HOUSE.text }}>Why It Matters</div>
+            <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
+              {safeStr(insight?.whyItMatters) || "—"}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 800, color: HOUSE.text }}>Recommended Action</div>
+            <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
+              {safeStr(insight?.recommendation) || "—"}
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: 14,
+              borderRadius: 14,
+              border: `1px solid ${HOUSE.cardBorder}`,
+              background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+            }}
+          >
+            <div style={{ fontWeight: 800, color: HOUSE.text }}>Generated Fix</div>
+            <div style={{ marginTop: 8 }}>
+              <GeneratedFixBlock generatedFix={insight?.generatedFix || {}} />
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
-
 export default function OgiReportDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -384,6 +450,7 @@ export default function OgiReportDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [report, setReport] = useState(null);
+  const [openInsightIndex, setOpenInsightIndex] = useState(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
