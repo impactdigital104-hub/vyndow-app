@@ -9,7 +9,9 @@ function toIsoDateUTC(date) {
 }
 
 function addDaysUTC(date, days) {
-  const safe = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const safe = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
   safe.setUTCDate(safe.getUTCDate() + days);
   return safe;
 }
@@ -101,6 +103,40 @@ async function buildPeriodDatasets({ uid, property, tokens, startDate, endDate }
   };
 }
 
+export async function buildSearchAnalyticsForWebsite({ uid, websiteId }) {
+  const { property, tokens } = await getConnectedGscContext(uid, websiteId);
+  const ranges = buildComparisonRanges();
+
+  const [last28Days, previous28Days] = await Promise.all([
+    buildPeriodDatasets({
+      uid,
+      property,
+      tokens,
+      startDate: ranges.last28Start,
+      endDate: ranges.last28End,
+    }),
+    buildPeriodDatasets({
+      uid,
+      property,
+      tokens,
+      startDate: ranges.previous28Start,
+      endDate: ranges.previous28End,
+    }),
+  ]);
+
+  return {
+    last28Days,
+    previous28Days,
+    comparisonMeta: {
+      last28Start: ranges.last28Start,
+      last28End: ranges.last28End,
+      previous28Start: ranges.previous28Start,
+      previous28End: ranges.previous28End,
+      property,
+    },
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "POST") {
     return res.status(200).json({ ok: true, message: "Use GET or POST." });
@@ -125,37 +161,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "Missing websiteId." });
     }
 
-    const { property, tokens } = await getConnectedGscContext(uid, websiteId);
-    const ranges = buildComparisonRanges();
-
-    const [last28Days, previous28Days] = await Promise.all([
-      buildPeriodDatasets({
-        uid,
-        property,
-        tokens,
-        startDate: ranges.last28Start,
-        endDate: ranges.last28End,
-      }),
-      buildPeriodDatasets({
-        uid,
-        property,
-        tokens,
-        startDate: ranges.previous28Start,
-        endDate: ranges.previous28End,
-      }),
-    ]);
+    const payload = await buildSearchAnalyticsForWebsite({ uid, websiteId });
 
     return res.status(200).json({
       ok: true,
-      last28Days,
-      previous28Days,
-      comparisonMeta: {
-        last28Start: ranges.last28Start,
-        last28End: ranges.last28End,
-        previous28Start: ranges.previous28Start,
-        previous28End: ranges.previous28End,
-        property,
-      },
+      ...payload,
     });
   } catch (error) {
     console.error("ogi/searchAnalytics error:", error);
