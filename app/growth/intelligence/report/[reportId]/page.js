@@ -436,6 +436,7 @@ function InsightCard({ insight, index }) {
     </div>
   );
 }
+
 export default function OgiReportDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -450,7 +451,6 @@ export default function OgiReportDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [report, setReport] = useState(null);
-  const [openInsightIndex, setOpenInsightIndex] = useState(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -587,6 +587,15 @@ export default function OgiReportDetailPage() {
     return report?.kpi || report?.summary?.topMetrics || {};
   }, [report]);
 
+  const printUrl = useMemo(() => {
+    const websiteIdForLink = safeStr(report?.websiteId) || safeStr(report?.effectiveWebsiteId) || websiteIdFromQuery;
+    if (!reportId) return "";
+    if (websiteIdForLink) {
+      return `/growth/intelligence/report/${reportId}/print?websiteId=${encodeURIComponent(websiteIdForLink)}`;
+    }
+    return `/growth/intelligence/report/${reportId}/print`;
+  }, [report, reportId, websiteIdFromQuery]);
+
   return (
     <AuthGate>
       <VyndowShell activeModule="growth">
@@ -662,21 +671,49 @@ export default function OgiReportDetailPage() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => router.push("/growth/intelligence")}
+                  <div
                     style={{
-                      padding: "11px 14px",
-                      borderRadius: 12,
-                      border: `1px solid ${HOUSE.cardBorder}`,
-                      background: "white",
-                      color: HOUSE.text,
-                      fontWeight: 800,
-                      cursor: "pointer",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 10,
+                      justifyContent: "flex-end",
                     }}
                   >
-                    Back to OGI Dashboard
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (printUrl) window.open(printUrl, "_blank", "noopener,noreferrer");
+                      }}
+                      style={{
+                        padding: "11px 14px",
+                        borderRadius: 12,
+                        border: "none",
+                        background: HOUSE.primaryBlue,
+                        color: "white",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        boxShadow: "0 10px 22px rgba(30,102,255,0.22)",
+                      }}
+                    >
+                      Open Printable Report
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => router.push("/growth/intelligence")}
+                      style={{
+                        padding: "11px 14px",
+                        borderRadius: 12,
+                        border: `1px solid ${HOUSE.cardBorder}`,
+                        background: "white",
+                        color: HOUSE.text,
+                        fontWeight: 800,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Back to OGI Dashboard
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
