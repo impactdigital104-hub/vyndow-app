@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   Timestamp,
@@ -62,22 +63,6 @@ function formatDate(value) {
       year: "numeric",
       month: "long",
       day: "numeric",
-    });
-  } catch (e) {
-    return "—";
-  }
-}
-
-function formatDateTime(value) {
-  const d = toDateOrNull(value);
-  if (!d) return "—";
-  try {
-    return d.toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
     });
   } catch (e) {
     return "—";
@@ -194,6 +179,8 @@ function SectionCard({ title, subtitle, right, children }) {
 }
 
 export default function OrganicGrowthIntelligencePage() {
+  const router = useRouter();
+
   const [uid, setUid] = useState("");
   const [authReady, setAuthReady] = useState(false);
 
@@ -210,17 +197,11 @@ export default function OrganicGrowthIntelligencePage() {
     cycleEnd: null,
   });
 
-  const [effectiveContext, setEffectiveContext] = useState({
-    effectiveUid: "",
-    effectiveWebsiteId: "",
-  });
-
   const [currentCycleReport, setCurrentCycleReport] = useState(null);
   const [latestReport, setLatestReport] = useState(null);
 
   const [generateState, setGenerateState] = useState("idle");
   const [generateError, setGenerateError] = useState("");
-  const [inlinePreview, setInlinePreview] = useState(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -315,13 +296,11 @@ export default function OrganicGrowthIntelligencePage() {
         setStatusLoading(true);
         setStatusError("");
         setGenerateError("");
-        setInlinePreview(null);
 
         const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
-        setEffectiveContext({ effectiveUid, effectiveWebsiteId });
 
         const suiteRef = doc(db, "users", effectiveUid, "entitlements", "suite");
-        const currentCycleRef = doc(
+        const currentSnapRef = doc(
           db,
           "users",
           effectiveUid,
@@ -332,7 +311,7 @@ export default function OrganicGrowthIntelligencePage() {
           "dashboard",
           "currentCycle"
         );
-        const latestRef = doc(
+        const latestSnapRef = doc(
           db,
           "users",
           effectiveUid,
@@ -346,8 +325,8 @@ export default function OrganicGrowthIntelligencePage() {
 
         const [suiteSnap, currentSnap, latestSnap] = await Promise.all([
           getDoc(suiteRef),
-          getDoc(currentCycleRef),
-          getDoc(latestRef),
+          getDoc(currentSnapRef),
+          getDoc(latestSnapRef),
         ]);
 
         const suiteData = suiteSnap.exists() ? suiteSnap.data() || {} : {};
@@ -360,11 +339,8 @@ export default function OrganicGrowthIntelligencePage() {
 
         setCycleInfo({ cycleKey, cycleStart, cycleEnd });
 
-        const currentData = currentSnap.exists() ? currentSnap.data() || {} : null;
-        const latestData = latestSnap.exists() ? latestSnap.data() || {} : null;
-
-        setCurrentCycleReport(currentData);
-        setLatestReport(latestData);
+        setCurrentCycleReport(currentSnap.exists() ? currentSnap.data() || {} : null);
+        setLatestReport(latestSnap.exists() ? latestSnap.data() || {} : null);
       } catch (e) {
         console.error("Failed to load OGI dashboard status:", e);
         setStatusError(e?.message || "Failed to load Organic Growth Intelligence status.");
@@ -392,7 +368,7 @@ export default function OrganicGrowthIntelligencePage() {
   const canGenerate =
     !!selectedWebsiteId &&
     !statusLoading &&
-    !generateState.startsWith("generating") &&
+    generateState !== "generating" &&
     !alreadyGeneratedThisCycle;
 
   async function handleGenerateReport() {
@@ -430,6 +406,46 @@ export default function OrganicGrowthIntelligencePage() {
       const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
       const generatedAt = Timestamp.now();
 
+      const reportsCol = collection(
+        db,
+        "users",
+        effectiveUid,
+        "websites",
+        effectiveWebsiteId,
+        "ogiReports"
+      );
+      const reportRef = doc(reportsCol);
+      const reportId = reportRef.id;
+
+      const billingCycle = {
+        cycleKey: cycleInfo.cycleKey || "",
+        start: cycleInfo.cycleStart ? Timestamp.fromDate(cycleInfo.cycleStart) : null,
+        end: cycleInfo.cycleEnd ? Timestamp.fromDate(cycleInfo.cycleEnd) : null,
+      };
+
+      const kpi = data?.summary?.topMetrics || {};
+      const websiteLabel = getWebsiteLabel(selectedWebsite);
+      const websiteUrl = getWebsiteSubtext(selectedWebsite);
+
+      await setDoc(
+        reportRef,
+        {
+          createdAt: generatedAt,
+          billingCycle,
+          summary: data.summary || {},
+          insights: Array.isArray(data.insights) ? data.insights : [],
+          actionPlan: Array.isArray(data.actionPlan) ? data.actionPlan : [],
+          kpi,
+          websiteId: selectedWebsiteId,
+          effectiveUid,
+          effectiveWebsiteId,
+          websiteLabel,
+          websiteUrl,
+          debugMeta: data.debugMeta || {},
+        },
+        { merge: true }
+      );
+
       const currentCycleRef = doc(
         db,
         "users",
@@ -458,26 +474,11 @@ export default function OrganicGrowthIntelligencePage() {
         currentCycleRef,
         {
           cycleKey: cycleInfo.cycleKey || "",
-          cycleStart: cycleInfo.cycleStart ? Timestamp.fromDate(cycleInfo.cycleStart) : null,
-          cycleEnd: cycleInfo.cycleEnd ? Timestamp.fromDate(cycleInfo.cycleEnd) : null,
+          cycleStart: billingCycle.start,
+          cycleEnd: billingCycle.end,
           generatedAt,
           generatedByUid: uid,
-          websiteId: selectedWebsiteId,
-          effectiveUid,
-          effectiveWebsiteId,
-          summary: data.summary || {},
-          insights: Array.isArray(data.insights) ? data.insights : [],
-          actionPlan: Array.isArray(data.actionPlan) ? data.actionPlan : [],
-          debugMeta: data.debugMeta || {},
-        },
-        { merge: true }
-      );
-
-      await setDoc(
-        latestRef,
-        {
-          cycleKey: cycleInfo.cycleKey || "",
-          generatedAt,
+          reportId,
           websiteId: selectedWebsiteId,
           effectiveUid,
           effectiveWebsiteId,
@@ -488,32 +489,27 @@ export default function OrganicGrowthIntelligencePage() {
         { merge: true }
       );
 
-      const currentDocLocal = {
-        cycleKey: cycleInfo.cycleKey || "",
-        cycleStart: cycleInfo.cycleStart ? Timestamp.fromDate(cycleInfo.cycleStart) : null,
-        cycleEnd: cycleInfo.cycleEnd ? Timestamp.fromDate(cycleInfo.cycleEnd) : null,
-        generatedAt,
-        summary: data.summary || {},
-        insights: Array.isArray(data.insights) ? data.insights : [],
-        actionPlan: Array.isArray(data.actionPlan) ? data.actionPlan : [],
-      };
+      await setDoc(
+        latestRef,
+        {
+          cycleKey: cycleInfo.cycleKey || "",
+          generatedAt,
+          reportId,
+          websiteId: selectedWebsiteId,
+          effectiveUid,
+          effectiveWebsiteId,
+          executiveSummary: safeStr(data?.summary?.executiveSummary),
+          insightsCount: Array.isArray(data?.insights) ? data.insights.length : 0,
+          actionPlanCount: Array.isArray(data?.actionPlan) ? data.actionPlan.length : 0,
+        },
+        { merge: true }
+      );
 
-      const latestDocLocal = {
-        cycleKey: cycleInfo.cycleKey || "",
-        generatedAt,
-        executiveSummary: safeStr(data?.summary?.executiveSummary),
-        insightsCount: Array.isArray(data?.insights) ? data.insights.length : 0,
-        actionPlanCount: Array.isArray(data?.actionPlan) ? data.actionPlan.length : 0,
-      };
-
-      setCurrentCycleReport(currentDocLocal);
-      setLatestReport(latestDocLocal);
-      setInlinePreview({
-        executiveSummary: safeStr(data?.summary?.executiveSummary),
-        insightsCount: Array.isArray(data?.insights) ? data.insights.length : 0,
-        actionPlanCount: Array.isArray(data?.actionPlan) ? data.actionPlan.length : 0,
-      });
       setGenerateState("success");
+
+      router.push(
+        `/growth/intelligence/report/${reportId}?websiteId=${encodeURIComponent(selectedWebsiteId)}`
+      );
     } catch (e) {
       console.error("OGI generation failed:", e);
       setGenerateError(e?.message || "Failed to generate Organic Growth Intelligence report.");
@@ -771,7 +767,7 @@ export default function OrganicGrowthIntelligencePage() {
 
                 <SectionCard
                   title="Generate Report"
-                  subtitle="This action runs the completed backend intelligence engine using GSC data and Vyndow strategy context."
+                  subtitle="This action runs the completed backend intelligence engine, stores the report, and opens the report detail page."
                 >
                   {generateError ? (
                     <div
@@ -827,96 +823,17 @@ export default function OrganicGrowthIntelligencePage() {
                       </div>
                     ) : (
                       <div style={{ color: HOUSE.subtext }}>
-                        A fresh report will be generated from your current GSC data and Vyndow strategy context.
+                        The generated report will be stored and opened automatically.
                       </div>
                     )}
                   </div>
                 </SectionCard>
-
-                {(generateState === "success" || inlinePreview || currentCycleReport?.summary) ? (
-                  <SectionCard
-                    title="Latest Generated Result"
-                    subtitle="This is only a lightweight preview for now. The full report detail page comes next."
-                    right={<StatusPill tone="success">Report ready</StatusPill>}
-                  >
-                    <div
-                      style={{
-                        padding: 16,
-                        borderRadius: 14,
-                        border: `1px solid ${HOUSE.cardBorder}`,
-                        background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-                      }}
-                    >
-                      <div style={{ fontSize: 16, fontWeight: 800, color: HOUSE.text }}>
-                        Executive Summary
-                      </div>
-                      <p
-                        style={{
-                          marginTop: 10,
-                          marginBottom: 0,
-                          color: HOUSE.subtext,
-                          lineHeight: 1.7,
-                        }}
-                      >
-                        {safeStr(
-                          inlinePreview?.executiveSummary ||
-                            currentCycleReport?.summary?.executiveSummary
-                        ) || "Report generated successfully."}
-                      </p>
-
-                      <div
-                        style={{
-                          marginTop: 14,
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 10,
-                        }}
-                      >
-                        <StatusPill tone="neutral">
-                          Insights returned:{" "}
-                          {Number(
-                            inlinePreview?.insightsCount ||
-                              currentCycleReport?.insights?.length ||
-                              0
-                          )}
-                        </StatusPill>
-                        <StatusPill tone="neutral">
-                          Action items:{" "}
-                          {Number(
-                            inlinePreview?.actionPlanCount ||
-                              currentCycleReport?.actionPlan?.length ||
-                              0
-                          )}
-                        </StatusPill>
-                      </div>
-
-                      <div style={{ marginTop: 14 }}>
-                        <button
-                          type="button"
-                          disabled
-                          title="Full report detail page will be added in OGI-5B."
-                          style={{
-                            padding: "10px 14px",
-                            borderRadius: 12,
-                            border: `1px solid ${HOUSE.cardBorder}`,
-                            background: "white",
-                            color: HOUSE.subtext,
-                            fontWeight: 700,
-                            cursor: "not-allowed",
-                          }}
-                        >
-                          Full Report View Coming Next
-                        </button>
-                      </div>
-                    </div>
-                  </SectionCard>
-                ) : null}
               </div>
 
               <div style={{ display: "grid", gap: 18 }}>
                 <SectionCard
                   title="Most Recent Report"
-                  subtitle="A simple placeholder so this dashboard already feels complete without full history yet."
+                  subtitle="This remains a lightweight dashboard placeholder until archive/history is built."
                 >
                   {!latestReport?.generatedAt ? (
                     <div
@@ -955,12 +872,15 @@ export default function OrganicGrowthIntelligencePage() {
                           color: HOUSE.text,
                         }}
                       >
-                        {formatDateTime(latestReport.generatedAt)}
+                        {formatDate(latestReport.generatedAt)}
                       </div>
 
-                      <div style={{ marginTop: 12 }}>
+                      <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 10 }}>
                         <StatusPill tone="neutral">
                           Insights: {Number(latestReport?.insightsCount || 0)}
+                        </StatusPill>
+                        <StatusPill tone="neutral">
+                          Actions: {Number(latestReport?.actionPlanCount || 0)}
                         </StatusPill>
                       </div>
                     </div>
@@ -968,40 +888,13 @@ export default function OrganicGrowthIntelligencePage() {
                 </SectionCard>
 
                 <SectionCard
-                  title="Module Scope"
-                  subtitle="This page is intentionally lightweight."
-                >
-                  <div style={{ color: HOUSE.subtext, lineHeight: 1.7 }}>
-                    This dashboard is only the entry point for Organic Growth Intelligence.
-                    It handles:
-                    <div style={{ marginTop: 10 }}>
-                      • report eligibility
-                      <br />
-                      • billing-cycle aware generation
-                      <br />
-                      • generation state
-                      <br />
-                      • lightweight recent-result preview
-                    </div>
-
-                    <div style={{ marginTop: 12 }}>
-                      The full report detail experience will be added in the next phase.
-                    </div>
-                  </div>
-                </SectionCard>
-
-                <SectionCard
                   title="Billing-Cycle Guardrail"
-                  subtitle="What has been implemented in this phase."
+                  subtitle="What is enforced on this page."
                 >
                   <div style={{ color: HOUSE.subtext, lineHeight: 1.7 }}>
-                    The page reads the active billing cycle from the suite entitlement
-                    document and stores the generated OGI result against the effective
-                    website context for that cycle.
-                    <div style={{ marginTop: 12 }}>
-                      If a report already exists for the current cycle, generation is blocked
-                      and the page shows the next available date.
-                    </div>
+                    This page reads the active billing cycle from the suite entitlement
+                    document. It blocks a second Organic Growth Intelligence report for the
+                    same website in the same billing cycle.
                   </div>
 
                   <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
