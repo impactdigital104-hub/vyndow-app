@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
 
@@ -13,7 +13,6 @@ import { runSuiteLifecycleCheck } from "../../../../suiteLifecycleClient";
 const HOUSE = {
   primaryBlue: "#1E66FF",
   primaryPurple: "#6D28D9",
-  accentTeal: "#06B6D4",
   success: "#16A34A",
   warning: "#F59E0B",
   danger: "#DC2626",
@@ -40,6 +39,16 @@ function safeNum(x, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function safeArr(x) {
+  return Array.isArray(x) ? x : [];
+}
+
+function roundTo(value, digits = 2) {
+  const n = safeNum(value, 0);
+  const p = Math.pow(10, digits);
+  return Math.round(n * p) / p;
+}
+
 function toDateOrNull(value) {
   if (!value) return null;
   if (typeof value?.toDate === "function") return value.toDate();
@@ -59,6 +68,36 @@ function formatDate(value) {
   } catch (e) {
     return "—";
   }
+}
+
+function formatMonthYearFromDate(value) {
+  const d = toDateOrNull(value);
+  if (!d) return "—";
+  try {
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+    });
+  } catch (e) {
+    return "—";
+  }
+}
+
+function getBillingCycleLabel(report) {
+  const start = toDateOrNull(report?.billingCycle?.start || report?.cycleStart);
+  if (start) return formatMonthYearFromDate(start);
+
+  const cycleKey = safeStr(report?.billingCycle?.cycleKey || report?.cycleKey);
+  if (cycleKey.includes("__")) {
+    const startPart = cycleKey.split("__")[0];
+    const parsed = new Date(startPart);
+    if (!Number.isNaN(parsed.getTime())) return formatMonthYearFromDate(parsed);
+  }
+
+  const createdAt = toDateOrNull(report?.createdAt || report?.generatedAt);
+  if (createdAt) return formatMonthYearFromDate(createdAt);
+
+  return "—";
 }
 
 function formatChange(value, invertPositive = false) {
@@ -129,7 +168,7 @@ function StatusPill({ children, tone = "neutral" }) {
   );
 }
 
-function SectionCard({ title, subtitle, right, children }) {
+function SectionCard({ title, subtitle, children, right }) {
   return (
     <div style={CARD_STYLE}>
       <div
@@ -169,8 +208,95 @@ function SectionCard({ title, subtitle, right, children }) {
         </div>
         {right ? <div>{right}</div> : null}
       </div>
-
       <div style={{ padding: 18 }}>{children}</div>
+    </div>
+  );
+}
+
+function AccordionSection({
+  title,
+  description,
+  defaultOpen = false,
+  badge,
+  children,
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div style={CARD_STYLE}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%",
+          padding: 18,
+          border: "none",
+          background: "white",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontWeight: 900,
+                fontSize: 20,
+                color: HOUSE.primaryPurple,
+              }}
+            >
+              {title}
+            </div>
+            <div
+              style={{
+                marginTop: 4,
+                fontSize: 13,
+                color: HOUSE.subtext,
+                lineHeight: 1.45,
+              }}
+            >
+              {description}
+            </div>
+            {badge ? <div style={{ marginTop: 10 }}>{badge}</div> : null}
+          </div>
+
+          <div
+            style={{
+              minWidth: 32,
+              height: 32,
+              borderRadius: 999,
+              border: `1px solid ${HOUSE.cardBorder}`,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: HOUSE.primaryPurple,
+              fontWeight: 900,
+              background: "#fff",
+            }}
+          >
+            {open ? "▾" : "▸"}
+          </div>
+        </div>
+      </button>
+
+      {open ? (
+        <div
+          style={{
+            padding: 18,
+            borderTop: `1px solid ${HOUSE.cardBorder}`,
+            background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+          }}
+        >
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -251,12 +377,89 @@ function MetricCard({ label, metric, invertPositive = false }) {
   );
 }
 
+function PerformanceTable({ title, subtitle, columns, rows, emptyMessage }) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${HOUSE.cardBorder}`,
+        borderRadius: 14,
+        background: "#fff",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: 14,
+          borderBottom: `1px solid ${HOUSE.cardBorder}`,
+          background: "rgba(30,102,255,0.04)",
+        }}
+      >
+        <div style={{ fontWeight: 800, color: HOUSE.text }}>{title}</div>
+        {subtitle ? (
+          <div style={{ marginTop: 4, fontSize: 13, color: HOUSE.subtext }}>
+            {subtitle}
+          </div>
+        ) : null}
+      </div>
+
+      {!safeArr(rows).length ? (
+        <div style={{ padding: 14, color: HOUSE.subtext }}>{emptyMessage}</div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+            <thead>
+              <tr style={{ background: "rgba(148,163,184,0.08)" }}>
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    style={{
+                      textAlign: "left",
+                      padding: "10px 12px",
+                      fontSize: 12,
+                      color: HOUSE.subtext,
+                      borderBottom: `1px solid ${HOUSE.cardBorder}`,
+                    }}
+                  >
+                    {col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {safeArr(rows).map((row, idx) => (
+                <tr key={`${title}-${idx}`}>
+                  {columns.map((col) => (
+                    <td
+                      key={col.key}
+                      style={{
+                        padding: "10px 12px",
+                        fontSize: 13,
+                        color: HOUSE.text,
+                        borderBottom: `1px solid ${HOUSE.cardBorder}`,
+                        verticalAlign: "top",
+                      }}
+                    >
+                      {col.render ? col.render(row) : safeStr(row?.[col.key]) || "—"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatPct(value) {
+  return `${roundTo(value, 2)}%`;
+}
+
 function GeneratedFixBlock({ generatedFix }) {
   const titleTag = safeStr(generatedFix?.titleTag);
   const metaDescription = safeStr(generatedFix?.metaDescription);
-  const faqIdeas = Array.isArray(generatedFix?.faqIdeas)
-    ? generatedFix.faqIdeas.map((x) => safeStr(x)).filter(Boolean)
-    : [];
+  const faqIdeas = safeArr(generatedFix?.faqIdeas).map((x) => safeStr(x)).filter(Boolean);
   const newPageSuggestion = safeStr(generatedFix?.newPageSuggestion);
   const notes = safeStr(generatedFix?.notes);
 
@@ -311,128 +514,70 @@ function GeneratedFixBlock({ generatedFix }) {
   );
 }
 
-function InsightCard({ insight, index }) {
-  const [open, setOpen] = useState(false);
-
+function InsightBlock({ insight, index }) {
   return (
     <div
       style={{
-        ...CARD_STYLE,
         border: `1px solid ${HOUSE.cardBorder}`,
-        transition: "all 0.18s ease",
+        borderRadius: 14,
+        background: "#fff",
+        padding: 16,
       }}
     >
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+        <StatusPill tone="neutral">Insight {index + 1}</StatusPill>
+        {safeStr(insight?.type) ? <StatusPill tone="neutral">{safeStr(insight?.type)}</StatusPill> : null}
+        {safeStr(insight?.actionType) ? <StatusPill tone="warning">{safeStr(insight?.actionType)}</StatusPill> : null}
+      </div>
+
+      <div
         style={{
-          width: "100%",
-          padding: 16,
-          border: "none",
-          background: "transparent",
-          cursor: "pointer",
-          textAlign: "left",
+          marginTop: 12,
+          fontSize: 20,
+          fontWeight: 900,
+          color: HOUSE.text,
+          lineHeight: 1.35,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-              <StatusPill tone="neutral">Insight {index + 1}</StatusPill>
-              {safeStr(insight?.type) ? (
-                <StatusPill tone="neutral">{safeStr(insight?.type)}</StatusPill>
-              ) : null}
-              {safeStr(insight?.actionType) ? (
-                <StatusPill tone="warning">{safeStr(insight?.actionType)}</StatusPill>
-              ) : null}
-            </div>
+        {safeStr(insight?.title) || `Insight ${index + 1}`}
+      </div>
 
-            <div
-              style={{
-                marginTop: 12,
-                fontSize: 20,
-                lineHeight: 1.35,
-                fontWeight: 900,
-                color: HOUSE.text,
-              }}
-            >
-              {safeStr(insight?.title) || `Insight ${index + 1}`}
-            </div>
-          </div>
-
-          <div
-            style={{
-              minWidth: 28,
-              height: 28,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 999,
-              border: `1px solid ${HOUSE.cardBorder}`,
-              background: "white",
-              color: HOUSE.primaryPurple,
-              fontSize: 16,
-              fontWeight: 900,
-            }}
-          >
-            {open ? "▾" : "▸"}
+      <div style={{ marginTop: 16, display: "grid", gap: 16 }}>
+        <div>
+          <div style={{ fontWeight: 800, color: HOUSE.text }}>Problem Diagnosis</div>
+          <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
+            {safeStr(insight?.diagnosis) || "—"}
           </div>
         </div>
-      </button>
 
-      {open ? (
-        <div
-          style={{
-            padding: 18,
-            paddingTop: 0,
-            display: "grid",
-            gap: 16,
-            borderTop: `1px solid ${HOUSE.cardBorder}`,
-            background: "linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,250,252,1) 100%)",
-          }}
-        >
-          <div style={{ paddingTop: 18 }}>
-            <div style={{ fontWeight: 800, color: HOUSE.text }}>Problem</div>
-            <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
-              {safeStr(insight?.diagnosis) || "—"}
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontWeight: 800, color: HOUSE.text }}>Why It Matters</div>
-            <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
-              {safeStr(insight?.whyItMatters) || "—"}
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontWeight: 800, color: HOUSE.text }}>Recommended Action</div>
-            <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
-              {safeStr(insight?.recommendation) || "—"}
-            </div>
-          </div>
-
-          <div
-            style={{
-              padding: 14,
-              borderRadius: 14,
-              border: `1px solid ${HOUSE.cardBorder}`,
-              background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-            }}
-          >
-            <div style={{ fontWeight: 800, color: HOUSE.text }}>Generated Fix</div>
-            <div style={{ marginTop: 8 }}>
-              <GeneratedFixBlock generatedFix={insight?.generatedFix || {}} />
-            </div>
+        <div>
+          <div style={{ fontWeight: 800, color: HOUSE.text }}>Why It Matters</div>
+          <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
+            {safeStr(insight?.whyItMatters) || "—"}
           </div>
         </div>
-      ) : null}
+
+        <div>
+          <div style={{ fontWeight: 800, color: HOUSE.text }}>Recommended Action</div>
+          <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.7 }}>
+            {safeStr(insight?.recommendation) || "—"}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: 14,
+            borderRadius: 14,
+            border: `1px solid ${HOUSE.cardBorder}`,
+            background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+          }}
+        >
+          <div style={{ fontWeight: 800, color: HOUSE.text }}>Generated Fix</div>
+          <div style={{ marginTop: 8 }}>
+            <GeneratedFixBlock generatedFix={insight?.generatedFix || {}} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -440,17 +585,26 @@ function InsightCard({ insight, index }) {
 export default function OgiReportDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const searchParams = useSearchParams();
 
   const reportId = safeStr(params?.reportId);
-  const websiteIdFromQuery = safeStr(searchParams?.get("websiteId"));
 
   const [uid, setUid] = useState("");
   const [authReady, setAuthReady] = useState(false);
+  const [websiteIdFromQuery, setWebsiteIdFromQuery] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [report, setReport] = useState(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const search = new URLSearchParams(window.location.search);
+      setWebsiteIdFromQuery(safeStr(search.get("websiteId")));
+    } catch (e) {
+      setWebsiteIdFromQuery("");
+    }
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -587,8 +741,21 @@ export default function OgiReportDetailPage() {
     return report?.kpi || report?.summary?.topMetrics || {};
   }, [report]);
 
+  const performanceAnalysis = report?.performanceAnalysis || {};
+  const patternAnalysisText = safeStr(report?.patternAnalysis?.text);
+
+  const hasPerformanceAnalysis =
+    safeArr(performanceAnalysis?.topGrowingPages).length > 0 ||
+    safeArr(performanceAnalysis?.topGrowingQueries).length > 0 ||
+    safeArr(performanceAnalysis?.topQueriesByClicks?.rows).length > 0 ||
+    safeArr(performanceAnalysis?.topPagesByClicks?.rows).length > 0;
+
   const printUrl = useMemo(() => {
-    const websiteIdForLink = safeStr(report?.websiteId) || safeStr(report?.effectiveWebsiteId) || websiteIdFromQuery;
+    const websiteIdForLink =
+      safeStr(report?.websiteId) ||
+      safeStr(report?.effectiveWebsiteId) ||
+      websiteIdFromQuery;
+
     if (!reportId) return "";
     if (websiteIdForLink) {
       return `/growth/intelligence/report/${reportId}/print?websiteId=${encodeURIComponent(websiteIdForLink)}`;
@@ -668,17 +835,12 @@ export default function OgiReportDetailPage() {
                       Website: <strong style={{ color: HOUSE.text }}>{safeStr(report?.websiteLabel) || safeStr(report?.websiteUrl) || "—"}</strong>
                       <br />
                       Report Date: <strong style={{ color: HOUSE.text }}>{formatDate(report?.createdAt)}</strong>
+                      <br />
+                      Billing Cycle: <strong style={{ color: HOUSE.text }}>{getBillingCycleLabel(report)}</strong>
                     </div>
                   </div>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: 10,
-                      justifyContent: "flex-end",
-                    }}
-                  >
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                     <button
                       type="button"
                       onClick={() => {
@@ -770,31 +932,161 @@ export default function OgiReportDetailPage() {
                     </div>
                   </SectionCard>
 
-                  <SectionCard
-                    title="Insights"
-                    subtitle="Each card shows the problem, why it matters, the recommended action, and any generated fix returned by the AI engine."
-                    right={
+                  {hasPerformanceAnalysis ? (
+                    <AccordionSection
+                      title="Performance Analysis"
+                      description="Data breakdown of page and query performance trends."
+                      defaultOpen={false}
+                    >
+                      <div style={{ display: "grid", gap: 16 }}>
+                        <PerformanceTable
+                          title="Top Growing Pages"
+                          subtitle="Pages that gained the most clicks versus the previous 28-day period."
+                          rows={performanceAnalysis?.topGrowingPages}
+                          emptyMessage="No page-growth data available yet."
+                          columns={[
+                            { key: "page", label: "Page" },
+                            { key: "last28Clicks", label: "Last 28 Clicks" },
+                            { key: "previous28Clicks", label: "Previous 28 Clicks" },
+                            { key: "growth", label: "Growth" },
+                            {
+                              key: "growthPercent",
+                              label: "Growth %",
+                              render: (row) => formatPct(row?.growthPercent),
+                            },
+                            { key: "impressions", label: "Impressions" },
+                            {
+                              key: "position",
+                              label: "Position",
+                              render: (row) => roundTo(row?.position, 2),
+                            },
+                          ]}
+                        />
+
+                        <PerformanceTable
+                          title="Top Growing Queries"
+                          subtitle="Queries showing the strongest click growth versus the previous period."
+                          rows={performanceAnalysis?.topGrowingQueries}
+                          emptyMessage="No query-growth data available yet."
+                          columns={[
+                            { key: "query", label: "Query" },
+                            { key: "last28Clicks", label: "Last 28 Clicks" },
+                            { key: "previous28Clicks", label: "Previous 28 Clicks" },
+                            { key: "growth", label: "Growth" },
+                            {
+                              key: "growthPercent",
+                              label: "Growth %",
+                              render: (row) => formatPct(row?.growthPercent),
+                            },
+                            { key: "impressions", label: "Impressions" },
+                            {
+                              key: "position",
+                              label: "Position",
+                              render: (row) => roundTo(row?.position, 2),
+                            },
+                          ]}
+                        />
+
+                        <PerformanceTable
+                          title="Top Queries Driving Traffic"
+                          subtitle={`Top 10 queries contribute ${formatPct(
+                            performanceAnalysis?.topQueriesByClicks?.top10ContributionPercent
+                          )} of all organic clicks.`}
+                          rows={performanceAnalysis?.topQueriesByClicks?.rows}
+                          emptyMessage="No query click-distribution data available yet."
+                          columns={[
+                            { key: "query", label: "Query" },
+                            { key: "clicks", label: "Clicks" },
+                            {
+                              key: "contributionPercent",
+                              label: "Contribution %",
+                              render: (row) => formatPct(row?.contributionPercent),
+                            },
+                            { key: "impressions", label: "Impressions" },
+                            {
+                              key: "position",
+                              label: "Position",
+                              render: (row) => roundTo(row?.position, 2),
+                            },
+                          ]}
+                        />
+
+                        <PerformanceTable
+                          title="Top Pages Driving Traffic"
+                          subtitle={`Top 10 pages contribute ${formatPct(
+                            performanceAnalysis?.topPagesByClicks?.top10ContributionPercent
+                          )} of all organic clicks.`}
+                          rows={performanceAnalysis?.topPagesByClicks?.rows}
+                          emptyMessage="No page click-distribution data available yet."
+                          columns={[
+                            { key: "page", label: "Page" },
+                            { key: "clicks", label: "Clicks" },
+                            {
+                              key: "contributionPercent",
+                              label: "Contribution %",
+                              render: (row) => formatPct(row?.contributionPercent),
+                            },
+                            { key: "impressions", label: "Impressions" },
+                            {
+                              key: "position",
+                              label: "Position",
+                              render: (row) => roundTo(row?.position, 2),
+                            },
+                          ]}
+                        />
+                      </div>
+                    </AccordionSection>
+                  ) : null}
+
+                  {patternAnalysisText ? (
+                    <AccordionSection
+                      title="Pattern Analysis"
+                      description="AI interpretation of traffic concentration and search behavior."
+                      defaultOpen={false}
+                    >
+                      <div
+                        style={{
+                          padding: 16,
+                          borderRadius: 14,
+                          border: `1px solid ${HOUSE.cardBorder}`,
+                          background: "white",
+                          color: HOUSE.subtext,
+                          lineHeight: 1.8,
+                          fontSize: 15,
+                        }}
+                      >
+                        {patternAnalysisText}
+                      </div>
+                    </AccordionSection>
+                  ) : null}
+
+                  <AccordionSection
+                    title="Intelligence Insights"
+                    description="High-impact SEO opportunities detected from Search Console and Vyndow strategy."
+                    defaultOpen={true}
+                    badge={
                       <StatusPill tone="neutral">
-                        {Array.isArray(report?.insights) ? report.insights.length : 0} insights
+                        {safeArr(report?.insights).length} insights
                       </StatusPill>
                     }
                   >
-                    {Array.isArray(report?.insights) && report.insights.length > 0 ? (
+                    {safeArr(report?.insights).length > 0 ? (
                       <div style={{ display: "grid", gap: 16 }}>
-                        {report.insights.map((insight, idx) => (
-                          <InsightCard key={`insight-${idx}`} insight={insight} index={idx} />
+                        {safeArr(report?.insights).map((insight, idx) => (
+                          <InsightBlock key={`insight-${idx}`} insight={insight} index={idx} />
                         ))}
                       </div>
                     ) : (
                       <div style={{ color: HOUSE.subtext }}>No insights available.</div>
                     )}
-                  </SectionCard>
+                  </AccordionSection>
 
-                  <SectionCard
-                    title="30 Day Action Plan"
-                    subtitle="A compact prioritized list of actions for the next 30 days."
+                  <AccordionSection
+                    title="30-Day Action Plan"
+                    description="Recommended actions to improve organic performance this cycle."
+                    defaultOpen={true}
                   >
-                    {Array.isArray(report?.actionPlan) && report.actionPlan.length > 0 ? (
+                    {safeArr(report?.actionPlan).length > 0 ? (
                       <ol
                         style={{
                           margin: 0,
@@ -804,7 +1096,7 @@ export default function OgiReportDetailPage() {
                           fontSize: 15,
                         }}
                       >
-                        {report.actionPlan.map((item, idx) => (
+                        {safeArr(report?.actionPlan).map((item, idx) => (
                           <li key={`plan-${idx}`} style={{ marginBottom: 10 }}>
                             {safeStr(item)}
                           </li>
@@ -813,7 +1105,7 @@ export default function OgiReportDetailPage() {
                     ) : (
                       <div style={{ color: HOUSE.subtext }}>No action plan available.</div>
                     )}
-                  </SectionCard>
+                  </AccordionSection>
                 </div>
               </>
             )}
