@@ -50,7 +50,7 @@ function weightedCtr(rows) {
   const clicks = sumMetric(rows, "clicks");
   const impressions = sumMetric(rows, "impressions");
   if (!impressions) return 0;
-  return roundTo(clicks / impressions, 4);
+  return roundTo((clicks / impressions) * 100, 2);
 }
 
 function weightedPosition(rows) {
@@ -67,12 +67,6 @@ function weightedPosition(rows) {
 
   if (!weightTotal) return 0;
   return roundTo(weightedSum / weightTotal, 2);
-}
-
-function normalizeUrlish(value) {
-  const v = safeStr(value).toLowerCase();
-  if (!v) return "";
-  return v.replace(/\/+$/g, "");
 }
 
 function makeTopMetrics(gscData) {
@@ -124,7 +118,7 @@ function compactQueryRows(rows, limit = 25) {
       query: safeStr(row?.query),
       clicks: safeNum(row?.clicks),
       impressions: safeNum(row?.impressions),
-      ctr: roundTo(row?.ctr, 4),
+      ctr: roundTo(row?.ctr, 2),
       position: roundTo(row?.position, 2),
     }));
 }
@@ -138,7 +132,7 @@ function compactPageRows(rows, limit = 20) {
       page: safeStr(row?.page),
       clicks: safeNum(row?.clicks),
       impressions: safeNum(row?.impressions),
-      ctr: roundTo(row?.ctr, 4),
+      ctr: roundTo(row?.ctr, 2),
       position: roundTo(row?.position, 2),
     }));
 }
@@ -153,7 +147,7 @@ function compactQueryPageRows(rows, limit = 30) {
       page: safeStr(row?.page),
       clicks: safeNum(row?.clicks),
       impressions: safeNum(row?.impressions),
-      ctr: roundTo(row?.ctr, 4),
+      ctr: roundTo(row?.ctr, 2),
       position: roundTo(row?.position, 2),
     }));
 }
@@ -420,6 +414,179 @@ async function callOpenAIForInsights({ aiPayload }) {
   return parsed;
 }
 
+function buildGrowthRows(lastRows, previousRows, keyName) {
+  const map = new Map();
+
+  function touch(key) {
+    const safeKey = safeStr(key);
+    if (!safeKey) return null;
+    if (!map.has(safeKey)) {
+      map.set(safeKey, {
+        [keyName]: safeKey,
+        last28Clicks: 0,
+        previous28Clicks: 0,
+        growth: 0,
+        growthPercent: 0,
+        impressions: 0,
+        position: 0,
+      });
+    }
+    return map.get(safeKey);
+  }
+
+  for (const row of safeArr(previousRows)) {
+    const entry = touch(row?.[keyName]);
+    if (!entry) continue;
+    entry.previous28Clicks += safeNum(row?.clicks, 0);
+  }
+
+  for (const row of safeArr(lastRows)) {
+    const entry = touch(row?.[keyName]);
+    if (!entry) continue;
+    entry.last28Clicks += safeNum(row?.clicks, 0);
+    entry.impressions += safeNum(row?.impressions, 0);
+    entry.position = safeNum(row?.position, 0);
+  }
+
+  return Array.from(map.values())
+    .map((row) => {
+      const growth = safeNum(row?.last28Clicks) - safeNum(row?.previous28Clicks);
+      return {
+        ...row,
+        growth,
+        growthPercent: pctChange(row?.last28Clicks, row?.previous28Clicks),
+        impressions: roundTo(row?.impressions, 0),
+        position: roundTo(row?.position, 2),
+      };
+    })
+    .filter((row) => safeNum(row?.growth) > 0)
+    .sort((a, b) => {
+      const growthDiff = safeNum(b?.growth) - safeNum(a?.growth);
+      if (growthDiff !== 0) return growthDiff;
+      const pctDiff = safeNum(b?.growthPercent) - safeNum(a?.growthPercent);
+      if (pctDiff !== 0) return pctDiff;
+      return safeNum(b?.last28Clicks) - safeNum(a?.last28Clicks);
+    })
+    .slice(0, 10);
+}
+
+function buildContributionBlock(rows, keyName) {
+  const totalClicks = sumMetric(rows, "clicks");
+
+  const topRows = safeArr(rows)
+    .filter((row) => safeStr(row?.[keyName]))
+    .sort((a, b) => safeNum(b?.clicks) - safeNum(a?.clicks))
+    .slice(0, 10)
+    .map((row) => ({
+      [keyName]: safeStr(row?.[keyName]),
+      clicks: safeNum(row?.clicks, 0),
+      contributionPercent: totalClicks
+        ? roundTo((safeNum(row?.clicks, 0) / totalClicks) * 100, 2)
+        : 0,
+      position: roundTo(row?.position, 2),
+      impressions: roundTo(row?.impressions, 0),
+    }));
+
+  const top10ContributionPercent = roundTo(
+    topRows.reduce((sum, row) => sum + safeNum(row?.contributionPercent, 0), 0),
+    2
+  );
+
+  return {
+    rows: topRows,
+    top10ContributionPercent,
+  };
+}
+
+function buildPerformanceAnalysis(gscData) {
+  return {
+    topGrowingPages: buildGrowthRows(
+      gscData?.last28Days?.pageSummary,
+      gscData?.previous28Days?.pageSummary,
+      "page"
+    ),
+    topGrowingQueries: buildGrowthRows(
+      gscData?.last28Days?.querySummary,
+      gscData?.previous28Days?.querySummary,
+      "query"
+    ),
+    topQueriesByClicks: buildContributionBlock(
+      gscData?.last28Days?.querySummary,
+      "query"
+    ),
+    topPagesByClicks: buildContributionBlock(
+      gscData?.last28Days?.pageSummary,
+      "page"
+    ),
+  };
+}
+
+function buildPatternAnalysis(performanceAnalysis) {
+  const topQueriesContribution = safeNum(
+    performanceAnalysis?.topQueriesByClicks?.top10ContributionPercent,
+    0
+  );
+  const topPagesContribution = safeNum(
+    performanceAnalysis?.topPagesByClicks?.top10ContributionPercent,
+    0
+  );
+  const topGrowingPage = performanceAnalysis?.topGrowingPages?.[0];
+  const topGrowingQuery = performanceAnalysis?.topGrowingQueries?.[0];
+
+  const sentences = [];
+
+  if (topQueriesContribution >= 70) {
+    sentences.push(
+      `Organic traffic is currently concentrated in a relatively narrow query set, with the top 10 queries driving ${roundTo(
+        topQueriesContribution,
+        0
+      )}% of total clicks.`
+    );
+  } else {
+    sentences.push(
+      `Organic traffic is relatively diversified at the query level, with the top 10 queries contributing ${roundTo(
+        topQueriesContribution,
+        0
+      )}% of total clicks.`
+    );
+  }
+
+  if (topPagesContribution >= 70) {
+    sentences.push(
+      `Traffic is also concentrated across a small number of landing pages, with the top 10 pages contributing ${roundTo(
+        topPagesContribution,
+        0
+      )}% of all clicks.`
+    );
+  } else {
+    sentences.push(
+      `Traffic is spread across a broader page mix, with the top 10 pages contributing ${roundTo(
+        topPagesContribution,
+        0
+      )}% of all clicks.`
+    );
+  }
+
+  if (topGrowingPage?.page) {
+    sentences.push(
+      `The strongest page-level momentum is currently on ${topGrowingPage.page}, which gained ${safeNum(
+        topGrowingPage.growth,
+        0
+      )} clicks versus the previous period.`
+    );
+  }
+
+  if (topGrowingQuery?.query) {
+    sentences.push(
+      `At the query level, "${topGrowingQuery.query}" shows the clearest upward movement and should be watched for scaling opportunities.`
+    );
+  }
+
+  return {
+    text: sentences.slice(0, 4).join(" "),
+  };
+}
+
 function missingGscMessage(error) {
   const msg = safeStr(error?.message).toLowerCase();
   return (
@@ -491,11 +658,16 @@ export default async function handler(req, res) {
     const aiPayload = buildCompactAiPayload({ gscData, contextData });
     const aiResult = await callOpenAIForInsights({ aiPayload });
 
+    const performanceAnalysis = buildPerformanceAnalysis(gscData);
+    const patternAnalysis = buildPatternAnalysis(performanceAnalysis);
+
     return res.status(200).json({
       ok: true,
       summary: aiResult.summary || {},
       insights: safeArr(aiResult.insights).slice(0, 10),
       actionPlan: safeArr(aiResult.actionPlan).slice(0, 8),
+      performanceAnalysis,
+      patternAnalysis,
       debugMeta: {
         websiteId,
         effectiveContext: contextData?.effectiveContext || {},
