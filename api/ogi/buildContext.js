@@ -11,7 +11,7 @@ async function getUidFromRequest(req) {
 }
 
 // -------------------- EFFECTIVE CONTEXT --------------------
-async function resolveEffectiveContext(uid, websiteId) {
+export async function resolveEffectiveContext(uid, websiteId) {
   const ref = admin.firestore().doc(`users/${uid}/websites/${websiteId}`);
   const snap = await ref.get();
 
@@ -29,11 +29,6 @@ async function resolveEffectiveContext(uid, websiteId) {
 // -------------------- HELPERS --------------------
 function safeStr(x) {
   return String(x || "").trim();
-}
-
-function safeNum(x, fallback = 0) {
-  const n = Number(x);
-  return Number.isFinite(n) ? n : fallback;
 }
 
 function safeObj(x) {
@@ -67,19 +62,6 @@ function asKeywordString(x) {
   if (typeof x === "string") return safeStr(x);
   if (typeof x === "object") return safeStr(x.keyword);
   return "";
-}
-
-function asSecondaryKeywordStrings(list, max = 10) {
-  const out = [];
-
-  for (const item of safeArr(list)) {
-    const v = asKeywordString(item);
-    if (!v) continue;
-    out.push(v);
-    if (out.length >= max) break;
-  }
-
-  return dedupeStrings(out);
 }
 
 function firstNonEmpty(...vals) {
@@ -146,7 +128,6 @@ function normalizeMappedTargetPages(keywordMappingDoc, pageOptimizationDoc) {
     });
   }
 
-  // lightly support pageOptimization if needed for missing URL/title hints
   for (const [pageId, p] of Object.entries(pageOptPages)) {
     const targetUrl = firstNonEmpty(p?.url);
     const pageLabel = firstNonEmpty(p?.title, pageId);
@@ -178,7 +159,7 @@ function normalizeOptimizedPages(pageOptimizationDoc) {
   const out = [];
 
   for (const [pageId, p] of Object.entries(pages)) {
-    const row = {
+    out.push({
       pageId: safeStr(pageId),
       url: firstNonEmpty(p?.url),
       title: firstNonEmpty(p?.title),
@@ -190,9 +171,7 @@ function normalizeOptimizedPages(pageOptimizationDoc) {
       advisoryBlockCount: safeArr(p?.advisoryBlocks).length,
       schemaSuggestionCount: safeArr(p?.schemaSuggestions).length,
       internalLinkCount: safeArr(p?.internalLinks).length,
-    };
-
-    out.push(row);
+    });
   }
 
   return out;
@@ -273,6 +252,79 @@ function buildKnownStrategyUrls({
   return dedupeStrings(out);
 }
 
+export async function buildVyndowContextForWebsite({ uid, websiteId }) {
+  const { effectiveUid, effectiveWebsiteId } = await resolveEffectiveContext(uid, websiteId);
+  const db = admin.firestore();
+
+  const strategyBase =
+    `users/${effectiveUid}/websites/${effectiveWebsiteId}/modules/seo/strategy`;
+
+  const businessProfileRef = db.doc(`${strategyBase}/businessProfile`);
+  const businessContextRef = db.doc(`${strategyBase}/businessContext`);
+  const keywordMappingRef = db.doc(`${strategyBase}/keywordMapping`);
+  const pageOptimizationRef = db.doc(`${strategyBase}/pageOptimization`);
+  const authorityPlanRef = db.doc(`${strategyBase}/authorityPlan`);
+
+  const blogDraftsRef = db.collection(
+    `users/${effectiveUid}/websites/${effectiveWebsiteId}/modules/seo/blogDrafts`
+  );
+
+  const [
+    businessProfileSnap,
+    businessContextSnap,
+    keywordMappingSnap,
+    pageOptimizationSnap,
+    authorityPlanSnap,
+    blogDraftsSnap,
+  ] = await Promise.all([
+    businessProfileRef.get(),
+    businessContextRef.get(),
+    keywordMappingRef.get(),
+    pageOptimizationRef.get(),
+    authorityPlanRef.get(),
+    blogDraftsRef.get(),
+  ]);
+
+  const businessProfile = businessProfileSnap.exists ? (businessProfileSnap.data() || {}) : {};
+  const businessContext = businessContextSnap.exists ? (businessContextSnap.data() || {}) : {};
+  const keywordMapping = keywordMappingSnap.exists ? (keywordMappingSnap.data() || {}) : {};
+  const pageOptimization = pageOptimizationSnap.exists ? (pageOptimizationSnap.data() || {}) : {};
+  const authorityPlan = authorityPlanSnap.exists ? (authorityPlanSnap.data() || {}) : {};
+
+  const draftDocs = (blogDraftsSnap.docs || []).map((doc) => ({
+    draftId: doc.id,
+    ...(doc.data() || {}),
+  }));
+
+  return {
+    effectiveContext: {
+      effectiveUid,
+      effectiveWebsiteId,
+    },
+    strategyContext: {
+      businessProfile,
+      businessContext,
+      keywordMapping,
+      pageOptimization,
+      authorityPlan,
+    },
+    blogDraftContext: {
+      drafts: draftDocs,
+    },
+    derivedContext: {
+      mappedTargetPages: normalizeMappedTargetPages(keywordMapping, pageOptimization),
+      optimizedPages: normalizeOptimizedPages(pageOptimization),
+      authorityPlannedBlogs: normalizeAuthorityPlannedBlogs(authorityPlan),
+      draftBlogTargets: normalizeDraftBlogTargets(draftDocs),
+      knownStrategyUrls: buildKnownStrategyUrls({
+        keywordMappingDoc: keywordMapping,
+        pageOptimizationDoc: pageOptimization,
+        draftDocs,
+      }),
+    },
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "POST") {
     return res.status(200).json({ ok: true, message: "Use GET or POST." });
@@ -289,78 +341,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "Missing websiteId." });
     }
 
-    const { effectiveUid, effectiveWebsiteId } = await resolveEffectiveContext(uid, websiteId);
-    const db = admin.firestore();
-
-    const strategyBase =
-      `users/${effectiveUid}/websites/${effectiveWebsiteId}/modules/seo/strategy`;
-
-    const businessProfileRef = db.doc(`${strategyBase}/businessProfile`);
-    const businessContextRef = db.doc(`${strategyBase}/businessContext`);
-    const keywordMappingRef = db.doc(`${strategyBase}/keywordMapping`);
-    const pageOptimizationRef = db.doc(`${strategyBase}/pageOptimization`);
-    const authorityPlanRef = db.doc(`${strategyBase}/authorityPlan`);
-
-    const blogDraftsRef = db.collection(
-      `users/${effectiveUid}/websites/${effectiveWebsiteId}/modules/seo/blogDrafts`
-    );
-
-    const [
-      businessProfileSnap,
-      businessContextSnap,
-      keywordMappingSnap,
-      pageOptimizationSnap,
-      authorityPlanSnap,
-      blogDraftsSnap,
-    ] = await Promise.all([
-      businessProfileRef.get(),
-      businessContextRef.get(),
-      keywordMappingRef.get(),
-      pageOptimizationRef.get(),
-      authorityPlanRef.get(),
-      blogDraftsRef.get(),
-    ]);
-
-    const businessProfile = businessProfileSnap.exists ? (businessProfileSnap.data() || {}) : {};
-    const businessContext = businessContextSnap.exists ? (businessContextSnap.data() || {}) : {};
-    const keywordMapping = keywordMappingSnap.exists ? (keywordMappingSnap.data() || {}) : {};
-    const pageOptimization = pageOptimizationSnap.exists ? (pageOptimizationSnap.data() || {}) : {};
-    const authorityPlan = authorityPlanSnap.exists ? (authorityPlanSnap.data() || {}) : {};
-
-    const draftDocs = (blogDraftsSnap.docs || []).map((doc) => ({
-      draftId: doc.id,
-      ...(doc.data() || {}),
-    }));
-
-    const derivedContext = {
-      mappedTargetPages: normalizeMappedTargetPages(keywordMapping, pageOptimization),
-      optimizedPages: normalizeOptimizedPages(pageOptimization),
-      authorityPlannedBlogs: normalizeAuthorityPlannedBlogs(authorityPlan),
-      draftBlogTargets: normalizeDraftBlogTargets(draftDocs),
-      knownStrategyUrls: buildKnownStrategyUrls({
-        keywordMappingDoc: keywordMapping,
-        pageOptimizationDoc: pageOptimization,
-        draftDocs,
-      }),
-    };
+    const payload = await buildVyndowContextForWebsite({ uid, websiteId });
 
     return res.status(200).json({
       ok: true,
-      effectiveContext: {
-        effectiveUid,
-        effectiveWebsiteId,
-      },
-      strategyContext: {
-        businessProfile,
-        businessContext,
-        keywordMapping,
-        pageOptimization,
-        authorityPlan,
-      },
-      blogDraftContext: {
-        drafts: draftDocs,
-      },
-      derivedContext,
+      ...payload,
     });
   } catch (error) {
     console.error("ogi/buildContext error:", error);
