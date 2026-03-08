@@ -29,6 +29,16 @@ function safeNum(x, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function safeArr(x) {
+  return Array.isArray(x) ? x : [];
+}
+
+function roundTo(value, digits = 2) {
+  const n = safeNum(value, 0);
+  const p = Math.pow(10, digits);
+  return Math.round(n * p) / p;
+}
+
 function toDateOrNull(value) {
   if (!value) return null;
   if (typeof value?.toDate === "function") return value.toDate();
@@ -71,9 +81,7 @@ function getBillingCycleLabel(report) {
   if (cycleKey.includes("__")) {
     const startPart = cycleKey.split("__")[0];
     const parsed = new Date(startPart);
-    if (!Number.isNaN(parsed.getTime())) {
-      return formatMonthYearFromDate(parsed);
-    }
+    if (!Number.isNaN(parsed.getTime())) return formatMonthYearFromDate(parsed);
   }
 
   const createdAt = toDateOrNull(report?.createdAt || report?.generatedAt);
@@ -93,12 +101,14 @@ function formatChangeText(value) {
   return `${n > 0 ? "+" : ""}${n}%`;
 }
 
+function formatPct(value) {
+  return `${roundTo(value, 2)}%`;
+}
+
 function GeneratedFixPrintBlock({ generatedFix }) {
   const titleTag = safeStr(generatedFix?.titleTag);
   const metaDescription = safeStr(generatedFix?.metaDescription);
-  const faqIdeas = Array.isArray(generatedFix?.faqIdeas)
-    ? generatedFix.faqIdeas.map((x) => safeStr(x)).filter(Boolean)
-    : [];
+  const faqIdeas = safeArr(generatedFix?.faqIdeas).map((x) => safeStr(x)).filter(Boolean);
   const newPageSuggestion = safeStr(generatedFix?.newPageSuggestion);
   const notes = safeStr(generatedFix?.notes);
 
@@ -189,6 +199,83 @@ function MetricPrintCard({ label, metric }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PrintTable({ title, subtitle, columns, rows, emptyMessage }) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${HOUSE.cardBorder}`,
+        borderRadius: 14,
+        overflow: "hidden",
+        background: "#fff",
+        breakInside: "avoid",
+        pageBreakInside: "avoid",
+      }}
+    >
+      <div
+        style={{
+          padding: 14,
+          borderBottom: `1px solid ${HOUSE.cardBorder}`,
+          background: "rgba(30,102,255,0.04)",
+        }}
+      >
+        <div style={{ fontWeight: 800, color: HOUSE.text }}>{title}</div>
+        {subtitle ? (
+          <div style={{ marginTop: 4, fontSize: 13, color: HOUSE.subtext }}>
+            {subtitle}
+          </div>
+        ) : null}
+      </div>
+
+      {!safeArr(rows).length ? (
+        <div style={{ padding: 14, color: HOUSE.subtext }}>{emptyMessage}</div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+            <thead>
+              <tr style={{ background: "rgba(148,163,184,0.08)" }}>
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    style={{
+                      textAlign: "left",
+                      padding: "10px 12px",
+                      fontSize: 12,
+                      color: HOUSE.subtext,
+                      borderBottom: `1px solid ${HOUSE.cardBorder}`,
+                    }}
+                  >
+                    {col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {safeArr(rows).map((row, idx) => (
+                <tr key={`${title}-${idx}`}>
+                  {columns.map((col) => (
+                    <td
+                      key={col.key}
+                      style={{
+                        padding: "10px 12px",
+                        fontSize: 13,
+                        color: HOUSE.text,
+                        borderBottom: `1px solid ${HOUSE.cardBorder}`,
+                        verticalAlign: "top",
+                      }}
+                    >
+                      {col.render ? col.render(row) : safeStr(row?.[col.key]) || "—"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -352,6 +439,15 @@ export default function OgiPrintableReportPage() {
     return report?.kpi || report?.summary?.topMetrics || {};
   }, [report]);
 
+  const performanceAnalysis = report?.performanceAnalysis || {};
+  const patternAnalysisText = safeStr(report?.patternAnalysis?.text);
+
+  const hasPerformanceAnalysis =
+    safeArr(performanceAnalysis?.topGrowingPages).length > 0 ||
+    safeArr(performanceAnalysis?.topGrowingQueries).length > 0 ||
+    safeArr(performanceAnalysis?.topQueriesByClicks?.rows).length > 0 ||
+    safeArr(performanceAnalysis?.topPagesByClicks?.rows).length > 0;
+
   const backUrl = useMemo(() => {
     const websiteIdForLink = safeStr(report?.websiteId) || safeStr(report?.effectiveWebsiteId) || websiteIdFromQuery;
     if (!reportId) return "/growth/intelligence";
@@ -391,7 +487,8 @@ export default function OgiPrintableReportPage() {
             .print-section,
             .print-card,
             .print-insight,
-            .print-kpi-card {
+            .print-kpi-card,
+            .print-table {
               break-inside: avoid;
               page-break-inside: avoid;
             }
@@ -600,6 +697,157 @@ export default function OgiPrintableReportPage() {
                   </div>
                 </section>
 
+                {hasPerformanceAnalysis ? (
+                  <section className="print-section" style={{ display: "grid", gap: 16 }}>
+                    <div
+                      style={{
+                        fontSize: 24,
+                        fontWeight: 900,
+                        color: HOUSE.text,
+                      }}
+                    >
+                      Performance Analysis
+                    </div>
+
+                    <div className="print-table">
+                      <PrintTable
+                        title="Top Growing Pages"
+                        subtitle="Pages that gained the most clicks versus the previous 28-day period."
+                        rows={performanceAnalysis?.topGrowingPages}
+                        emptyMessage="No page-growth data available yet."
+                        columns={[
+                          { key: "page", label: "Page" },
+                          { key: "last28Clicks", label: "Last 28 Clicks" },
+                          { key: "previous28Clicks", label: "Previous 28 Clicks" },
+                          { key: "growth", label: "Growth" },
+                          {
+                            key: "growthPercent",
+                            label: "Growth %",
+                            render: (row) => formatPct(row?.growthPercent),
+                          },
+                          { key: "impressions", label: "Impressions" },
+                          {
+                            key: "position",
+                            label: "Position",
+                            render: (row) => roundTo(row?.position, 2),
+                          },
+                        ]}
+                      />
+                    </div>
+
+                    <div className="print-table">
+                      <PrintTable
+                        title="Top Growing Queries"
+                        subtitle="Queries showing the strongest click growth versus the previous period."
+                        rows={performanceAnalysis?.topGrowingQueries}
+                        emptyMessage="No query-growth data available yet."
+                        columns={[
+                          { key: "query", label: "Query" },
+                          { key: "last28Clicks", label: "Last 28 Clicks" },
+                          { key: "previous28Clicks", label: "Previous 28 Clicks" },
+                          { key: "growth", label: "Growth" },
+                          {
+                            key: "growthPercent",
+                            label: "Growth %",
+                            render: (row) => formatPct(row?.growthPercent),
+                          },
+                          { key: "impressions", label: "Impressions" },
+                          {
+                            key: "position",
+                            label: "Position",
+                            render: (row) => roundTo(row?.position, 2),
+                          },
+                        ]}
+                      />
+                    </div>
+
+                    <div className="print-table">
+                      <PrintTable
+                        title="Top Queries Driving Traffic"
+                        subtitle={`Top 10 queries contribute ${formatPct(
+                          performanceAnalysis?.topQueriesByClicks?.top10ContributionPercent
+                        )} of all organic clicks.`}
+                        rows={performanceAnalysis?.topQueriesByClicks?.rows}
+                        emptyMessage="No query click-distribution data available yet."
+                        columns={[
+                          { key: "query", label: "Query" },
+                          { key: "clicks", label: "Clicks" },
+                          {
+                            key: "contributionPercent",
+                            label: "Contribution %",
+                            render: (row) => formatPct(row?.contributionPercent),
+                          },
+                          { key: "impressions", label: "Impressions" },
+                          {
+                            key: "position",
+                            label: "Position",
+                            render: (row) => roundTo(row?.position, 2),
+                          },
+                        ]}
+                      />
+                    </div>
+
+                    <div className="print-table">
+                      <PrintTable
+                        title="Top Pages Driving Traffic"
+                        subtitle={`Top 10 pages contribute ${formatPct(
+                          performanceAnalysis?.topPagesByClicks?.top10ContributionPercent
+                        )} of all organic clicks.`}
+                        rows={performanceAnalysis?.topPagesByClicks?.rows}
+                        emptyMessage="No page click-distribution data available yet."
+                        columns={[
+                          { key: "page", label: "Page" },
+                          { key: "clicks", label: "Clicks" },
+                          {
+                            key: "contributionPercent",
+                            label: "Contribution %",
+                            render: (row) => formatPct(row?.contributionPercent),
+                          },
+                          { key: "impressions", label: "Impressions" },
+                          {
+                            key: "position",
+                            label: "Position",
+                            render: (row) => roundTo(row?.position, 2),
+                          },
+                        ]}
+                      />
+                    </div>
+                  </section>
+                ) : null}
+
+                {patternAnalysisText ? (
+                  <section
+                    className="print-section"
+                    style={{
+                      border: `1px solid ${HOUSE.cardBorder}`,
+                      borderRadius: 18,
+                      padding: 22,
+                      background: "white",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 24,
+                        fontWeight: 900,
+                        color: HOUSE.text,
+                      }}
+                    >
+                      Pattern Analysis
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 14,
+                        color: HOUSE.subtext,
+                        fontSize: 15,
+                        lineHeight: 1.9,
+                      }}
+                    >
+                      {patternAnalysisText}
+                    </div>
+                  </section>
+                ) : null}
+
                 <section className="print-section" style={{ display: "grid", gap: 16 }}>
                   <div
                     style={{
@@ -617,7 +865,7 @@ export default function OgiPrintableReportPage() {
                         color: HOUSE.text,
                       }}
                     >
-                      Insights
+                      Intelligence Insights
                     </div>
 
                     <div
@@ -634,13 +882,13 @@ export default function OgiPrintableReportPage() {
                         border: "1px solid rgba(30,102,255,0.18)",
                       }}
                     >
-                      {Array.isArray(report?.insights) ? report.insights.length : 0} insights
+                      {safeArr(report?.insights).length} insights
                     </div>
                   </div>
 
-                  {Array.isArray(report?.insights) && report.insights.length > 0 ? (
+                  {safeArr(report?.insights).length > 0 ? (
                     <div style={{ display: "grid", gap: 16 }}>
-                      {report.insights.map((insight, idx) => (
+                      {safeArr(report?.insights).map((insight, idx) => (
                         <div
                           key={`print-insight-${idx}`}
                           className="print-insight"
@@ -651,42 +899,21 @@ export default function OgiPrintableReportPage() {
                             background: "white",
                           }}
                         >
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-                            <div
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 8,
-                                padding: "7px 10px",
-                                borderRadius: 999,
-                                fontWeight: 800,
-                                fontSize: 12,
-                                color: HOUSE.primaryBlue,
-                                background: "rgba(30,102,255,0.08)",
-                                border: "1px solid rgba(30,102,255,0.18)",
-                              }}
-                            >
-                              Insight {idx + 1}
-                            </div>
-
-                            {safeStr(insight?.type) ? (
-                              <div
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 8,
-                                  padding: "7px 10px",
-                                  borderRadius: 999,
-                                  fontWeight: 800,
-                                  fontSize: 12,
-                                  color: HOUSE.primaryBlue,
-                                  background: "rgba(30,102,255,0.08)",
-                                  border: "1px solid rgba(30,102,255,0.18)",
-                                }}
-                              >
-                                {safeStr(insight?.type)}
-                              </div>
-                            ) : null}
+                          <div
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 8,
+                              padding: "7px 10px",
+                              borderRadius: 999,
+                              fontWeight: 800,
+                              fontSize: 12,
+                              color: HOUSE.primaryBlue,
+                              background: "rgba(30,102,255,0.08)",
+                              border: "1px solid rgba(30,102,255,0.18)",
+                            }}
+                          >
+                            Insight {idx + 1}
                           </div>
 
                           <div
@@ -703,7 +930,7 @@ export default function OgiPrintableReportPage() {
 
                           <div style={{ marginTop: 18, display: "grid", gap: 16 }}>
                             <div>
-                              <div style={{ fontWeight: 800, color: HOUSE.text }}>Problem</div>
+                              <div style={{ fontWeight: 800, color: HOUSE.text }}>Problem Diagnosis</div>
                               <div style={{ marginTop: 6, color: HOUSE.subtext, lineHeight: 1.8 }}>
                                 {safeStr(insight?.diagnosis) || "—"}
                               </div>
@@ -764,7 +991,7 @@ export default function OgiPrintableReportPage() {
                     30-Day Action Plan
                   </div>
 
-                  {Array.isArray(report?.actionPlan) && report.actionPlan.length > 0 ? (
+                  {safeArr(report?.actionPlan).length > 0 ? (
                     <ol
                       style={{
                         margin: "14px 0 0 0",
@@ -774,7 +1001,7 @@ export default function OgiPrintableReportPage() {
                         fontSize: 15,
                       }}
                     >
-                      {report.actionPlan.map((item, idx) => (
+                      {safeArr(report?.actionPlan).map((item, idx) => (
                         <li key={`print-plan-${idx}`} style={{ marginBottom: 10 }}>
                           {safeStr(item)}
                         </li>
