@@ -518,6 +518,8 @@ export default function OrganicGrowthIntelligencePage() {
           insights: Array.isArray(data.insights) ? data.insights : [],
           actionPlan: Array.isArray(data.actionPlan) ? data.actionPlan : [],
           kpi,
+          performanceAnalysis: data.performanceAnalysis || {},
+          patternAnalysis: data.patternAnalysis || {},
           websiteId: selectedWebsiteId,
           effectiveUid,
           effectiveWebsiteId,
@@ -527,7 +529,6 @@ export default function OrganicGrowthIntelligencePage() {
         },
         { merge: true }
       );
-
       const currentCycleRef = doc(
         db,
         "users",
