@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 
@@ -217,11 +217,11 @@ function SectionCard({ title, subtitle, right, children }) {
 
 export default function OrganicGrowthIntelligenceHistoryPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [uid, setUid] = useState("");
   const [authReady, setAuthReady] = useState(false);
 
+  const [urlWebsiteId, setUrlWebsiteId] = useState("");
   const [websites, setWebsites] = useState([]);
   const [websitesLoading, setWebsitesLoading] = useState(true);
   const [websitesError, setWebsitesError] = useState("");
@@ -230,6 +230,16 @@ export default function OrganicGrowthIntelligenceHistoryPage() {
   const [reports, setReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [reportsError, setReportsError] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      setUrlWebsiteId(safeStr(params.get("websiteId")));
+    } catch (e) {
+      setUrlWebsiteId("");
+    }
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -272,16 +282,15 @@ export default function OrganicGrowthIntelligenceHistoryPage() {
 
         setWebsites(rows);
 
-        const queryWebsiteId = safeStr(searchParams.get("websiteId"));
         let restored = "";
         try {
           restored = localStorage.getItem("vyndow_selectedWebsiteId") || "";
         } catch (e) {}
 
-        if (queryWebsiteId && rows.some((x) => x.id === queryWebsiteId)) {
-          setSelectedWebsiteId(queryWebsiteId);
+        if (urlWebsiteId && rows.some((x) => x.id === urlWebsiteId)) {
+          setSelectedWebsiteId(urlWebsiteId);
           try {
-            localStorage.setItem("vyndow_selectedWebsiteId", queryWebsiteId);
+            localStorage.setItem("vyndow_selectedWebsiteId", urlWebsiteId);
           } catch (e) {}
         } else if (restored && rows.some((x) => x.id === restored)) {
           setSelectedWebsiteId(restored);
@@ -303,7 +312,7 @@ export default function OrganicGrowthIntelligenceHistoryPage() {
     }
 
     loadWebsites();
-  }, [uid, searchParams]);
+  }, [uid, urlWebsiteId]);
 
   useEffect(() => {
     if (!selectedWebsiteId) return;
@@ -539,7 +548,9 @@ export default function OrganicGrowthIntelligenceHistoryPage() {
               title="Report Archive"
               subtitle="Reports are listed newest first for the selected website."
             >
-              {reportsError ? (
+              {!authReady ? (
+                <div style={{ color: HOUSE.subtext }}>Loading…</div>
+              ) : reportsError ? (
                 <div
                   style={{
                     padding: 12,
