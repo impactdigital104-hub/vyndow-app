@@ -3712,7 +3712,7 @@ async function handleConfirmAuditAndLock() {
 
           <div style={{ marginTop: 8 }}>
             <a
-              href="https://youtu.be/U1Gib7jUntg"
+              href="https://www.youtube.com/watch?v=aAr5sZ-x2tk"
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
@@ -6638,6 +6638,16 @@ style={{
   openStep={openStep}
   setOpenStep={setOpenStep}
 >
+	  <div style={{ marginTop: 8 }}>
+  <a
+    href="https://youtu.be/tioZTbLE_qw"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+  >
+    ▶ Watch quick tutorial
+  </a>
+</div>
   <div style={{ padding: 18 }}>
     {/* Gate on Step 6 approval */}
 {keywordMappingApproved !== true ? (
@@ -7344,6 +7354,16 @@ style={{
 
     return (
       <div>
+		<div style={{ marginTop: 8 }}>
+  <a
+    href="https://youtu.be/PG9qJKrfc-w"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+  >
+    ▶ Watch quick tutorial
+  </a>
+</div>
         {/* Header row strip */}
         <div
           style={{
