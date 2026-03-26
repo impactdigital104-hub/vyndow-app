@@ -3566,6 +3566,16 @@ async function handleConfirmAuditAndLock() {
         <div style={{ marginTop: 8, color: "#6b7280", fontSize: 14, lineHeight: 1.5, maxWidth: 900 }}>
           Build a complete SEO strategy for your website — from pages and audits to keywords, on-page blueprints, and a 90-day authority plan.
         </div>
+			<div style={{ marginTop: 10 }}>
+  <a
+    href="https://youtu.be/-jy8FRQYqT4"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+  >
+    ▶ Watch quick tutorial
+  </a>
+</div>  
 
         <ul style={{ marginTop: 12, color: "#374151", fontSize: 14, lineHeight: 1.6, paddingLeft: 18 }}>
           <li>Complete each step in order. Each step unlocks the next.</li>
