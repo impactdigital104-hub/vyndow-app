@@ -3710,7 +3710,16 @@ async function handleConfirmAuditAndLock() {
   setOpenStep={setOpenStep}
 >
 
-
+          <div style={{ marginTop: 8 }}>
+            <a
+              href="https://youtu.be/U1Gib7jUntg"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+            >
+              ▶ Watch quick tutorial
+            </a>
+          </div>
           {loadingProfile ? (
             <div style={{ marginTop: 12, color: "#374151" }}>
               Loading saved draft…
@@ -3938,7 +3947,16 @@ async function handleConfirmAuditAndLock() {
       {stepGateError}
     </div>
   ) : null}
-
+  <div style={{ marginTop: 8 }}>
+    <a
+      href="https://youtu.be/khFM4t8XIn4"
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+    >
+      ▶ Watch quick tutorial
+    </a>
+  </div>
   <div
     style={{
       marginTop: 10,
@@ -4189,7 +4207,16 @@ async function handleConfirmAuditAndLock() {
   openStep={openStep}
   setOpenStep={setOpenStep}
 >
-
+  <div style={{ marginTop: 8 }}>
+    <a
+      href="https://youtu.be/jymFuTUCNQs"
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+    >
+      ▶ Watch quick tutorial
+    </a>
+  </div>
   {!pageDiscoveryLocked ? (
     <div
       style={{
@@ -4679,7 +4706,16 @@ async function handleConfirmAuditAndLock() {
 
 >
 
-
+          <div style={{ marginTop: 8 }}>
+            <a
+              href="https://youtu.be/TsEvgJoMuEo"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+            >
+              ▶ Watch quick tutorial
+            </a>
+          </div>
           <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
             Based on your Business Profile and selected Location, we will generate a large keyword set relevant to your business.
 
@@ -5004,7 +5040,16 @@ color: "white",
   openStep={openStep}
   setOpenStep={setOpenStep}
 >
-
+          <div style={{ marginTop: 8 }}>
+            <a
+              href="https://youtu.be/VxrBvx0i7Yo"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+            >
+              ▶ Watch quick tutorial
+            </a>
+          </div>
                  <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
             This section builds a structured understanding of your business based on your Business Profile, selected Location, and keyword research.
             <br />
@@ -5184,7 +5229,16 @@ color: "white",
   setOpenStep={setOpenStep}
 >
 
-
+  <div style={{ marginTop: 8 }}>
+    <a
+      href="https://youtu.be/amL4FeIKQmI"
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+    >
+      ▶ Watch quick tutorial
+    </a>
+  </div>
   {/* Collapsible explanation (single place) */}
   <div
     style={{
@@ -5748,7 +5802,16 @@ style={{
   openStep={openStep}
   setOpenStep={setOpenStep}
 >
-
+  <div style={{ marginTop: 8 }}>
+    <a
+      href="https://youtu.be/ZYPRygpXDwA"
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+    >
+      ▶ Watch quick tutorial
+    </a>
+  </div>
   <div style={{ padding: 18, paddingBottom: 0 }}>
     <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.5 }}>
       <div>This section assigns primary and secondary keywords to your existing URLs.</div>
