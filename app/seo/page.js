@@ -740,6 +740,16 @@ if (baseLimit > 0 && used >= totalAllowed) {
     Vyndow SEO is designed to keep things simple. Provide a few meaningful
     inputs, and Vyndow takes care of generating structured, publishing-ready SEO content.
   </p>
+        <div style={{ marginTop: 10 }}>
+  <a
+    href="https://youtu.be/cZfQ4uKmZME"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+  >
+    ▶ Watch quick tutorial
+  </a>
+</div>
 </header>
 {/* Step 8B: Draft-loaded banner */}
 {loadedFromStrategy ? (
