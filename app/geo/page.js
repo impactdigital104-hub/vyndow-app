@@ -582,6 +582,16 @@ if (data?.code === "GEO_LIMIT_REACHED" || data?.error === "QUOTA_EXCEEDED") {
       Audit one or more URLs for AI answer readiness, credibility signals, and machine-readable structure.
       Runs reserve credits server-side and remain available in your Runs list.
     </p>
+            <div style={{ marginTop: 10 }}>
+  <a
+    href="https://www.youtube.com/watch?v=4QiqYSK0irg"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{ color: "#1E66FF", fontWeight: 600, textDecoration: "none" }}
+  >
+    ▶ Watch quick tutorial
+  </a>
+</div>
   </div>
 
   {/* Always-available Runs button */}
