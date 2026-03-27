@@ -365,6 +365,18 @@ const [localLocOpen, setLocalLocOpen] = useState(false); // show/hide dropdown
 const [localLocLoading, setLocalLocLoading] = useState(false);
 const [localLocError, setLocalLocError] = useState("");
 const [localLocSelected, setLocalLocSelected] = useState(false); // TRUE only when user clicks a suggestion
+	const [countryOptions, setCountryOptions] = useState([]); // exact DataForSEO country names
+const [countryFilter, setCountryFilter] = useState("");
+const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+const [countryOptionsLoading, setCountryOptionsLoading] = useState(false);
+const [countryOptionsError, setCountryOptionsError] = useState("");
+
+const filteredCountryOptions = useMemo(() => {
+  const all = Array.isArray(countryOptions) ? countryOptions : [];
+  const needle = String(countryFilter || "").trim().toLowerCase();
+  if (!needle) return all.slice(0, 120);
+  return all.filter((x) => String(x).toLowerCase().includes(needle)).slice(0, 120);
+}, [countryOptions, countryFilter]);
 	// Keyword generation limits: 2 total runs per website (1 regeneration allowed)
 const keywordPoolGenerationCount = keywordPoolMeta?.generationCount || 0;
 const keywordPoolRemaining = Math.max(0, 2 - keywordPoolGenerationCount);
@@ -831,6 +843,38 @@ async function searchLocalLocations(q) {
   }
 }
 
+async function loadCountryOptions() {
+  if (Array.isArray(countryOptions) && countryOptions.length) {
+    return;
+  }
+
+  try {
+    setCountryOptionsLoading(true);
+    setCountryOptionsError("");
+
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch("/api/seo/strategy/listCountries", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({}),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || "Country list failed");
+
+    const countries = Array.isArray(data?.countries) ? data.countries : [];
+    setCountryOptions(countries);
+  } catch (e) {
+    setCountryOptions([]);
+    setCountryOptionsError(e?.message || "Country list failed");
+  } finally {
+    setCountryOptionsLoading(false);
+  }
+}	
 async function handleGenerateKeywordPool() {
   // If already exists & locked, do nothing (UI should show lock notice)
  if (keywordPoolRemaining === 0) return;
@@ -4729,9 +4773,29 @@ async function handleConfirmAuditAndLock() {
               <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
   <div>
     <label style={labelStyle}>Geo Strategy Mode</label>
-    <select
+   <select
       value={keywordGeoMode}
-      onChange={(e) => setKeywordGeoMode(e.target.value)}
+      onChange={async (e) => {
+        const nextMode = e.target.value;
+        setKeywordGeoMode(nextMode);
+
+        setKeywordLocationName("");
+        setKeywordPoolError("");
+
+        setLocalLocQuery("");
+        setLocalLocMatches([]);
+        setLocalLocOpen(false);
+        setLocalLocError("");
+        setLocalLocSelected(false);
+
+        setCountryFilter("");
+        setCountryDropdownOpen(false);
+        setCountryOptionsError("");
+
+        if (nextMode === "country") {
+          await loadCountryOptions();
+        }
+      }}
       style={inputStyle}
       disabled={keywordPoolRemaining === 0}
     >
@@ -4746,15 +4810,118 @@ async function handleConfirmAuditAndLock() {
      Location
     </label>
 {keywordGeoMode === "country" ? (
-  <input
-    value={keywordLocationName}
-    onChange={(e) => {
-      setKeywordLocationName(e.target.value);
-    }}
-    placeholder="Example: India"
-    style={inputStyle}
-    disabled={keywordPoolRemaining === 0}
-  />
+  <div style={{ position: "relative" }}>
+    <button
+      type="button"
+      onClick={async () => {
+        if (keywordPoolRemaining === 0) return;
+        await loadCountryOptions();
+        setCountryDropdownOpen((prev) => !prev);
+      }}
+      style={{
+        ...inputStyle,
+        width: "100%",
+        textAlign: "left",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        cursor: keywordPoolRemaining === 0 ? "not-allowed" : "pointer",
+        background: "white",
+      }}
+      disabled={keywordPoolRemaining === 0}
+      title="Select a country"
+    >
+      <span style={{ color: keywordLocationName ? "#111827" : "#6b7280" }}>
+        {keywordLocationName || "Select a country"}
+      </span>
+      <span style={{ color: "#6b7280", fontSize: 12 }}>▼</span>
+    </button>
+
+    {countryDropdownOpen ? (
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 54,
+          zIndex: 6,
+          border: "1px solid #e5e7eb",
+          borderRadius: 12,
+          background: "white",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ padding: 10, borderBottom: "1px solid #f3f4f6", background: "#fafafa" }}>
+          <input
+            value={countryFilter}
+            onChange={(e) => setCountryFilter(e.target.value)}
+            placeholder="Search country"
+            style={{ ...inputStyle, margin: 0 }}
+          />
+        </div>
+
+        {countryOptionsError ? (
+          <div style={{ padding: 12, fontSize: 13, color: "#b91c1c" }}>
+            {countryOptionsError}
+          </div>
+        ) : null}
+
+        {countryOptionsLoading ? (
+          <div style={{ padding: 12, fontSize: 13, color: "#6b7280" }}>
+            Loading countries…
+          </div>
+        ) : filteredCountryOptions.length ? (
+          <div style={{ maxHeight: 260, overflow: "auto" }}>
+            {filteredCountryOptions.map((country, idx) => (
+              <div
+                key={`${country}-${idx}`}
+                onClick={() => {
+                  setKeywordLocationName(country);
+                  setCountryFilter(country);
+                  setCountryDropdownOpen(false);
+                  setCountryOptionsError("");
+                }}
+                style={{
+                  padding: 12,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  borderTop: idx === 0 ? "none" : "1px solid #f3f4f6",
+                  color: "#111827",
+                  fontWeight: 700,
+                }}
+                title="Click to select"
+              >
+                {country}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ padding: 12, fontSize: 13, color: "#6b7280" }}>
+            No countries found for this search.
+          </div>
+        )}
+
+        <div style={{ padding: 10, borderTop: "1px solid #f3f4f6", background: "#fafafa" }}>
+          <button
+            type="button"
+            onClick={() => setCountryDropdownOpen(false)}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              background: "white",
+              cursor: "pointer",
+              fontWeight: 800,
+              fontSize: 12,
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    ) : null}
+  </div>
 ) : (
   <div style={{ position: "relative" }}>
     <div style={{ display: "flex", gap: 8 }}>
@@ -4875,7 +5042,11 @@ color: "white",
   </div>
 )}
 
-<div style={helpStyle}>Type a country or location</div>
+<div style={helpStyle}>
+  {keywordGeoMode === "country"
+    ? "Search and select a country from the approved list."
+    : "Type a city or state, search, then select the correct location."}
+</div>
   </div>
 </div>
 
