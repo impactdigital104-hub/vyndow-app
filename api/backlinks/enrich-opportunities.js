@@ -284,7 +284,7 @@ export default async function handler(req, res) {
       .filter((item) => isLikelyDomain(item.normalizedDomain));
 
     const BATCH_SIZE = 50;
- const STORAGE_LIMIT = baseRows.length;
+ const PROCESS_LIMIT = 500;
 
     const rankMap = new Map();
 
@@ -327,7 +327,7 @@ export default async function handler(req, res) {
         return a.normalizedDomain.localeCompare(b.normalizedDomain);
       });
 
-    const rowsToProcess = rankedRows.slice(0, STORAGE_LIMIT);
+    const rowsToProcess = rankedRows.slice(0, PROCESS_LIMIT);
     const nowIso = new Date().toISOString();
 
     let partialCount = 0;
@@ -372,14 +372,18 @@ export default async function handler(req, res) {
       updatedAt: nowTs(),
     };
 
-    await backlinksModuleRef.set(
-      {
-        enrichedGapOpportunities,
-        enrichmentMeta,
-        updatedAt: nowTs(),
-      },
-      { merge: true }
-    );
+const existing = docSnap.data()?.enrichedGapOpportunities || [];
+
+const merged = [...existing, ...enrichedGapOpportunities];
+
+await backlinksModuleRef.set(
+  {
+    enrichedGapOpportunities: merged,
+    enrichmentMeta,
+    updatedAt: nowTs(),
+  },
+  { merge: true }
+);
 
     return res.status(200).json({
       ok: true,
