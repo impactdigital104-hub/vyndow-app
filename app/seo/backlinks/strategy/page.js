@@ -712,6 +712,17 @@ export default function BacklinkAuthorityStrategyPage() {
                 Vyndow’s internal backlink prioritization model, which evaluates competitor backlink
                 overlap, domain rank, link category, and acquisition difficulty to surface stronger
                 backlink opportunities.
+                <div style={{ marginTop: 10 }}>
+                  <strong>Foundation</strong> covers easier, lower-effort opportunities such as
+                  directories, listings, and forums. <strong>Industry</strong> covers niche-relevant
+                  opportunities such as blogs, associations, and resource pages.{" "}
+                  <strong>Authority</strong> covers harder, higher-value opportunities such as
+                  publications and stronger domains.
+                </div>
+              </div>
+                Vyndow’s internal backlink prioritization model, which evaluates competitor backlink
+                overlap, domain rank, link category, and acquisition difficulty to surface stronger
+                backlink opportunities.
               </div>
 
               {websitesLoading || pageState === "loading" ? (
@@ -846,18 +857,19 @@ export default function BacklinkAuthorityStrategyPage() {
                     <SummaryCard
                       label="Recommended Opportunities"
                       value={String(strategyMeta?.totalRecommended || strategyRows.length || 0)}
+                      helperText="Upgrade your plan to unlock more opportunities"
                     />
-                    <SummaryCard
+                                        <SummaryCard
                       label="Foundation"
-                      value={`${counts.foundation} / ${targets.foundation}`}
+                      value={String(counts.foundation)}
                     />
                     <SummaryCard
                       label="Industry"
-                      value={`${counts.industry} / ${targets.industry}`}
+                      value={String(counts.industry)}
                     />
                     <SummaryCard
                       label="Authority"
-                      value={`${counts.authority} / ${targets.authority}`}
+                      value={String(counts.authority)}
                     />
                     <SummaryCard
                       label="Last Generated"
@@ -1017,7 +1029,7 @@ export default function BacklinkAuthorityStrategyPage() {
   );
 }
 
-function SummaryCard({ label, value }) {
+function SummaryCard({ label, value, helperText = "" }) {
   return (
     <div
       style={{
@@ -1031,6 +1043,19 @@ function SummaryCard({ label, value }) {
       <div style={{ marginTop: 8, fontSize: 16, fontWeight: 600, color: "#111827" }}>
         {value}
       </div>
+      {helperText ? (
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: 12,
+            lineHeight: 1.5,
+            color: "#6D28D9",
+            fontWeight: 500,
+          }}
+        >
+          {helperText}
+        </div>
+      ) : null}
     </div>
   );
 }
