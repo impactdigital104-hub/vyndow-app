@@ -1,17 +1,338 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
+import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
+
 import VyndowShell from "../../VyndowShell";
 import AuthGate from "../../components/AuthGate";
+import { auth, db } from "../../firebaseClient";
+import { runSuiteLifecycleCheck } from "../../suiteLifecycleClient";
+
+const PAGE_BG =
+  "linear-gradient(180deg, rgba(124,58,237,0.08) 0%, rgba(6,182,212,0.06) 50%, rgba(30,102,255,0.05) 100%)";
+const CARD_BG = "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)";
+const CARD_BORDER = "1px solid rgba(124,58,237,0.20)";
+const SHADOW = "0 10px 26px rgba(15,23,42,0.06)";
+
+function normalizeCompetitors(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item.trim();
+        if (item && typeof item === "object") {
+          return String(item.domain || item.url || item.website || item.name || "").trim();
+        }
+        return "";
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/[\n,]+/g)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function cleanDomain(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .replace(/\/.*$/, "")
+    .trim();
+}
+
+function titleCaseGeoMode(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "—";
+  if (raw === "country") return "Country";
+  if (raw === "local") return "Local";
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+function safePillarsFromDoc(data) {
+  const approved = data?.approved === true;
+
+  const pillarSource =
+    approved && Array.isArray(data?.finalVersion?.pillars)
+      ? data.finalVersion.pillars
+      : Array.isArray(data?.userVersion?.pillars)
+      ? data.userVersion.pillars
+      : Array.isArray(data?.aiVersion?.pillars)
+      ? data.aiVersion.pillars
+      : [];
+
+  return pillarSource
+    .map((pillar) => ({
+      name: String(pillar?.name || pillar?.pillarName || "").trim(),
+    }))
+    .filter((pillar) => pillar.name);
+}
+
+function SummaryRow({ label, value, children }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "170px minmax(0, 1fr)",
+        gap: 12,
+        alignItems: "start",
+        padding: "10px 0",
+        borderTop: "1px solid #eef2ff",
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: 800, color: "#6b7280" }}>{label}</div>
+      <div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{value}</div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function SmallChip({ children }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "6px 10px",
+        borderRadius: 999,
+        border: "1px solid rgba(30,102,255,0.14)",
+        background: "rgba(30,102,255,0.06)",
+        color: "#1d4ed8",
+        fontSize: 12,
+        fontWeight: 700,
+        lineHeight: 1.2,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
 
 export default function BacklinkAuthorityPage() {
+  const router = useRouter();
+
+  const [uid, setUid] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  const [websites, setWebsites] = useState([]);
+  const [selectedWebsiteId, setSelectedWebsiteId] = useState("");
+  const [websitesLoading, setWebsitesLoading] = useState(true);
+
+  const [contextState, setContextState] = useState("loading"); // loading | ready | missing | error
+  const [contextError, setContextError] = useState("");
+  const [contextData, setContextData] = useState(null);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      try {
+        await runSuiteLifecycleCheck(user.uid);
+      } catch (e) {
+        console.error("Suite lifecycle check failed:", e);
+      }
+
+      setUid(user.uid);
+      setAuthReady(true);
+    });
+
+    return () => {
+      if (typeof unsub === "function") unsub();
+    };
+  }, [router]);
+
+  useEffect(() => {
+    async function loadWebsites() {
+      if (!uid) return;
+
+      try {
+        setWebsitesLoading(true);
+
+        const colRef = collection(db, "users", uid, "websites");
+        const q = query(colRef, orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+
+        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setWebsites(rows);
+
+        let restored = "";
+        try {
+          restored = localStorage.getItem("vyndow_selectedWebsiteId") || "";
+        } catch (e) {
+          // ignore
+        }
+
+        const restoredExists = restored && rows.some((x) => x.id === restored);
+        const pick = restoredExists ? restored : rows[0]?.id || "";
+        setSelectedWebsiteId((prev) => prev || pick);
+      } catch (e) {
+        console.error("Failed to load websites:", e);
+        setWebsites([]);
+        setSelectedWebsiteId("");
+      } finally {
+        setWebsitesLoading(false);
+      }
+    }
+
+    loadWebsites();
+  }, [uid]);
+
+  useEffect(() => {
+    if (!selectedWebsiteId) return;
+    try {
+      localStorage.setItem("vyndow_selectedWebsiteId", selectedWebsiteId);
+    } catch (e) {
+      // ignore
+    }
+  }, [selectedWebsiteId]);
+
+  function getEffectiveContext(websiteId) {
+    const id = websiteId || selectedWebsiteId;
+    const website = websites.find((item) => item.id === id);
+
+    const effectiveUid = website?.ownerUid || uid;
+    const effectiveWebsiteId = website?.ownerWebsiteId || id;
+
+    return { effectiveUid, effectiveWebsiteId, website };
+  }
+
+  useEffect(() => {
+    async function loadBacklinkContext() {
+      if (!uid || !selectedWebsiteId || !websites.length) return;
+
+      try {
+        setContextState("loading");
+        setContextError("");
+
+        const { effectiveUid, effectiveWebsiteId, website } = getEffectiveContext(selectedWebsiteId);
+        if (!effectiveUid || !effectiveWebsiteId) {
+          setContextData(null);
+          setContextState("missing");
+          return;
+        }
+
+        const businessProfileRef = doc(
+          db,
+          "users",
+          effectiveUid,
+          "websites",
+          effectiveWebsiteId,
+          "modules",
+          "seo",
+          "strategy",
+          "businessProfile"
+        );
+
+        const keywordPoolRef = doc(
+          db,
+          "users",
+          effectiveUid,
+          "websites",
+          effectiveWebsiteId,
+          "modules",
+          "seo",
+          "strategy",
+          "keywordPool"
+        );
+
+        const keywordClusteringRef = doc(
+          db,
+          "users",
+          effectiveUid,
+          "websites",
+          effectiveWebsiteId,
+          "modules",
+          "seo",
+          "strategy",
+          "keywordClustering"
+        );
+
+        const [businessProfileSnap, keywordPoolSnap, keywordClusteringSnap] = await Promise.all([
+          getDoc(businessProfileRef),
+          getDoc(keywordPoolRef),
+          getDoc(keywordClusteringRef),
+        ]);
+
+        if (!businessProfileSnap.exists() || !keywordPoolSnap.exists() || !keywordClusteringSnap.exists()) {
+          setContextData(null);
+          setContextState("missing");
+          return;
+        }
+
+        const businessProfile = businessProfileSnap.data() || {};
+        const keywordPool = keywordPoolSnap.data() || {};
+        const keywordClustering = keywordClusteringSnap.data() || {};
+
+        const competitorsRaw = normalizeCompetitors(businessProfile?.competitors);
+        const competitors = Array.from(new Set(competitorsRaw.map(cleanDomain).filter(Boolean)));
+
+        const pillars = safePillarsFromDoc(keywordClustering);
+        const pillarNames = Array.from(new Set(pillars.map((pillar) => pillar.name).filter(Boolean)));
+
+        const geoMode = String(keywordPool?.geo_mode || "").trim().toLowerCase();
+        const geography = String(keywordPool?.location_name || "").trim();
+        const industry = String(businessProfile?.industry || "").trim();
+        const websiteLabel = String(
+          website?.domain || website?.website || website?.url || website?.name || website?.label || ""
+        ).trim();
+
+        if (!websiteLabel || !industry || !geoMode || !geography) {
+          setContextData(null);
+          setContextState("missing");
+          return;
+        }
+
+        setContextData({
+          websiteLabel,
+          industry,
+          geography,
+          geoMode,
+          competitors,
+          pillarCount: pillarNames.length,
+          pillarNames,
+        });
+        setContextState("ready");
+      } catch (e) {
+        console.error("Failed to load backlink context:", e);
+        setContextData(null);
+        setContextState("error");
+        setContextError(e?.message || "Failed to load backlink context.");
+      }
+    }
+
+    loadBacklinkContext();
+  }, [uid, selectedWebsiteId, websites]);
+
+  const canShowContext = contextState === "ready" && contextData;
+  const buttonDisabled = contextState !== "ready";
+
+  const competitorPreview = useMemo(() => {
+    return canShowContext ? contextData.competitors.slice(0, 8) : [];
+  }, [canShowContext, contextData]);
+
+  const pillarPreview = useMemo(() => {
+    return canShowContext ? contextData.pillarNames.slice(0, 8) : [];
+  }, [canShowContext, contextData]);
+
   return (
     <AuthGate>
       <VyndowShell activeModule="seo">
         <div
           style={{
             padding: 28,
-            background:
-              "linear-gradient(180deg, rgba(124,58,237,0.08) 0%, rgba(6,182,212,0.06) 50%, rgba(30,102,255,0.05) 100%)",
+            background: PAGE_BG,
             borderRadius: 18,
           }}
         >
@@ -51,9 +372,9 @@ export default function BacklinkAuthorityPage() {
                 marginTop: 22,
                 padding: 22,
                 borderRadius: 18,
-                border: "1px solid rgba(124,58,237,0.20)",
-                background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-                boxShadow: "0 10px 26px rgba(15,23,42,0.06)",
+                border: CARD_BORDER,
+                background: CARD_BG,
+                boxShadow: SHADOW,
               }}
             >
               <div
@@ -74,15 +395,16 @@ export default function BacklinkAuthorityPage() {
                   lineHeight: 1.7,
                 }}
               >
-                This module will analyze your current backlink profile, compare it
-                with your competitors, and generate a plan-based monthly backlink
-                action list.
+                This module will analyze your current backlink profile, compare it with your competitors,
+                and generate a plan-based monthly backlink action list.
               </p>
 
               <button
                 type="button"
                 className="btn btn-primary"
-                style={{ marginTop: 8 }}
+                disabled={buttonDisabled}
+                title={buttonDisabled ? "Strategy context must load first." : "Backlink plan generation will be connected in the next stage."}
+                style={{ marginTop: 8, opacity: buttonDisabled ? 0.65 : 1, cursor: buttonDisabled ? "not-allowed" : "pointer" }}
               >
                 Generate Backlink Plan
               </button>
@@ -98,6 +420,116 @@ export default function BacklinkAuthorityPage() {
               >
                 Context and backlink analysis will be connected in the next stage.
               </p>
+            </div>
+
+            <div
+              style={{
+                marginTop: 18,
+                padding: 22,
+                borderRadius: 18,
+                border: CARD_BORDER,
+                background: CARD_BG,
+                boxShadow: SHADOW,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "#111827",
+                  marginBottom: 10,
+                }}
+              >
+                Backlink Context
+              </div>
+
+              {!authReady || websitesLoading || contextState === "loading" ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #e5e7eb",
+                    background: "#ffffff",
+                    padding: 16,
+                    color: "#6b7280",
+                    fontSize: 14,
+                  }}
+                >
+                  Loading your Strategy context…
+                </div>
+              ) : null}
+
+              {contextState === "error" ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #fecaca",
+                    background: "#fef2f2",
+                    padding: 16,
+                    color: "#991b1b",
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {contextError || "Failed to load backlink context."}
+                </div>
+              ) : null}
+
+              {contextState === "missing" ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #fde68a",
+                    background: "#fffbeb",
+                    padding: 16,
+                    color: "#92400e",
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  <div style={{ fontWeight: 800, color: "#111827" }}>Strategy context not ready</div>
+                  <div style={{ marginTop: 6 }}>
+                    Backlink Authority needs your Strategy setup before it can generate a plan. Please complete your Strategy setup first.
+                  </div>
+                  <a href="/seo/strategy" className="btn btn-soft-primary" style={{ marginTop: 12, display: "inline-flex" }}>
+                    Open Strategy
+                  </a>
+                </div>
+              ) : null}
+
+              {canShowContext ? (
+                <div
+                  style={{
+                    marginTop: 4,
+                    borderRadius: 14,
+                    border: "1px solid #e5e7eb",
+                    background: "#ffffff",
+                    padding: "6px 16px 14px",
+                  }}
+                >
+                  <SummaryRow label="Website" value={contextData.websiteLabel} />
+                  <SummaryRow label="Industry" value={contextData.industry} />
+                  <SummaryRow label="Geography" value={contextData.geography} />
+                  <SummaryRow label="Geo Mode" value={titleCaseGeoMode(contextData.geoMode)} />
+                  <SummaryRow label="Competitors" value={String(contextData.competitors.length)}>
+                    {competitorPreview.length ? (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                        {competitorPreview.map((domain) => (
+                          <SmallChip key={domain}>{domain}</SmallChip>
+                        ))}
+                      </div>
+                    ) : null}
+                  </SummaryRow>
+                  <SummaryRow label="Keyword Pillars" value={String(contextData.pillarCount)}>
+                    {pillarPreview.length ? (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                        {pillarPreview.map((name) => (
+                          <SmallChip key={name}>{name}</SmallChip>
+                        ))}
+                      </div>
+                    ) : null}
+                  </SummaryRow>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
