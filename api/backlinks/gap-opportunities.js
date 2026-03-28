@@ -263,6 +263,8 @@ export default async function handler(req, res) {
       {
         gapOpportunities,
         gapMeta,
+        enrichedGapOpportunities: admin.firestore.FieldValue.delete(),
+        enrichmentMeta: admin.firestore.FieldValue.delete(),
         updatedAt: nowTs(),
       },
       { merge: true }
