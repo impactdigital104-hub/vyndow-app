@@ -183,6 +183,38 @@ function formatTimestamp(value) {
 }
 
 function normalizeSelfProfile(data) {
+  function normalizeCompetitorProfiles(value) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => ({
+      originalDomain: String(item?.originalDomain || item?.domain || "").trim(),
+      normalizedDomain: cleanDomain(item?.normalizedDomain || item?.originalDomain || item?.domain || ""),
+      referringDomains:
+        Number.isFinite(Number(item?.referringDomains)) ? Number(item.referringDomains) : null,
+      totalBacklinks:
+        Number.isFinite(Number(item?.totalBacklinks)) ? Number(item.totalBacklinks) : null,
+      authorityBuckets:
+        item?.authorityBuckets && typeof item.authorityBuckets === "object"
+          ? item.authorityBuckets
+          : null,
+      source: String(item?.source || "").trim(),
+      lastAnalyzedAt: item?.lastAnalyzedAt || null,
+      updatedAt: item?.updatedAt || null,
+    }))
+    .filter((item) => item.normalizedDomain);
+}
+
+function normalizeCompetitorProfilesMeta(value) {
+  const meta = value || {};
+  return {
+    invalidCount: Number.isFinite(Number(meta?.invalidCount)) ? Number(meta.invalidCount) : 0,
+    failedCount: Number.isFinite(Number(meta?.failedCount)) ? Number(meta.failedCount) : 0,
+    successCount: Number.isFinite(Number(meta?.successCount)) ? Number(meta.successCount) : 0,
+    lastAnalyzedAt: meta?.lastAnalyzedAt || null,
+    updatedAt: meta?.updatedAt || null,
+  };
+}
   const selfProfile = data || {};
   return {
     domain: String(selfProfile.domain || "").trim(),
@@ -218,6 +250,16 @@ export default function BacklinkAuthorityPage() {
   const [selfProfileState, setSelfProfileState] = useState("idle"); // idle | loading | empty | ready | running | error | blocked
   const [selfProfileError, setSelfProfileError] = useState("");
   const [selfProfileData, setSelfProfileData] = useState(null);
+    const [competitorProfilesState, setCompetitorProfilesState] = useState("idle"); // idle | loading | empty | ready | running | error | blocked | no-competitors
+  const [competitorProfilesError, setCompetitorProfilesError] = useState("");
+  const [competitorProfilesData, setCompetitorProfilesData] = useState([]);
+  const [competitorProfilesMeta, setCompetitorProfilesMeta] = useState({
+    invalidCount: 0,
+    failedCount: 0,
+    successCount: 0,
+    lastAnalyzedAt: null,
+    updatedAt: null,
+  });
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -466,6 +508,103 @@ export default function BacklinkAuthorityPage() {
 
     loadStoredSelfProfile();
   }, [uid, selectedWebsiteId, websites, contextState]);
+    useEffect(() => {
+    async function loadStoredCompetitorProfiles() {
+      if (!uid || !selectedWebsiteId || !websites.length) return;
+
+      if (contextState === "missing") {
+        setCompetitorProfilesData([]);
+        setCompetitorProfilesError("");
+        setCompetitorProfilesMeta({
+          invalidCount: 0,
+          failedCount: 0,
+          successCount: 0,
+          lastAnalyzedAt: null,
+          updatedAt: null,
+        });
+        setCompetitorProfilesState("blocked");
+        return;
+      }
+
+      if (contextState !== "ready") return;
+
+      const strategyCompetitors = Array.isArray(contextData?.competitors) ? contextData.competitors : [];
+
+      if (!strategyCompetitors.length) {
+        setCompetitorProfilesData([]);
+        setCompetitorProfilesError("");
+        setCompetitorProfilesMeta({
+          invalidCount: 0,
+          failedCount: 0,
+          successCount: 0,
+          lastAnalyzedAt: null,
+          updatedAt: null,
+        });
+        setCompetitorProfilesState("no-competitors");
+        return;
+      }
+
+      try {
+        setCompetitorProfilesState("loading");
+        setCompetitorProfilesError("");
+
+        const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
+        if (!effectiveUid || !effectiveWebsiteId) {
+          setCompetitorProfilesData([]);
+          setCompetitorProfilesState("empty");
+          return;
+        }
+
+        const backlinksModuleRef = doc(
+          db,
+          "users",
+          effectiveUid,
+          "websites",
+          effectiveWebsiteId,
+          "modules",
+          "backlinks"
+        );
+
+        const snap = await getDoc(backlinksModuleRef);
+
+        if (!snap.exists()) {
+          setCompetitorProfilesData([]);
+          setCompetitorProfilesMeta({
+            invalidCount: 0,
+            failedCount: 0,
+            successCount: 0,
+            lastAnalyzedAt: null,
+            updatedAt: null,
+          });
+          setCompetitorProfilesState("empty");
+          return;
+        }
+
+        const moduleData = snap.data() || {};
+        const normalizedProfiles = normalizeCompetitorProfiles(moduleData?.competitorProfiles || []);
+        const normalizedMeta = normalizeCompetitorProfilesMeta(moduleData?.competitorProfilesMeta || null);
+
+        const hasSavedAttempt =
+          normalizedProfiles.length > 0 ||
+          normalizedMeta.successCount > 0 ||
+          normalizedMeta.failedCount > 0 ||
+          normalizedMeta.invalidCount > 0 ||
+          normalizedMeta.lastAnalyzedAt ||
+          normalizedMeta.updatedAt;
+
+        setCompetitorProfilesData(normalizedProfiles);
+        setCompetitorProfilesMeta(normalizedMeta);
+        setCompetitorProfilesState(hasSavedAttempt ? "ready" : "empty");
+      } catch (e) {
+        console.error("Failed to load stored competitor profiles:", e);
+        setCompetitorProfilesData([]);
+        setCompetitorProfilesError("We could not load competitor backlink data right now.");
+        setCompetitorProfilesState("error");
+      }
+    }
+
+    loadStoredCompetitorProfiles();
+  }, [uid, selectedWebsiteId, websites, contextState, contextData]);
 
   const canShowContext = contextState === "ready" && contextData;
   const planButtonDisabled = contextState !== "ready";
@@ -518,11 +657,76 @@ export default function BacklinkAuthorityPage() {
       setSelfProfileState("error");
     }
   }
+  
+  async function handleAnalyzeCompetitors() {
+    try {
+      if (!auth.currentUser) {
+        router.replace("/login");
+        return;
+      }
 
+      setCompetitorProfilesError("");
+      setCompetitorProfilesState("running");
+
+      const idToken = await auth.currentUser.getIdToken();
+
+      const res = await fetch("/api/backlinks/analyze-competitors", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          websiteId: selectedWebsiteId,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(
+          json?.error || "We could not analyze competitor backlinks right now. Please try again."
+        );
+      }
+
+      const normalizedProfiles = normalizeCompetitorProfiles(json?.profiles || []);
+      const normalizedMeta = normalizeCompetitorProfilesMeta({
+        invalidCount: json?.invalidCount,
+        failedCount: json?.failedCount,
+        successCount: json?.successCount,
+        lastAnalyzedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      setCompetitorProfilesData(normalizedProfiles);
+      setCompetitorProfilesMeta(normalizedMeta);
+      setCompetitorProfilesState("ready");
+    } catch (e) {
+      console.error("Competitor backlink analysis failed:", e);
+      setCompetitorProfilesError("We could not analyze competitor backlinks right now. Please try again.");
+      setCompetitorProfilesState("error");
+    }
+  }
   const showAuthorityBuckets =
     selfProfileData?.authorityBuckets &&
     typeof selfProfileData.authorityBuckets === "object" &&
     Object.keys(selfProfileData.authorityBuckets).length > 0;
+    const hasStrategyCompetitors =
+    canShowContext && Array.isArray(contextData?.competitors) && contextData.competitors.length > 0;
+
+  const competitorAnalysisNote = useMemo(() => {
+    const messages = [];
+
+    if ((competitorProfilesMeta?.invalidCount || 0) > 0) {
+      messages.push("Some competitor entries were skipped because they were invalid.");
+    }
+
+    if ((competitorProfilesMeta?.failedCount || 0) > 0) {
+      messages.push("Some competitor entries could not be analyzed.");
+    }
+
+    return messages.join(" ");
+  }, [competitorProfilesMeta]);
 
   return (
     <AuthGate>
@@ -919,6 +1123,359 @@ export default function BacklinkAuthorityPage() {
                   </button>
                 </div>
               ) : null}
+                            <div
+              style={{
+                marginTop: 18,
+                padding: 22,
+                borderRadius: 18,
+                border: CARD_BORDER,
+                background: CARD_BG,
+                boxShadow: SHADOW,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "#111827",
+                  marginBottom: 10,
+                }}
+              >
+                Competitor Backlink Comparison
+              </div>
+
+              {contextState === "missing" ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #fde68a",
+                    background: "#fffbeb",
+                    padding: 16,
+                    color: "#92400e",
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Complete your Strategy setup first to unlock competitor backlink comparison.
+                </div>
+              ) : null}
+
+              {contextState === "ready" && !hasStrategyCompetitors ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #e5e7eb",
+                    background: "#ffffff",
+                    padding: 16,
+                  }}
+                >
+                  <div style={{ color: "#374151", fontSize: 14, lineHeight: 1.7 }}>
+                    Add competitor websites in Strategy Step 1 to compare your backlink authority.
+                  </div>
+
+                  <a
+                    href="/seo/strategy"
+                    className="btn btn-soft-primary"
+                    style={{ marginTop: 14, display: "inline-flex" }}
+                  >
+                    Open Strategy
+                  </a>
+                </div>
+              ) : null}
+
+              {(competitorProfilesState === "loading" || competitorProfilesState === "running") &&
+              contextState === "ready" &&
+              hasStrategyCompetitors ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #e5e7eb",
+                    background: "#ffffff",
+                    padding: 16,
+                    color: "#6b7280",
+                    fontSize: 14,
+                  }}
+                >
+                  {competitorProfilesState === "running"
+                    ? "Analyzing competitor backlinks…"
+                    : "Loading saved competitor backlink baselines…"}
+                </div>
+              ) : null}
+
+              {competitorProfilesState === "error" ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #fecaca",
+                    background: "#fef2f2",
+                    padding: 16,
+                    color: "#991b1b",
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {competitorProfilesError || "We could not analyze competitor backlinks right now. Please try again."}
+                </div>
+              ) : null}
+
+              {competitorProfilesState === "empty" && contextState === "ready" && hasStrategyCompetitors ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #e5e7eb",
+                    background: "#ffffff",
+                    padding: 16,
+                  }}
+                >
+                  <div style={{ color: "#374151", fontSize: 14, lineHeight: 1.7 }}>
+                    Analyze your competitor backlink baselines to compare where your domain stands today.
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleAnalyzeCompetitors}
+                    style={{ marginTop: 14 }}
+                  >
+                    Analyze Competitors
+                  </button>
+                </div>
+              ) : null}
+
+              {competitorProfilesState === "ready" && contextState === "ready" && hasStrategyCompetitors ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #e5e7eb",
+                    background: "#ffffff",
+                    padding: 18,
+                  }}
+                >
+                  {competitorAnalysisNote ? (
+                    <div
+                      style={{
+                        marginBottom: 14,
+                        borderRadius: 12,
+                        border: "1px solid #fde68a",
+                        background: "#fffbeb",
+                        padding: 12,
+                        color: "#92400e",
+                        fontSize: 13,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {competitorAnalysisNote}
+                    </div>
+                  ) : null}
+
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
+                      <thead>
+                        <tr style={{ background: "rgba(30,102,255,0.05)" }}>
+                          <th
+                            style={{
+                              textAlign: "left",
+                              padding: "12px 14px",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: "#6b7280",
+                              borderBottom: "1px solid #e5e7eb",
+                            }}
+                          >
+                            Domain
+                          </th>
+                          <th
+                            style={{
+                              textAlign: "right",
+                              padding: "12px 14px",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: "#6b7280",
+                              borderBottom: "1px solid #e5e7eb",
+                            }}
+                          >
+                            Referring Domains
+                          </th>
+                          <th
+                            style={{
+                              textAlign: "right",
+                              padding: "12px 14px",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: "#6b7280",
+                              borderBottom: "1px solid #e5e7eb",
+                            }}
+                          >
+                            Total Backlinks
+                          </th>
+                          <th
+                            style={{
+                              textAlign: "left",
+                              padding: "12px 14px",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: "#6b7280",
+                              borderBottom: "1px solid #e5e7eb",
+                            }}
+                          >
+                            Last Analyzed
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ background: "rgba(124,58,237,0.04)" }}>
+                          <td
+                            style={{
+                              padding: "12px 14px",
+                              borderBottom: "1px solid #eef2ff",
+                              color: "#111827",
+                              fontSize: 14,
+                              fontWeight: 700,
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <span>{selfProfileData?.normalizedDomain || contextData.websiteLabel || "Your website"}</span>
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  padding: "4px 8px",
+                                  borderRadius: 999,
+                                  background: "rgba(124,58,237,0.10)",
+                                  color: "#7c3aed",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  lineHeight: 1.2,
+                                }}
+                              >
+                                You
+                              </span>
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 14px",
+                              borderBottom: "1px solid #eef2ff",
+                              color: "#111827",
+                              fontSize: 14,
+                              textAlign: "right",
+                            }}
+                          >
+                            {selfProfileData?.referringDomains == null ? "—" : String(selfProfileData.referringDomains)}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 14px",
+                              borderBottom: "1px solid #eef2ff",
+                              color: "#111827",
+                              fontSize: 14,
+                              textAlign: "right",
+                            }}
+                          >
+                            {selfProfileData?.totalBacklinks == null ? "—" : String(selfProfileData.totalBacklinks)}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 14px",
+                              borderBottom: "1px solid #eef2ff",
+                              color: "#374151",
+                              fontSize: 14,
+                            }}
+                          >
+                            {formatTimestamp(selfProfileData?.lastAnalyzedAt || selfProfileData?.updatedAt)}
+                          </td>
+                        </tr>
+
+                        {competitorProfilesData.length ? (
+                          competitorProfilesData.map((item) => (
+                            <tr key={item.normalizedDomain}>
+                              <td
+                                style={{
+                                  padding: "12px 14px",
+                                  borderBottom: "1px solid #eef2ff",
+                                  color: "#111827",
+                                  fontSize: 14,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {item.normalizedDomain}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "12px 14px",
+                                  borderBottom: "1px solid #eef2ff",
+                                  color: "#111827",
+                                  fontSize: 14,
+                                  textAlign: "right",
+                                }}
+                              >
+                                {item.referringDomains == null ? "—" : String(item.referringDomains)}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "12px 14px",
+                                  borderBottom: "1px solid #eef2ff",
+                                  color: "#111827",
+                                  fontSize: 14,
+                                  textAlign: "right",
+                                }}
+                              >
+                                {item.totalBacklinks == null ? "—" : String(item.totalBacklinks)}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "12px 14px",
+                                  borderBottom: "1px solid #eef2ff",
+                                  color: "#374151",
+                                  fontSize: 14,
+                                }}
+                              >
+                                {formatTimestamp(item.lastAnalyzedAt || item.updatedAt)}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              style={{
+                                padding: "14px",
+                                color: "#6b7280",
+                                fontSize: 14,
+                              }}
+                            >
+                              No competitor backlink summaries are available yet.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {!selfProfileData ? (
+                    <div
+                      style={{
+                        marginTop: 12,
+                        color: "#6b7280",
+                        fontSize: 13,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      Analyze your own backlinks as well to compare where you stand against competitors.
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    className="btn btn-soft-primary"
+                    onClick={handleAnalyzeCompetitors}
+                    style={{ marginTop: 16 }}
+                  >
+                    Refresh Competitor Analysis
+                  </button>
+                </div>
+              ) : null}
+            </div>
             </div>
           </div>
         </div>
