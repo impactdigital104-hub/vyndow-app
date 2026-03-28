@@ -15,10 +15,13 @@ export default function VyndowShell({ activeModule, children }) {
     pathname === "/seo" || (pathname.startsWith("/seo/") && !isSeoStrategyRoute);
 
   const isGeoRoute = pathname === "/geo" || pathname.startsWith("/geo/");
+  const isBacklinksRoute =
+    pathname === "/seo/backlinks" || pathname.startsWith("/seo/backlinks/");
   const isOgiRoute =
     pathname === "/growth/intelligence" || pathname.startsWith("/growth/intelligence/");
 
-  const isOrganicRoute = isSeoRoute || isSeoStrategyRoute || isGeoRoute || isOgiRoute;
+  const isOrganicRoute =
+    isSeoRoute || isSeoStrategyRoute || isGeoRoute || isBacklinksRoute || isOgiRoute;
 
   const [organicOpen, setOrganicOpen] = useState(false);
   const organicExpanded = organicOpen || isOrganicRoute;
@@ -157,6 +160,20 @@ export default function VyndowShell({ activeModule, children }) {
                 <span className="sidebar-info">i</span>
                 <span className="sidebar-tip">
                   Audit and get your website optimized for AI Search.
+                </span>
+              </a>
+
+              <a
+                href="/seo/backlinks"
+                className={`sidebar-link${isBacklinksRoute ? " is-active" : ""}`}
+                onClick={closeMobileSidebar}
+                style={{ paddingLeft: 26 }}
+              >
+                <span className="sidebar-link-main">Backlink Authority</span>
+                <span className="sidebar-pill sidebar-pill-live">Live</span>
+                <span className="sidebar-info">i</span>
+                <span className="sidebar-tip">
+                  Build backlink authority using a structured monthly action plan.
                 </span>
               </a>
 
