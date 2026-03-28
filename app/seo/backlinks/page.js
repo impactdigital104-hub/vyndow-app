@@ -183,7 +183,25 @@ function formatTimestamp(value) {
 }
 
 function normalizeSelfProfile(data) {
-  function normalizeCompetitorProfiles(value) {
+  const selfProfile = data || {};
+  return {
+    domain: String(selfProfile.domain || "").trim(),
+    normalizedDomain: cleanDomain(selfProfile.normalizedDomain || selfProfile.domain || ""),
+    referringDomains:
+      Number.isFinite(Number(selfProfile.referringDomains)) ? Number(selfProfile.referringDomains) : null,
+    totalBacklinks:
+      Number.isFinite(Number(selfProfile.totalBacklinks)) ? Number(selfProfile.totalBacklinks) : null,
+    authorityBuckets:
+      selfProfile.authorityBuckets && typeof selfProfile.authorityBuckets === "object"
+        ? selfProfile.authorityBuckets
+        : null,
+    source: String(selfProfile.source || "").trim(),
+    lastAnalyzedAt: selfProfile.lastAnalyzedAt || null,
+    updatedAt: selfProfile.updatedAt || null,
+  };
+}
+
+function normalizeCompetitorProfiles(value) {
   if (!Array.isArray(value)) return [];
 
   return value
@@ -213,23 +231,6 @@ function normalizeCompetitorProfilesMeta(value) {
     successCount: Number.isFinite(Number(meta?.successCount)) ? Number(meta.successCount) : 0,
     lastAnalyzedAt: meta?.lastAnalyzedAt || null,
     updatedAt: meta?.updatedAt || null,
-  };
-}
-  const selfProfile = data || {};
-  return {
-    domain: String(selfProfile.domain || "").trim(),
-    normalizedDomain: cleanDomain(selfProfile.normalizedDomain || selfProfile.domain || ""),
-    referringDomains:
-      Number.isFinite(Number(selfProfile.referringDomains)) ? Number(selfProfile.referringDomains) : null,
-    totalBacklinks:
-      Number.isFinite(Number(selfProfile.totalBacklinks)) ? Number(selfProfile.totalBacklinks) : null,
-    authorityBuckets:
-      selfProfile.authorityBuckets && typeof selfProfile.authorityBuckets === "object"
-        ? selfProfile.authorityBuckets
-        : null,
-    source: String(selfProfile.source || "").trim(),
-    lastAnalyzedAt: selfProfile.lastAnalyzedAt || null,
-    updatedAt: selfProfile.updatedAt || null,
   };
 }
 
