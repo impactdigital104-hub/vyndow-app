@@ -809,8 +809,12 @@ export default function BacklinkAuthorityPage() {
                 title={
                   planButtonDisabled
                     ? "Strategy context must load first."
-                    : "Backlink plan generation will be connected in the next stage."
+                    : "Open backlink authority plan page."
                 }
+                onClick={() => {
+                  if (planButtonDisabled) return;
+                  router.push("/seo/backlinks/plan");
+                }}
                 style={{
                   marginTop: 8,
                   opacity: planButtonDisabled ? 0.65 : 1,
