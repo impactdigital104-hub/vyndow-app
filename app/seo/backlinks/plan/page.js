@@ -674,78 +674,8 @@ export default function BacklinkAuthorityPlanPage() {
               >
                 Identify backlink opportunities and generate a structured authority-building roadmap based on your competitors.
               </p>
-                                <div
-                style={{
-                  marginTop: 16,
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 10,
-                }}
-              >
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => router.push("/seo/backlinks/strategy")}
-                >
-                  Build Backlink Strategy
-                </button>
-              </div>
-
-              <div
-                style={{
-                  marginTop: 22,
-                  padding: 22,
-                  borderRadius: 18,
-                  border: CARD_BORDER,
-                  background: CARD_BG,
-                  boxShadow: SHADOW,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: "#111827",
-                    marginBottom: 8,
-                  }}
-                >
-                  Generate Backlink Authority Plan
-                </div>
-
-                <p
-                  style={{
-                    marginTop: 0,
-                    color: "#4B5563",
-                    lineHeight: 1.6,
-                    fontSize: 14,
-                    maxWidth: 820,
-                  }}
-                >
-                  Vyndow will analyze referring domains linking to your competitors and identify backlink opportunities your website has not yet acquired.
-                </p>
-
-                <p
-                  style={{
-                    marginTop: 0,
-                    color: "#4B5563",
-                    lineHeight: 1.6,
-                    fontSize: 14,
-                    maxWidth: 820,
-                  }}
-                >
-                  This analysis will help you close the authority gap and systematically build domain credibility.
-                </p>
-
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => console.log("Backlink plan generation coming in Stage 5")}
-                  style={{ marginTop: 8 }}
-                >
-                  Generate Backlink Plan
-                </button>
-              </div>
-
+                        
+       
               <div
                 style={{
                   marginTop: 22,
@@ -874,6 +804,17 @@ export default function BacklinkAuthorityPlanPage() {
                         >
                           {enrichmentState === "loading" ? "Analyzing Opportunities..." : "Analyze Opportunities"}
                         </button>
+
+                        {enrichmentState === "ready" && Number(enrichmentMeta.totalEnriched || 0) > 0 && (
+                          <button
+                            type="button"
+                            className="btn btn-soft-primary"
+                            onClick={() => router.push("/seo/backlinks/strategy")}
+                            disabled={!selectedWebsiteId || !authReady}
+                          >
+                            Build Backlink Strategy
+                          </button>
+                        )}
                       </div>
                     )}
 
