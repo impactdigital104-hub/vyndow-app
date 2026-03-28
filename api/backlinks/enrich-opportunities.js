@@ -287,9 +287,10 @@ export default async function handler(req, res) {
  const PROCESS_LIMIT = 500;
 
     const rankMap = new Map();
+        const rowsForThisRun = baseRows.slice(0, PROCESS_LIMIT);
 
-    for (let start = 0; start < baseRows.length; start += BATCH_SIZE) {
-      const batch = baseRows.slice(start, start + BATCH_SIZE);
+    for (let start = 0; start < rowsForThisRun.length; start += BATCH_SIZE) {
+      const batch = rowsForThisRun.slice(start, start + BATCH_SIZE);
       const batchRanks = await postDataForSeoBulkRanksBatch(
         batch.map((row) => row.normalizedDomain)
       );
@@ -304,7 +305,7 @@ export default async function handler(req, res) {
       }
     }
 
-    const rankedRows = baseRows
+   const rankedRows = rowsForThisRun
       .map((row) => ({
         ...row,
         domainRank:
@@ -372,9 +373,19 @@ export default async function handler(req, res) {
       updatedAt: nowTs(),
     };
 
-const existing = docSnap.data()?.enrichedGapOpportunities || [];
+const existing = Array.isArray(backlinksData?.enrichedGapOpportunities)
+  ? backlinksData.enrichedGapOpportunities
+  : [];
 
-const merged = [...existing, ...enrichedGapOpportunities];
+const mergedMap = new Map();
+
+[...existing, ...enrichedGapOpportunities].forEach((item) => {
+  const key = normalizeDomain(item?.normalizedDomain || item?.referringDomain || item?.domain || "");
+  if (!key) return;
+  mergedMap.set(key, item);
+});
+
+const merged = Array.from(mergedMap.values());
 
 await backlinksModuleRef.set(
   {
