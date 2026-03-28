@@ -125,6 +125,13 @@ function categoryToDifficulty(category) {
       return "medium";
   }
 }
+function chunkArray(items, size) {
+  const out = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
+}
 
 async function postDataForSeoBulkRanksBatch(domains) {
   const login = process.env.DATAFORSEO_LOGIN;
@@ -284,10 +291,24 @@ export default async function handler(req, res) {
       .filter((item) => isLikelyDomain(item.normalizedDomain));
 
     const BATCH_SIZE = 50;
- const PROCESS_LIMIT = 500;
+    const PROCESS_LIMIT = 500;
+    const UI_CACHE_LIMIT = 250;
+    const CHUNK_SIZE = 150;
 
     const rankMap = new Map();
-        const rowsForThisRun = baseRows.slice(0, PROCESS_LIMIT);
+    const nextOffset =
+      Number.isFinite(Number(backlinksData?.enrichmentMeta?.nextOffset))
+        ? Number(backlinksData.enrichmentMeta.nextOffset)
+        : 0;
+
+    const preSortedRows = [...baseRows].sort((a, b) => {
+      if (b.linkedCompetitorCount !== a.linkedCompetitorCount) {
+        return b.linkedCompetitorCount - a.linkedCompetitorCount;
+      }
+      return a.normalizedDomain.localeCompare(b.normalizedDomain);
+    });
+
+    const rowsForThisRun = preSortedRows.slice(nextOffset, nextOffset + PROCESS_LIMIT);
 
     for (let start = 0; start < rowsForThisRun.length; start += BATCH_SIZE) {
       const batch = rowsForThisRun.slice(start, start + BATCH_SIZE);
@@ -373,38 +394,100 @@ export default async function handler(req, res) {
       updatedAt: nowTs(),
     };
 
-const existing = Array.isArray(backlinksData?.enrichedGapOpportunities)
-  ? backlinksData.enrichedGapOpportunities
-  : [];
+    const chunksRef = backlinksModuleRef.collection("enrichedGapChunks");
+    const chunksSnap = await chunksRef.get();
 
-const mergedMap = new Map();
+    const existingChunkRows = [];
+    chunksSnap.forEach((doc) => {
+      const data = doc.data() || {};
+      const items = Array.isArray(data?.items) ? data.items : [];
+      existingChunkRows.push(...items);
+    });
 
-[...existing, ...enrichedGapOpportunities].forEach((item) => {
-  const key = normalizeDomain(item?.normalizedDomain || item?.referringDomain || item?.domain || "");
-  if (!key) return;
-  mergedMap.set(key, item);
-});
+    const mergedMap = new Map();
 
-const merged = Array.from(mergedMap.values());
+    [...existingChunkRows, ...enrichedGapOpportunities].forEach((item) => {
+      const key = normalizeDomain(
+        item?.normalizedDomain || item?.referringDomain || item?.domain || ""
+      );
+      if (!key) return;
+      mergedMap.set(key, item);
+    });
 
-await backlinksModuleRef.set(
-  {
-    enrichedGapOpportunities: merged,
-    enrichmentMeta,
-    updatedAt: nowTs(),
-  },
-  { merge: true }
-);
+    const mergedAllRows = Array.from(mergedMap.values()).sort((a, b) => {
+      const aCount = Number.isFinite(Number(a?.linkedCompetitorCount)) ? Number(a.linkedCompetitorCount) : 0;
+      const bCount = Number.isFinite(Number(b?.linkedCompetitorCount)) ? Number(b.linkedCompetitorCount) : 0;
+
+      if (bCount !== aCount) return bCount - aCount;
+
+      const aRank = Number.isFinite(Number(a?.domainRank)) ? Number(a.domainRank) : -1;
+      const bRank = Number.isFinite(Number(b?.domainRank)) ? Number(b.domainRank) : -1;
+
+      if (bRank !== aRank) return bRank - aRank;
+
+      const aDomain = normalizeDomain(a?.normalizedDomain || a?.referringDomain || a?.domain || "");
+      const bDomain = normalizeDomain(b?.normalizedDomain || b?.referringDomain || b?.domain || "");
+
+      return aDomain.localeCompare(bDomain);
+    });
+
+    const chunkedRows = chunkArray(mergedAllRows, CHUNK_SIZE);
+
+    const batch = db.batch();
+
+    chunkedRows.forEach((items, index) => {
+      const chunkDocRef = chunksRef.doc(`chunk_${String(index).padStart(4, "0")}`);
+      batch.set(
+        chunkDocRef,
+        {
+          index,
+          itemCount: items.length,
+          items,
+          updatedAt: nowTs(),
+        },
+        { merge: true }
+      );
+    });
+
+    const nextOffsetValue = Math.min(preSortedRows.length, nextOffset + rowsForThisRun.length);
+    const hasMore = nextOffsetValue < preSortedRows.length;
+
+    const parentEnrichmentMeta = {
+      totalEnriched: mergedAllRows.length,
+      processedCount: rowsToProcess.length,
+      partialCount,
+      capped: hasMore,
+      capUsed: rowsToProcess.length,
+      nextOffset: nextOffsetValue,
+      hasMore,
+      source: "dataforseo_backlinks_bulk_ranks_live + lightweight_classification",
+      generatedAt: nowTs(),
+      updatedAt: nowTs(),
+    };
+
+    batch.set(
+      backlinksModuleRef,
+      {
+        enrichedGapOpportunities: mergedAllRows.slice(0, UI_CACHE_LIMIT),
+        enrichmentMeta: parentEnrichmentMeta,
+        updatedAt: nowTs(),
+      },
+      { merge: true }
+    );
+
+    await batch.commit();
 
     return res.status(200).json({
       ok: true,
       enrichedGapOpportunities,
-           enrichmentMeta: {
-        totalEnriched: enrichedGapOpportunities.length,
+      enrichmentMeta: {
+        totalEnriched: Math.min(nextOffset + rowsToProcess.length, preSortedRows.length),
         processedCount: rowsToProcess.length,
         partialCount,
-        capped: false,
+        capped: Math.min(nextOffset + rowsToProcess.length, preSortedRows.length) < preSortedRows.length,
         capUsed: rowsToProcess.length,
+        nextOffset: Math.min(nextOffset + rowsToProcess.length, preSortedRows.length),
+        hasMore: Math.min(nextOffset + rowsToProcess.length, preSortedRows.length) < preSortedRows.length,
         source: "dataforseo_backlinks_bulk_ranks_live + lightweight_classification",
         generatedAt: nowIso,
         updatedAt: nowIso,
