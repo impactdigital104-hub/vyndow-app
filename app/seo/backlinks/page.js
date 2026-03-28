@@ -122,22 +122,35 @@ function MetricBox({ label, value }) {
   return (
     <div
       style={{
-        borderRadius: 14,
+        borderRadius: 12,
         border: "1px solid #e5e7eb",
         background: "#ffffff",
-        padding: 16,
+        padding: "14px 16px",
+        minHeight: 96,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
       }}
     >
-      <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", letterSpacing: 0.2 }}>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: "#6b7280",
+          letterSpacing: 0.15,
+          textTransform: "none",
+        }}
+      >
         {label}
       </div>
       <div
         style={{
           marginTop: 8,
-          fontSize: 28,
-          lineHeight: 1.1,
-          fontWeight: 800,
+          fontSize: 18,
+          lineHeight: 1.35,
+          fontWeight: 600,
           color: "#111827",
+          wordBreak: "break-word",
         }}
       >
         {value}
@@ -829,14 +842,15 @@ export default function BacklinkAuthorityPage() {
                     borderRadius: 14,
                     border: "1px solid #e5e7eb",
                     background: "#ffffff",
-                    padding: 16,
+                    padding: 18,
                   }}
                 >
                   <div
                     style={{
                       display: "grid",
                       gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                      gap: 12,
+                      gap: 10,
+                      alignItems: "stretch",
                     }}
                   >
                     <MetricBox label="Domain Analyzed" value={selfProfileData.normalizedDomain || "—"} />
@@ -871,8 +885,8 @@ export default function BacklinkAuthorityPage() {
                   >
                     <div
                       style={{
-                        fontSize: 14,
-                        fontWeight: 800,
+                        fontSize: 13,
+                        fontWeight: 700,
                         color: "#111827",
                         marginBottom: 8,
                       }}
