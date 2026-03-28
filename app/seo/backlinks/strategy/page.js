@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, orderBy, query, setDoc } from "firebase/firestore";
@@ -314,6 +314,10 @@ export default function BacklinkAuthorityStrategyPage() {
   const [strategyRows, setStrategyRows] = useState([]);
   const [generationState, setGenerationState] = useState("idle");
   const [currentPage, setCurrentPage] = useState(1);
+    const [expandedGuidanceDomain, setExpandedGuidanceDomain] = useState("");
+  const [guidanceCache, setGuidanceCache] = useState({});
+  const [guidanceLoadingDomain, setGuidanceLoadingDomain] = useState("");
+  const [guidanceErrorDomain, setGuidanceErrorDomain] = useState("");
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -413,6 +417,10 @@ export default function BacklinkAuthorityStrategyPage() {
   }
 
   useEffect(() => {
+        setExpandedGuidanceDomain("");
+    setGuidanceCache({});
+    setGuidanceLoadingDomain("");
+    setGuidanceErrorDomain("");
     async function loadStoredStrategy() {
       if (!uid || !selectedWebsiteId || !websites.length) return;
 
@@ -612,7 +620,78 @@ export default function BacklinkAuthorityStrategyPage() {
       setGenerationState("idle");
     }
   }
+  async function handleToggleGuidance(row) {
+    const domainKey = cleanDomain(row?.normalizedDomain || row?.referringDomain || "");
 
+    if (!domainKey || !selectedWebsiteId) return;
+
+    if (expandedGuidanceDomain === domainKey) {
+      setExpandedGuidanceDomain("");
+      setGuidanceErrorDomain("");
+      return;
+    }
+
+    if (guidanceCache[domainKey]) {
+      setExpandedGuidanceDomain(domainKey);
+      setGuidanceErrorDomain("");
+      return;
+    }
+
+    try {
+      if (!auth.currentUser) {
+        throw new Error("You must be signed in.");
+      }
+
+      setExpandedGuidanceDomain(domainKey);
+      setGuidanceLoadingDomain(domainKey);
+      setGuidanceErrorDomain("");
+
+      const token = await auth.currentUser.getIdToken();
+
+      const resp = await fetch("/api/backlinks/generate-guidance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          websiteId: selectedWebsiteId,
+          row: {
+            normalizedDomain: row.normalizedDomain,
+            referringDomain: row.referringDomain,
+            category: row.category,
+            method: row.method,
+            difficulty: row.difficulty,
+            priorityTier: row.priorityTier,
+            competitorCount: row.competitorCount,
+            linkedCompetitors: row.linkedCompetitors || [],
+            domainRank: row.domainRank,
+          },
+        }),
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        throw new Error(
+          data?.error ||
+            "We could not generate guidance for this opportunity right now. Please try again."
+        );
+      }
+
+      setGuidanceCache((prev) => ({
+        ...prev,
+        [domainKey]: data?.guidance || null,
+      }));
+      setGuidanceErrorDomain("");
+      setExpandedGuidanceDomain(domainKey);
+    } catch (e) {
+      console.error("Guidance generation failed:", e);
+      setGuidanceErrorDomain(domainKey);
+    } finally {
+      setGuidanceLoadingDomain("");
+    }
+  }
   const targets = useMemo(() => getPlanTargets(suitePlan), [suitePlan]);
 
   const counts = useMemo(() => {
@@ -945,12 +1024,14 @@ export default function BacklinkAuthorityStrategyPage() {
                             <TableHead>Difficulty</TableHead>
                             <TableHead>Competitors</TableHead>
                             <TableHead>Priority Tier</TableHead>
+                        <TableHead>Guidance</TableHead>
                           </tr>
                         </thead>
 
                         <tbody>
-                          {pagedRows.map((row) => (
-                            <tr key={row.normalizedDomain}>
+                        {pagedRows.map((row) => (
+  <React.Fragment key={row.normalizedDomain}>
+    <tr>
                               <TableCell strong>{row.referringDomain}</TableCell>
                               <TableCell strong>{row.bamScore}</TableCell>
                               <TableCell>{row.domainRank || "—"}</TableCell>
@@ -960,8 +1041,148 @@ export default function BacklinkAuthorityStrategyPage() {
                               <TableCell>
                                 {row.competitorCount} competitor{row.competitorCount === 1 ? "" : "s"}
                               </TableCell>
-                              <TableCell>{formatLabel(row.priorityTier)}</TableCell>
-                            </tr>
+<TableCell>{formatLabel(row.priorityTier)}</TableCell>
+
+<TableCell>
+  <button
+    type="button"
+    className="btn btn-soft-primary"
+    onClick={() => handleToggleGuidance(row)}
+    disabled={
+      guidanceLoadingDomain ===
+      cleanDomain(row?.normalizedDomain || row?.referringDomain || "")
+    }
+  >
+    {guidanceLoadingDomain ===
+    cleanDomain(row?.normalizedDomain || row?.referringDomain || "")
+      ? "Generating..."
+      : expandedGuidanceDomain ===
+        cleanDomain(row?.normalizedDomain || row?.referringDomain || "")
+      ? "Hide Guidance"
+      : "View Guidance"}
+  </button>
+</TableCell>
+
+</tr>
+
+{expandedGuidanceDomain ===
+cleanDomain(row?.normalizedDomain || row?.referringDomain || "") ? (
+  <tr>
+   <td colSpan={10} style={{ padding: 0, borderBottom: "1px solid #F3F4F6" }}>
+      <div
+        style={{
+          margin: "0 10px 14px 10px",
+          padding: 16,
+          border: "1px solid #E5E7EB",
+          borderRadius: 14,
+          background: "#F9FAFB",
+        }}
+      >
+        {guidanceLoadingDomain ===
+        cleanDomain(row?.normalizedDomain || row?.referringDomain || "") ? (
+          <div style={{ fontSize: 14, color: "#6B7280" }}>
+            Generating execution guidance...
+          </div>
+        ) : guidanceErrorDomain ===
+          cleanDomain(row?.normalizedDomain || row?.referringDomain || "") ? (
+          <div style={{ fontSize: 14, color: "#991B1B" }}>
+            We could not generate guidance for this opportunity right now. Please try again.
+          </div>
+        ) : guidanceCache[
+            cleanDomain(row?.normalizedDomain || row?.referringDomain || "")
+          ] ? (
+          <div style={{ display: "grid", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280", marginBottom: 6 }}>
+                Recommended Approach
+              </div>
+              <div style={{ fontSize: 14, color: "#111827" }}>
+                {
+                  guidanceCache[
+                    cleanDomain(row?.normalizedDomain || row?.referringDomain || "")
+                  ]?.recommendedApproach
+                }
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280", marginBottom: 6 }}>
+                Why This Opportunity Matters
+              </div>
+              <div style={{ fontSize: 14, color: "#111827" }}>
+                {
+                  guidanceCache[
+                    cleanDomain(row?.normalizedDomain || row?.referringDomain || "")
+                  ]?.whyItMatters
+                }
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280", marginBottom: 6 }}>
+                Execution Steps
+              </div>
+              <ol style={{ margin: "0 0 0 18px", padding: 0, color: "#111827", fontSize: 14 }}>
+                {(
+                  guidanceCache[
+                    cleanDomain(row?.normalizedDomain || row?.referringDomain || "")
+                  ]?.executionSteps || []
+                ).map((step, idx) => (
+                  <li key={idx} style={{ marginBottom: 6 }}>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280", marginBottom: 6 }}>
+                Suggested Angle
+              </div>
+              <div style={{ fontSize: 14, color: "#111827" }}>
+                {
+                  guidanceCache[
+                    cleanDomain(row?.normalizedDomain || row?.referringDomain || "")
+                  ]?.suggestedAngle
+                }
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280", marginBottom: 6 }}>
+                Link Placement Advice
+              </div>
+              <div style={{ fontSize: 14, color: "#111827" }}>
+                {
+                  guidanceCache[
+                    cleanDomain(row?.normalizedDomain || row?.referringDomain || "")
+                  ]?.linkPlacementAdvice
+                }
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280", marginBottom: 6 }}>
+                Effort Note
+              </div>
+              <div style={{ fontSize: 14, color: "#111827" }}>
+                {
+                  guidanceCache[
+                    cleanDomain(row?.normalizedDomain || row?.referringDomain || "")
+                  ]?.effortNote
+                }
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 14, color: "#6B7280" }}>No guidance available yet.</div>
+        )}
+      </div>
+    </td>
+  </tr>
+) : null}
+
+</React.Fragment>
                           ))}
                         </tbody>
                       </table>
