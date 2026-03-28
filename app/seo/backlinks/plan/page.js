@@ -132,6 +132,7 @@ export default function BacklinkAuthorityPlanPage() {
   });
   const [expandedGapDomain, setExpandedGapDomain] = useState("");
   const [partialNotice, setPartialNotice] = useState(false);
+  const [isGapSectionOpen, setIsGapSectionOpen] = useState(true);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -460,17 +461,46 @@ export default function BacklinkAuthorityPlanPage() {
                   boxShadow: SHADOW,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: "#111827",
-                    marginBottom: 8,
-                  }}
-                >
-                  Competitor Backlink Gap
-                </div>
+               <button
+  type="button"
+  onClick={() => setIsGapSectionOpen((prev) => !prev)}
+  style={{
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    marginBottom: 8,
+    cursor: "pointer",
+    textAlign: "left",
+  }}
+>
+  <span
+    style={{
+      fontSize: 16,
+      fontWeight: 700,
+      color: "#111827",
+    }}
+  >
+    Competitor Backlink Gap
+  </span>
 
+  <span
+    style={{
+      fontSize: 13,
+      fontWeight: 700,
+      color: "#6D28D9",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {isGapSectionOpen ? "Hide Section" : "Show Section"}
+  </span>
+</button>
+{isGapSectionOpen && (
+  <>
                 <p
                   style={{
                     marginTop: 0,
@@ -735,6 +765,8 @@ export default function BacklinkAuthorityPlanPage() {
                     )}
                   </div>
                 )}
+                    </>
+)}
               </div>
             </div>
           </div>
