@@ -58,30 +58,30 @@ export default function BacklinkAuthorityPlanPage() {
                 padding: 24,
               }}
             >
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: 30,
-                  lineHeight: 1.15,
-                  fontWeight: 900,
-                  color: "#111827",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                Backlink Authority Plan
-              </h1>
+  <h1
+  style={{
+    margin: 0,
+    fontSize: 24,
+    lineHeight: 1.3,
+    fontWeight: 700,
+    color: "#111827",
+    letterSpacing: "-0.01em",
+  }}
+>
+  Backlink Authority Plan
+</h1>
 
-              <p
-                style={{
-                  marginTop: 10,
-                  color: "#374151",
-                  lineHeight: 1.65,
-                  fontSize: 16,
-                  maxWidth: 900,
-                }}
-              >
-                Identify backlink opportunities and generate a structured authority-building roadmap based on your competitors.
-              </p>
+             <p
+  style={{
+    marginTop: 8,
+    color: "#4B5563",
+    lineHeight: 1.6,
+    fontSize: 14,
+    maxWidth: 820,
+  }}
+>
+  Identify backlink opportunities and generate a structured authority-building roadmap based on your competitors.
+</p>
 
               <div
                 style={{
@@ -93,35 +93,37 @@ export default function BacklinkAuthorityPlanPage() {
                   boxShadow: SHADOW,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 800,
-                    color: "#111827",
-                    marginBottom: 10,
-                  }}
-                >
-                  Generate Backlink Authority Plan
-                </div>
+               <div
+  style={{
+    fontSize: 16,
+    fontWeight: 700,
+    color: "#111827",
+    marginBottom: 8,
+  }}
+>
+  Generate Backlink Authority Plan
+</div>
 
-                <p
-                  style={{
-                    marginTop: 0,
-                    color: "#374151",
-                    lineHeight: 1.7,
-                    maxWidth: 860,
-                  }}
-                >
-                  Vyndow will analyze referring domains linking to your competitors and identify backlink opportunities your website has not yet acquired.
-                </p>
+           <p
+  style={{
+    marginTop: 0,
+    color: "#4B5563",
+    lineHeight: 1.6,
+    fontSize: 14,
+    maxWidth: 820,
+  }}
+>
+  Vyndow will analyze referring domains linking to your competitors and identify backlink opportunities your website has not yet acquired.
+</p>
 
-                <p
-                  style={{
-                    marginTop: 0,
-                    color: "#374151",
-                    lineHeight: 1.7,
-                    maxWidth: 860,
-                  }}
+             <p
+  style={{
+    marginTop: 0,
+    color: "#4B5563",
+    lineHeight: 1.6,
+    fontSize: 14,
+    maxWidth: 820,
+  }}
                 >
                   This analysis will help you close the authority gap and systematically build domain credibility.
                 </p>
