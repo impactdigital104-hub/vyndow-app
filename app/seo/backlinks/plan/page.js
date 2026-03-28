@@ -674,6 +674,22 @@ export default function BacklinkAuthorityPlanPage() {
               >
                 Identify backlink opportunities and generate a structured authority-building roadmap based on your competitors.
               </p>
+                                <div
+                style={{
+                  marginTop: 16,
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 10,
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => router.push("/seo/backlinks/strategy")}
+                >
+                  Build Backlink Strategy
+                </button>
+              </div>
 
               <div
                 style={{
