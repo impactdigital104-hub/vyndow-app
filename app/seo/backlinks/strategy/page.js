@@ -720,10 +720,7 @@ export default function BacklinkAuthorityStrategyPage() {
                   publications and stronger domains.
                 </div>
               </div>
-                Vyndow’s internal backlink prioritization model, which evaluates competitor backlink
-                overlap, domain rank, link category, and acquisition difficulty to surface stronger
-                backlink opportunities.
-              </div>
+
 
               {websitesLoading || pageState === "loading" ? (
                 <div style={{ marginTop: 22, fontSize: 14, color: "#6B7280" }}>
