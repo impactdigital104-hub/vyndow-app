@@ -63,29 +63,55 @@ function normalizeGapOpportunities(value) {
 
   return value
     .map((item) => {
-      const normalizedDomain = cleanDomain(item?.normalizedDomain || item?.referringDomain || "");
+      const normalizedDomain = cleanDomain(
+        item?.normalizedDomain || item?.referringDomain || item?.domain || ""
+      );
+
       const linkedCompetitors = Array.from(
         new Set(
-          (Array.isArray(item?.linkedCompetitors) ? item.linkedCompetitors : [])
+          (
+            Array.isArray(item?.linkedCompetitors)
+              ? item.linkedCompetitors
+              : Array.isArray(item?.competitors)
+              ? item.competitors
+              : []
+          )
             .map((entry) => cleanDomain(entry))
             .filter(Boolean)
         )
       );
 
-      const authorityValue = Number(item?.domainAuthority);
-      const domainAuthority = Number.isFinite(authorityValue) ? authorityValue : null;
+      const rankValue = Number(item?.domainRank);
+      const domainRank = Number.isFinite(rankValue) ? rankValue : null;
 
       return {
-        referringDomain: String(item?.referringDomain || normalizedDomain).trim() || normalizedDomain,
+        domain: normalizedDomain,
+        referringDomain: String(
+          item?.referringDomain || item?.domain || normalizedDomain
+        ).trim() || normalizedDomain,
         normalizedDomain,
         linkedCompetitors,
+        competitors: linkedCompetitors,
         linkedCompetitorCount:
           Number.isFinite(Number(item?.linkedCompetitorCount))
             ? Number(item.linkedCompetitorCount)
+            : Number.isFinite(Number(item?.competitorCount))
+            ? Number(item.competitorCount)
             : linkedCompetitors.length,
-        domainAuthority,
+        competitorCount:
+          Number.isFinite(Number(item?.competitorCount))
+            ? Number(item.competitorCount)
+            : Number.isFinite(Number(item?.linkedCompetitorCount))
+            ? Number(item.linkedCompetitorCount)
+            : linkedCompetitors.length,
+        domainRank,
         category: String(item?.category || "other").trim() || "other",
-        acquisitionMethod: String(item?.acquisitionMethod || "manual review").trim() || "manual review",
+        method:
+          String(item?.method || item?.acquisitionMethod || "manual review").trim() ||
+          "manual review",
+        acquisitionMethod:
+          String(item?.acquisitionMethod || item?.method || "manual review").trim() ||
+          "manual review",
         difficulty: String(item?.difficulty || "medium").trim() || "medium",
         source: String(item?.source || "competitor_gap").trim(),
         discoveredAt: item?.discoveredAt || null,
@@ -98,6 +124,14 @@ function normalizeGapOpportunities(value) {
       if (b.linkedCompetitorCount !== a.linkedCompetitorCount) {
         return b.linkedCompetitorCount - a.linkedCompetitorCount;
       }
+
+      const aRank = Number.isFinite(Number(a.domainRank)) ? Number(a.domainRank) : -1;
+      const bRank = Number.isFinite(Number(b.domainRank)) ? Number(b.domainRank) : -1;
+
+      if (bRank !== aRank) {
+        return bRank - aRank;
+      }
+
       return a.normalizedDomain.localeCompare(b.normalizedDomain);
     });
 }
@@ -131,7 +165,54 @@ function normalizeEnrichmentMeta(value) {
     updatedAt: meta?.updatedAt || null,
   };
 }
+const PLAN_ROW_LIMITS = {
+  free: 25,
+  starter: 50,
+  growth: 100,
+  pro: 250,
+};
 
+const FILTER_OPTIONS = [
+  { key: "all", label: "All" },
+  { key: "directory", label: "Directory" },
+  { key: "blog", label: "Blog" },
+  { key: "publication", label: "Publication" },
+  { key: "forum", label: "Forum" },
+  { key: "association", label: "Association" },
+  { key: "other", label: "Other" },
+];
+
+const PAGINATION_SIZE = 50;
+
+function normalizePlan(value) {
+  const raw = String(value || "free").toLowerCase().trim();
+
+  if (raw === "small_business") return "starter";
+  if (raw === "enterprise") return "pro";
+  if (PLAN_ROW_LIMITS[raw]) return raw;
+
+  return "free";
+}
+
+function getPlanRowLimit(plan) {
+  return PLAN_ROW_LIMITS[normalizePlan(plan)] || 25;
+}
+
+function getCategoryFilterKey(value) {
+  const v = String(value || "other").toLowerCase().trim();
+
+  if (
+    v === "directory" ||
+    v === "blog" ||
+    v === "publication" ||
+    v === "forum" ||
+    v === "association"
+  ) {
+    return v;
+  }
+
+  return "other";
+}
 function normalizeCompetitorProfiles(value) {
   if (!Array.isArray(value)) return [];
   return value
@@ -148,6 +229,8 @@ export default function BacklinkAuthorityPlanPage() {
   const [websites, setWebsites] = useState([]);
   const [selectedWebsiteId, setSelectedWebsiteId] = useState("");
   const [websitesLoading, setWebsitesLoading] = useState(true);
+    const [suitePlan, setSuitePlan] = useState("free");
+  const [suitePlanLoading, setSuitePlanLoading] = useState(true);
 
   const [gapState, setGapState] = useState("idle"); // idle | loading | empty | ready | running | error | blocked
   const [gapError, setGapError] = useState("");
@@ -179,7 +262,8 @@ export default function BacklinkAuthorityPlanPage() {
   const [expandedGapDomain, setExpandedGapDomain] = useState("");
   const [partialNotice, setPartialNotice] = useState(false);
   const [isGapSectionOpen, setIsGapSectionOpen] = useState(true);
-  const [rowLimit, setRowLimit] = useState(50);
+    const [categoryFilter, setCategoryFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -203,6 +287,28 @@ export default function BacklinkAuthorityPlanPage() {
     };
   }, [router]);
 
+    useEffect(() => {
+    async function loadSuitePlan() {
+      if (!uid) return;
+
+      try {
+        setSuitePlanLoading(true);
+
+        const suiteRef = doc(db, "users", uid, "entitlements", "suite");
+        const snap = await getDoc(suiteRef);
+        const planRaw = snap.exists() ? snap.data()?.plan : "free";
+
+        setSuitePlan(normalizePlan(planRaw));
+      } catch (e) {
+        console.error("Failed to load suite plan:", e);
+        setSuitePlan("free");
+      } finally {
+        setSuitePlanLoading(false);
+      }
+    }
+
+    loadSuitePlan();
+  }, [uid]);
   useEffect(() => {
     async function loadWebsites() {
       if (!uid) return;
@@ -473,11 +579,42 @@ export default function BacklinkAuthorityPlanPage() {
     return enrichedGapData.length > 0 ? enrichedGapData : gapData;
   }, [enrichedGapData, gapData]);
 
-  const visibleGapRows = useMemo(() => {
-    return activeGapRows.slice(0, rowLimit);
-  }, [activeGapRows, rowLimit]);
+  const planRowLimit = useMemo(() => {
+    return getPlanRowLimit(suitePlan);
+  }, [suitePlan]);
 
-  const showingCount = visibleGapRows.length;
+  const planLimitedRows = useMemo(() => {
+    return activeGapRows.slice(0, planRowLimit);
+  }, [activeGapRows, planRowLimit]);
+
+  const filteredGapRows = useMemo(() => {
+    if (categoryFilter === "all") return planLimitedRows;
+
+    return planLimitedRows.filter(
+      (row) => getCategoryFilterKey(row.category) === categoryFilter
+    );
+  }, [planLimitedRows, categoryFilter]);
+
+  const paginationEnabled = filteredGapRows.length > 500;
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredGapRows.length / PAGINATION_SIZE));
+  }, [filteredGapRows]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [categoryFilter, selectedWebsiteId, planRowLimit, activeGapRows.length]);
+
+  const pagedGapRows = useMemo(() => {
+    if (!paginationEnabled) return filteredGapRows;
+
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * PAGINATION_SIZE;
+
+    return filteredGapRows.slice(start, start + PAGINATION_SIZE);
+  }, [filteredGapRows, paginationEnabled, currentPage, totalPages]);
+
+  const showingCount = planLimitedRows.length;
   const totalCount = activeGapRows.length;
 
   return (
@@ -909,43 +1046,58 @@ export default function BacklinkAuthorityPlanPage() {
                             <div
                               style={{
                                 display: "flex",
-                                flexWrap: "wrap",
-                                alignItems: "center",
-                                justifyContent: "space-between",
+                                flexDirection: "column",
                                 gap: 12,
                                 marginBottom: 12,
                               }}
                             >
-                              <div style={{ fontSize: 14, color: "#374151" }}>
-                                Showing {showingCount} of {totalCount} opportunities
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: 8,
+                                }}
+                              >
+                                {FILTER_OPTIONS.map((option) => {
+                                  const active = categoryFilter === option.key;
+
+                                  return (
+                                    <button
+                                      key={option.key}
+                                      type="button"
+                                      className={active ? "btn btn-primary" : "btn btn-soft-primary"}
+                                      onClick={() => setCategoryFilter(option.key)}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  );
+                                })}
                               </div>
 
                               <div
                                 style={{
                                   display: "flex",
+                                  flexWrap: "wrap",
                                   alignItems: "center",
-                                  gap: 8,
+                                  justifyContent: "space-between",
+                                  gap: 12,
                                 }}
                               >
-                                <span style={{ fontSize: 14, color: "#374151", fontWeight: 600 }}>Show:</span>
+                                <div style={{ fontSize: 14, color: "#374151" }}>
+                                  Showing {showingCount} of {totalCount} backlink opportunities
+                                </div>
 
-                                <select
-                                  value={rowLimit}
-                                  onChange={(e) => setRowLimit(Number(e.target.value) || 50)}
-                                  style={{
-                                    borderRadius: 10,
-                                    border: "1px solid #D1D5DB",
-                                    background: "#FFFFFF",
-                                    color: "#111827",
-                                    fontSize: 14,
-                                    padding: "8px 10px",
-                                    outline: "none",
-                                  }}
-                                >
-                                  <option value={50}>50</option>
-                                  <option value={100}>100</option>
-                                  <option value={250}>250</option>
-                                </select>
+                                {totalCount > showingCount && !suitePlanLoading && (
+                                  <div
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: 600,
+                                      color: "#6D28D9",
+                                    }}
+                                  >
+                                    Upgrade your plan to unlock more opportunities
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -970,7 +1122,7 @@ export default function BacklinkAuthorityPlanPage() {
                                         borderBottom: "1px solid #E5E7EB",
                                       }}
                                     >
-                                      Referring Domain
+                                      Domain
                                     </th>
 
                                     <th
@@ -982,7 +1134,7 @@ export default function BacklinkAuthorityPlanPage() {
                                         borderBottom: "1px solid #E5E7EB",
                                       }}
                                     >
-                                      Authority
+                                      Rank
                                     </th>
 
                                     <th
@@ -1030,19 +1182,7 @@ export default function BacklinkAuthorityPlanPage() {
                                         borderBottom: "1px solid #E5E7EB",
                                       }}
                                     >
-                                      Links To Competitors
-                                    </th>
-
-                                    <th
-                                      style={{
-                                        textAlign: "left",
-                                        padding: "12px 10px",
-                                        fontSize: 12,
-                                        color: "#6B7280",
-                                        borderBottom: "1px solid #E5E7EB",
-                                      }}
-                                    >
-                                      Competitor Count
+                                      Competitors
                                     </th>
 
                                     <th
@@ -1060,7 +1200,7 @@ export default function BacklinkAuthorityPlanPage() {
                                 </thead>
 
                                 <tbody>
-                                  {visibleGapRows.map((row) => {
+                                                                    {pagedGapRows.map((row) => {
                                     const expanded = expandedGapDomain === row.normalizedDomain;
 
                                     return (
@@ -1078,6 +1218,58 @@ export default function BacklinkAuthorityPlanPage() {
                                   })}
                                 </tbody>
                               </table>
+                                                                {paginationEnabled && totalPages > 1 && (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  marginTop: 14,
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  className="btn btn-soft-primary"
+                                  onClick={() =>
+                                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                                  }
+                                  disabled={currentPage <= 1}
+                                >
+                                  Previous
+                                </button>
+
+                                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                                  (pageNumber) => (
+                                    <button
+                                      key={pageNumber}
+                                      type="button"
+                                      className={
+                                        currentPage === pageNumber
+                                          ? "btn btn-primary"
+                                          : "btn btn-soft-primary"
+                                      }
+                                      onClick={() => setCurrentPage(pageNumber)}
+                                    >
+                                      {pageNumber}
+                                    </button>
+                                  )
+                                )}
+
+                                <button
+                                  type="button"
+                                  className="btn btn-soft-primary"
+                                  onClick={() =>
+                                    setCurrentPage((prev) =>
+                                      Math.min(totalPages, prev + 1)
+                                    )
+                                  }
+                                  disabled={currentPage >= totalPages}
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            )}
                             </div>
                           </>
                         )}
@@ -1120,7 +1312,7 @@ function FragmentRow({ row, expanded, onToggle }) {
             verticalAlign: "top",
           }}
         >
-          {row.domainAuthority ?? "—"}
+          {row.domainRank ?? "—"}
         </td>
 
         <td
@@ -1144,7 +1336,7 @@ function FragmentRow({ row, expanded, onToggle }) {
             verticalAlign: "top",
           }}
         >
-          {formatLabel(row.acquisitionMethod)}
+          {formatLabel(row.method || row.acquisitionMethod)}
         </td>
 
         <td
@@ -1169,19 +1361,7 @@ function FragmentRow({ row, expanded, onToggle }) {
             lineHeight: 1.5,
           }}
         >
-          {row.linkedCompetitors.join(", ")}
-        </td>
-
-        <td
-          style={{
-            padding: "14px 10px",
-            borderBottom: "1px solid #F3F4F6",
-            fontSize: 14,
-            color: "#111827",
-            verticalAlign: "top",
-          }}
-        >
-          {row.linkedCompetitorCount}
+          {row.linkedCompetitorCount} competitor{row.linkedCompetitorCount === 1 ? "" : "s"}
         </td>
 
         <td
@@ -1200,7 +1380,7 @@ function FragmentRow({ row, expanded, onToggle }) {
       {expanded && (
         <tr>
           <td
-            colSpan={8}
+            colSpan={7}
             style={{
               padding: "14px 12px 18px",
               background: "rgba(30,102,255,0.03)",
@@ -1216,16 +1396,20 @@ function FragmentRow({ row, expanded, onToggle }) {
                 <strong>Domain:</strong> {row.referringDomain}
               </div>
               <div>
-                <strong>Authority:</strong> {row.domainAuthority ?? "—"}
+                <strong>Rank:</strong> {row.domainRank ?? "—"}
               </div>
               <div>
                 <strong>Category:</strong> {formatLabel(row.category)}
               </div>
               <div>
-                <strong>Method:</strong> {formatLabel(row.acquisitionMethod)}
+                <strong>Method:</strong> {formatLabel(row.method || row.acquisitionMethod)}
               </div>
               <div>
                 <strong>Difficulty:</strong> {formatLabel(row.difficulty)}
+              </div>
+              <div>
+                <strong>Competitors:</strong> {row.linkedCompetitorCount} competitor
+                {row.linkedCompetitorCount === 1 ? "" : "s"}
               </div>
               <div>
                 <strong>Linked competitors:</strong> {row.linkedCompetitors.join(", ")}
