@@ -615,7 +615,10 @@ export default function BacklinkAuthorityPlanPage() {
   }, [filteredGapRows, paginationEnabled, currentPage, totalPages]);
 
   const showingCount = planLimitedRows.length;
-  const totalCount = activeGapRows.length;
+  const totalCount =
+    Number.isFinite(Number(gapMeta?.totalGapDomains)) && Number(gapMeta.totalGapDomains) > 0
+      ? Number(gapMeta.totalGapDomains)
+      : activeGapRows.length;
 
   return (
     <AuthGate>
@@ -917,23 +920,26 @@ export default function BacklinkAuthorityPlanPage() {
                       </div>
                     )}
 
-                    {enrichmentState === "ready" && enrichmentMeta.capped && (
-                      <div
-                        style={{
-                          marginTop: 14,
-                          padding: 14,
-                          borderRadius: 12,
-                          background: "rgba(245,158,11,0.08)",
-                          border: "1px solid rgba(245,158,11,0.22)",
-                          color: "#92400E",
-                          fontSize: 14,
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        Opportunity enrichment is currently capped for stability. This run analyzed the top{" "}
-                        {enrichmentMeta.capUsed || enrichmentMeta.processedCount || enrichmentMeta.totalEnriched} rows.
-                      </div>
-                    )}
+                    {enrichmentState === "ready" &&
+                      enrichmentMeta.capped &&
+                      Number(gapMeta?.totalGapDomains || 0) > 500 && (
+                        <div
+                          style={{
+                            marginTop: 14,
+                            padding: 14,
+                            borderRadius: 12,
+                            background: "rgba(245,158,11,0.08)",
+                            border: "1px solid rgba(245,158,11,0.22)",
+                            color: "#92400E",
+                            fontSize: 14,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          Vyndow has analyzed{" "}
+                          {enrichmentMeta.totalEnriched || enrichmentMeta.capUsed || 0} backlink opportunities so far.
+                          Click Analyze Opportunities again to continue.
+                        </div>
+                      )}
 
                     {enrichmentState === "ready" && enrichmentMeta.partialCount > 0 && (
                       <div
