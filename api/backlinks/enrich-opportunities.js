@@ -71,27 +71,23 @@ function classifyCategory(domain) {
     return "directory";
   }
 
-  if (/(listing|listings|review|reviews|marketplace|catalog|catalogue)/.test(value)) {
-    return "listing";
-  }
-
-  if (/(association|society|council|chamber|federation|board|guild|institute|academy)/.test(value)) {
+  if (/(association|society|council|chamber|federation|guild|institute|academy)/.test(value)) {
     return "association";
   }
 
-  if (/(forum|community|board|discuss|discussion|quora|reddit|stackexchange|discourse)/.test(value)) {
+  if (/(forum|community|discuss|discussion|quora|reddit|stackexchange|discourse)/.test(value)) {
     return "forum";
   }
 
-  if (/(resource|resources|links|linkhub|library|knowledgebase|guides)/.test(value)) {
-    return "resource page";
-  }
-
-  if (/(news|magazine|journal|media|press|times|post|herald|chronicle|gazette|wire)/.test(value)) {
+  if (
+    /(news|magazine|journal|media|press|times|post|herald|chronicle|gazette|wire|medium|substack)/.test(
+      value
+    )
+  ) {
     return "publication";
   }
 
-  if (/(blog|blogs|medium|substack)/.test(value)) {
+  if (/(blog|blogs)/.test(value)) {
     return "blog";
   }
 
@@ -102,18 +98,14 @@ function categoryToMethod(category) {
   switch (category) {
     case "directory":
       return "directory listing";
-    case "listing":
-      return "profile submission";
     case "blog":
-      return "guest post";
+      return "guest article";
+    case "publication":
+      return "guest article";
     case "association":
       return "membership";
-    case "publication":
-      return "editorial / PR";
     case "forum":
       return "manual review";
-    case "resource page":
-      return "outreach";
     default:
       return "manual review";
   }
@@ -122,11 +114,9 @@ function categoryToMethod(category) {
 function categoryToDifficulty(category) {
   switch (category) {
     case "directory":
-    case "listing":
       return "easy";
     case "blog":
     case "forum":
-    case "resource page":
       return "medium";
     case "publication":
     case "association":
@@ -136,39 +126,7 @@ function categoryToDifficulty(category) {
   }
 }
 
-function extractAuthorityMetric(result) {
-  const directCandidates = [
-    result?.domain_rank,
-    result?.rank,
-    result?.rank_absolute,
-    result?.authority_score,
-    result?.domain_ascore,
-    result?.domain_authority,
-    result?.page_rank,
-    result?.domain_from_rank,
-    result?.domain_to_rank,
-  ];
-
-  for (const candidate of directCandidates) {
-    const value = asNum(candidate, null);
-    if (value != null) return Math.round(value);
-  }
-
-  const fallbackCandidates = [
-    result?.referring_domains,
-    result?.referring_main_domains,
-    result?.backlinks,
-  ];
-
-  for (const candidate of fallbackCandidates) {
-    const value = asNum(candidate, null);
-    if (value != null) return Math.round(value);
-  }
-
-  return null;
-}
-
-async function postDataForSeoSummaryBatch(domains) {
+async function postDataForSeoBulkRanksBatch(domains) {
   const login = process.env.DATAFORSEO_LOGIN;
   const password = process.env.DATAFORSEO_PASSWORD;
 
@@ -176,7 +134,9 @@ async function postDataForSeoSummaryBatch(domains) {
     throw new Error("Missing DATAFORSEO credentials on server.");
   }
 
-  const safeDomains = uniqueStrings(domains.map((item) => normalizeDomain(item)).filter((item) => isLikelyDomain(item)));
+  const safeDomains = uniqueStrings(
+    domains.map((item) => normalizeDomain(item)).filter((item) => isLikelyDomain(item))
+  );
 
   if (!safeDomains.length) {
     return new Map();
@@ -184,21 +144,17 @@ async function postDataForSeoSummaryBatch(domains) {
 
   const auth = Buffer.from(`${login}:${password}`).toString("base64");
 
-  const body = safeDomains.map((domain) => ({
-    target: domain,
-    include_subdomains: true,
-    include_indirect_links: true,
-    exclude_internal_backlinks: false,
-    internal_list_limit: 10,
-  }));
-
-  const response = await fetch("https://api.dataforseo.com/v3/backlinks/summary/live", {
+  const response = await fetch("https://api.dataforseo.com/v3/backlinks/bulk_ranks/live", {
     method: "POST",
     headers: {
       Authorization: `Basic ${auth}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify([
+      {
+        targets: safeDomains,
+      },
+    ]),
   });
 
   const text = await response.text();
@@ -218,24 +174,27 @@ async function postDataForSeoSummaryBatch(domains) {
     throw new Error(json?.status_message || "DataForSEO request failed.");
   }
 
-  const tasks = Array.isArray(json?.tasks) ? json.tasks : [];
+  const task = Array.isArray(json?.tasks) ? json.tasks[0] : null;
+
+  if (!task || task.status_code !== 20000) {
+    throw new Error(task?.status_message || "DataForSEO bulk ranks task failed.");
+  }
+
+  const result = Array.isArray(task?.result) ? task.result[0] || {} : {};
+  const items = Array.isArray(result?.items) ? result.items : [];
+
   const out = new Map();
 
-  safeDomains.forEach((domain, index) => {
-    const task = tasks[index];
-    if (!task || task.status_code !== 20000) {
-      out.set(domain, {
-        domainAuthority: null,
-        partial: true,
-      });
-      return;
-    }
+  safeDomains.forEach((domain) => {
+    out.set(domain, null);
+  });
 
-    const result = Array.isArray(task?.result) ? task.result[0] || {} : {};
-    out.set(domain, {
-      domainAuthority: extractAuthorityMetric(result),
-      partial: extractAuthorityMetric(result) == null,
-    });
+  items.forEach((item) => {
+    const target = normalizeDomain(item?.target || "");
+    if (!target) return;
+
+    const rankValue = asNum(item?.rank, null);
+    out.set(target, rankValue != null ? Math.round(rankValue) : null);
   });
 
   return out;
@@ -274,60 +233,126 @@ export default async function handler(req, res) {
       });
     }
 
-    const MAX_ROWS = 250;
-    const BATCH_SIZE = 50;
+    const existingEnriched = Array.isArray(backlinksData?.enrichedGapOpportunities)
+      ? backlinksData.enrichedGapOpportunities
+      : [];
 
-    const sortedRows = gapOpportunities
-      .map((item) => ({
-        referringDomain: normalizeDomain(item?.referringDomain || item?.normalizedDomain || ""),
-        normalizedDomain: normalizeDomain(item?.normalizedDomain || item?.referringDomain || ""),
-        linkedCompetitors: uniqueStrings(item?.linkedCompetitors || []).map((entry) => normalizeDomain(entry)),
-        linkedCompetitorCount: Number.isFinite(Number(item?.linkedCompetitorCount))
+    const existingRankMap = new Map(
+      existingEnriched
+        .map((item) => [
+          normalizeDomain(item?.normalizedDomain || item?.referringDomain || item?.domain || ""),
+          asNum(item?.domainRank, null),
+        ])
+        .filter(([domain]) => domain)
+    );
+
+    const baseRows = gapOpportunities
+      .map((item) => {
+        const normalizedDomain = normalizeDomain(
+          item?.normalizedDomain || item?.referringDomain || item?.domain || ""
+        );
+
+        const linkedCompetitors = uniqueStrings(
+          (
+            Array.isArray(item?.linkedCompetitors)
+              ? item.linkedCompetitors
+              : Array.isArray(item?.competitors)
+              ? item.competitors
+              : []
+          ).map((entry) => normalizeDomain(entry))
+        ).filter(Boolean);
+
+        const linkedCompetitorCount = Number.isFinite(Number(item?.linkedCompetitorCount))
           ? Number(item.linkedCompetitorCount)
-          : uniqueStrings(item?.linkedCompetitors || []).length,
-        source: String(item?.source || "competitor_gap").trim() || "competitor_gap",
-        discoveredAt: item?.discoveredAt || null,
-        updatedAt: item?.updatedAt || null,
+          : Number.isFinite(Number(item?.competitorCount))
+          ? Number(item.competitorCount)
+          : linkedCompetitors.length;
+
+        return {
+          domain: normalizedDomain,
+          referringDomain: normalizedDomain,
+          normalizedDomain,
+          linkedCompetitors,
+          competitors: linkedCompetitors,
+          linkedCompetitorCount,
+          competitorCount: linkedCompetitorCount,
+          discoveredAt: item?.discoveredAt || null,
+          updatedAt: item?.updatedAt || null,
+          source: String(item?.source || "competitor_gap").trim() || "competitor_gap",
+        };
+      })
+      .filter((item) => isLikelyDomain(item.normalizedDomain));
+
+    const BATCH_SIZE = 50;
+    const MAX_ROWS = 250;
+
+    const rankMap = new Map();
+
+    for (let start = 0; start < baseRows.length; start += BATCH_SIZE) {
+      const batch = baseRows.slice(start, start + BATCH_SIZE);
+      const batchRanks = await postDataForSeoBulkRanksBatch(
+        batch.map((row) => row.normalizedDomain)
+      );
+
+      for (const row of batch) {
+        const rank =
+          batchRanks.get(row.normalizedDomain) ??
+          existingRankMap.get(row.normalizedDomain) ??
+          null;
+
+        rankMap.set(row.normalizedDomain, rank);
+      }
+    }
+
+    const rankedRows = baseRows
+      .map((row) => ({
+        ...row,
+        domainRank:
+          rankMap.get(row.normalizedDomain) ??
+          existingRankMap.get(row.normalizedDomain) ??
+          null,
       }))
-      .filter((item) => isLikelyDomain(item.normalizedDomain))
       .sort((a, b) => {
         if (b.linkedCompetitorCount !== a.linkedCompetitorCount) {
           return b.linkedCompetitorCount - a.linkedCompetitorCount;
         }
+
+        const aRank = Number.isFinite(Number(a.domainRank)) ? Number(a.domainRank) : -1;
+        const bRank = Number.isFinite(Number(b.domainRank)) ? Number(b.domainRank) : -1;
+
+        if (bRank !== aRank) {
+          return bRank - aRank;
+        }
+
         return a.normalizedDomain.localeCompare(b.normalizedDomain);
       });
 
-    const rowsToProcess = sortedRows.slice(0, MAX_ROWS);
-    const authorityMap = new Map();
-    let partialCount = 0;
-
-    for (let start = 0; start < rowsToProcess.length; start += BATCH_SIZE) {
-      const batch = rowsToProcess.slice(start, start + BATCH_SIZE);
-      const metrics = await postDataForSeoSummaryBatch(batch.map((row) => row.normalizedDomain));
-
-      for (const row of batch) {
-        const metric = metrics.get(row.normalizedDomain) || { domainAuthority: null, partial: true };
-        authorityMap.set(row.normalizedDomain, metric);
-        if (metric.partial) partialCount += 1;
-      }
-    }
-
+    const rowsToProcess = rankedRows.slice(0, MAX_ROWS);
     const nowIso = new Date().toISOString();
 
+    let partialCount = 0;
+
     const enrichedGapOpportunities = rowsToProcess.map((row) => {
-      const metric = authorityMap.get(row.normalizedDomain) || { domainAuthority: null, partial: true };
       const category = classifyCategory(row.normalizedDomain);
-      const acquisitionMethod = categoryToMethod(category);
+      const method = categoryToMethod(category);
       const difficulty = categoryToDifficulty(category);
 
+      if (!Number.isFinite(Number(row.domainRank))) {
+        partialCount += 1;
+      }
+
       return {
+        domain: row.normalizedDomain,
         referringDomain: row.referringDomain,
         normalizedDomain: row.normalizedDomain,
         linkedCompetitors: row.linkedCompetitors,
+        competitors: row.competitors,
         linkedCompetitorCount: row.linkedCompetitorCount,
-        domainAuthority: metric.domainAuthority,
+        competitorCount: row.competitorCount,
+        domainRank: Number.isFinite(Number(row.domainRank)) ? Number(row.domainRank) : null,
         category,
-        acquisitionMethod,
+        method,
+        acquisitionMethod: method,
         difficulty,
         source: "competitor_gap_enriched",
         discoveredAt: row.discoveredAt || nowIso,
@@ -340,9 +365,9 @@ export default async function handler(req, res) {
       totalEnriched: enrichedGapOpportunities.length,
       processedCount: rowsToProcess.length,
       partialCount,
-      capped: sortedRows.length > MAX_ROWS,
+      capped: rankedRows.length > MAX_ROWS,
       capUsed: MAX_ROWS,
-      source: "dataforseo_backlinks_summary_live + lightweight_classification",
+      source: "dataforseo_backlinks_bulk_ranks_live + lightweight_classification",
       generatedAt: nowTs(),
       updatedAt: nowTs(),
     };
@@ -363,9 +388,9 @@ export default async function handler(req, res) {
         totalEnriched: enrichedGapOpportunities.length,
         processedCount: rowsToProcess.length,
         partialCount,
-        capped: sortedRows.length > MAX_ROWS,
+        capped: rankedRows.length > MAX_ROWS,
         capUsed: MAX_ROWS,
-        source: "dataforseo_backlinks_summary_live + lightweight_classification",
+        source: "dataforseo_backlinks_bulk_ranks_live + lightweight_classification",
         generatedAt: nowIso,
         updatedAt: nowIso,
       },
