@@ -284,7 +284,7 @@ export default async function handler(req, res) {
       .filter((item) => isLikelyDomain(item.normalizedDomain));
 
     const BATCH_SIZE = 50;
-    const MAX_ROWS = 250;
+ const STORAGE_LIMIT = baseRows.length;
 
     const rankMap = new Map();
 
@@ -327,7 +327,7 @@ export default async function handler(req, res) {
         return a.normalizedDomain.localeCompare(b.normalizedDomain);
       });
 
-    const rowsToProcess = rankedRows.slice(0, MAX_ROWS);
+    const rowsToProcess = rankedRows.slice(0, STORAGE_LIMIT);
     const nowIso = new Date().toISOString();
 
     let partialCount = 0;
@@ -361,12 +361,12 @@ export default async function handler(req, res) {
       };
     });
 
-    const enrichmentMeta = {
+     const enrichmentMeta = {
       totalEnriched: enrichedGapOpportunities.length,
       processedCount: rowsToProcess.length,
       partialCount,
-      capped: rankedRows.length > MAX_ROWS,
-      capUsed: MAX_ROWS,
+      capped: false,
+      capUsed: rowsToProcess.length,
       source: "dataforseo_backlinks_bulk_ranks_live + lightweight_classification",
       generatedAt: nowTs(),
       updatedAt: nowTs(),
@@ -384,12 +384,12 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       enrichedGapOpportunities,
-      enrichmentMeta: {
+           enrichmentMeta: {
         totalEnriched: enrichedGapOpportunities.length,
         processedCount: rowsToProcess.length,
         partialCount,
-        capped: rankedRows.length > MAX_ROWS,
-        capUsed: MAX_ROWS,
+        capped: false,
+        capUsed: rowsToProcess.length,
         source: "dataforseo_backlinks_bulk_ranks_live + lightweight_classification",
         generatedAt: nowIso,
         updatedAt: nowIso,
