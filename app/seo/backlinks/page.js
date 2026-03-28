@@ -45,7 +45,8 @@ function cleanDomain(value) {
     .replace(/^https?:\/\//i, "")
     .replace(/^www\./i, "")
     .replace(/\/.*$/, "")
-    .trim();
+    .trim()
+    .toLowerCase();
 }
 
 function titleCaseGeoMode(value) {
@@ -117,6 +118,76 @@ function SmallChip({ children }) {
   );
 }
 
+function MetricBox({ label, value }) {
+  return (
+    <div
+      style={{
+        borderRadius: 14,
+        border: "1px solid #e5e7eb",
+        background: "#ffffff",
+        padding: 16,
+      }}
+    >
+      <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", letterSpacing: 0.2 }}>
+        {label}
+      </div>
+      <div
+        style={{
+          marginTop: 8,
+          fontSize: 28,
+          lineHeight: 1.1,
+          fontWeight: 800,
+          color: "#111827",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function formatTimestamp(value) {
+  if (!value) return "—";
+
+  let date = null;
+
+  if (typeof value?.toDate === "function") {
+    date = value.toDate();
+  } else if (value instanceof Date) {
+    date = value;
+  } else if (typeof value === "string") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) date = parsed;
+  }
+
+  if (!date) return "—";
+
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function normalizeSelfProfile(data) {
+  const selfProfile = data || {};
+  return {
+    domain: String(selfProfile.domain || "").trim(),
+    normalizedDomain: cleanDomain(selfProfile.normalizedDomain || selfProfile.domain || ""),
+    referringDomains:
+      Number.isFinite(Number(selfProfile.referringDomains)) ? Number(selfProfile.referringDomains) : null,
+    totalBacklinks:
+      Number.isFinite(Number(selfProfile.totalBacklinks)) ? Number(selfProfile.totalBacklinks) : null,
+    authorityBuckets:
+      selfProfile.authorityBuckets && typeof selfProfile.authorityBuckets === "object"
+        ? selfProfile.authorityBuckets
+        : null,
+    source: String(selfProfile.source || "").trim(),
+    lastAnalyzedAt: selfProfile.lastAnalyzedAt || null,
+    updatedAt: selfProfile.updatedAt || null,
+  };
+}
+
 export default function BacklinkAuthorityPage() {
   const router = useRouter();
 
@@ -130,6 +201,10 @@ export default function BacklinkAuthorityPage() {
   const [contextState, setContextState] = useState("loading"); // loading | ready | missing | error
   const [contextError, setContextError] = useState("");
   const [contextData, setContextData] = useState(null);
+
+  const [selfProfileState, setSelfProfileState] = useState("idle"); // idle | loading | empty | ready | running | error | blocked
+  const [selfProfileError, setSelfProfileError] = useState("");
+  const [selfProfileData, setSelfProfileData] = useState(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -284,9 +359,9 @@ export default function BacklinkAuthorityPage() {
         const geoMode = String(keywordPool?.geo_mode || "").trim().toLowerCase();
         const geography = String(keywordPool?.location_name || "").trim();
         const industry = String(businessProfile?.industry || "").trim();
-        const websiteLabel = String(
+        const websiteLabel = cleanDomain(
           website?.domain || website?.website || website?.url || website?.name || website?.label || ""
-        ).trim();
+        );
 
         if (!websiteLabel || !industry || !geoMode || !geography) {
           setContextData(null);
@@ -315,8 +390,72 @@ export default function BacklinkAuthorityPage() {
     loadBacklinkContext();
   }, [uid, selectedWebsiteId, websites]);
 
+  useEffect(() => {
+    async function loadStoredSelfProfile() {
+      if (!uid || !selectedWebsiteId || !websites.length) return;
+
+      if (contextState === "missing") {
+        setSelfProfileData(null);
+        setSelfProfileError("");
+        setSelfProfileState("blocked");
+        return;
+      }
+
+      if (contextState !== "ready") return;
+
+      try {
+        setSelfProfileState("loading");
+        setSelfProfileError("");
+
+        const { effectiveUid, effectiveWebsiteId } = getEffectiveContext(selectedWebsiteId);
+        if (!effectiveUid || !effectiveWebsiteId) {
+          setSelfProfileData(null);
+          setSelfProfileState("empty");
+          return;
+        }
+
+        const backlinksModuleRef = doc(
+          db,
+          "users",
+          effectiveUid,
+          "websites",
+          effectiveWebsiteId,
+          "modules",
+          "backlinks"
+        );
+
+        const snap = await getDoc(backlinksModuleRef);
+
+        if (!snap.exists()) {
+          setSelfProfileData(null);
+          setSelfProfileState("empty");
+          return;
+        }
+
+        const moduleData = snap.data() || {};
+        const normalized = normalizeSelfProfile(moduleData?.selfProfile || null);
+
+        if (!normalized.normalizedDomain && normalized.referringDomains == null && normalized.totalBacklinks == null) {
+          setSelfProfileData(null);
+          setSelfProfileState("empty");
+          return;
+        }
+
+        setSelfProfileData(normalized);
+        setSelfProfileState("ready");
+      } catch (e) {
+        console.error("Failed to load stored backlink profile:", e);
+        setSelfProfileData(null);
+        setSelfProfileError("We could not load your saved backlink profile right now.");
+        setSelfProfileState("error");
+      }
+    }
+
+    loadStoredSelfProfile();
+  }, [uid, selectedWebsiteId, websites, contextState]);
+
   const canShowContext = contextState === "ready" && contextData;
-  const buttonDisabled = contextState !== "ready";
+  const planButtonDisabled = contextState !== "ready";
 
   const competitorPreview = useMemo(() => {
     return canShowContext ? contextData.competitors.slice(0, 8) : [];
@@ -325,6 +464,52 @@ export default function BacklinkAuthorityPage() {
   const pillarPreview = useMemo(() => {
     return canShowContext ? contextData.pillarNames.slice(0, 8) : [];
   }, [canShowContext, contextData]);
+
+  async function handleAnalyzeSelfBacklinks() {
+    try {
+      if (!auth.currentUser) {
+        router.replace("/login");
+        return;
+      }
+
+      setSelfProfileError("");
+      setSelfProfileState("running");
+
+      const idToken = await auth.currentUser.getIdToken();
+
+      const res = await fetch("/api/backlinks/analyze-self", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          websiteId: selectedWebsiteId,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(
+          json?.error || "We could not analyze your backlink profile right now. Please try again."
+        );
+      }
+
+      const normalized = normalizeSelfProfile(json?.profile || {});
+      setSelfProfileData(normalized);
+      setSelfProfileState("ready");
+    } catch (e) {
+      console.error("Backlink self-analysis failed:", e);
+      setSelfProfileError("We could not analyze your backlink profile right now. Please try again.");
+      setSelfProfileState("error");
+    }
+  }
+
+  const showAuthorityBuckets =
+    selfProfileData?.authorityBuckets &&
+    typeof selfProfileData.authorityBuckets === "object" &&
+    Object.keys(selfProfileData.authorityBuckets).length > 0;
 
   return (
     <AuthGate>
@@ -402,9 +587,17 @@ export default function BacklinkAuthorityPage() {
               <button
                 type="button"
                 className="btn btn-primary"
-                disabled={buttonDisabled}
-                title={buttonDisabled ? "Strategy context must load first." : "Backlink plan generation will be connected in the next stage."}
-                style={{ marginTop: 8, opacity: buttonDisabled ? 0.65 : 1, cursor: buttonDisabled ? "not-allowed" : "pointer" }}
+                disabled={planButtonDisabled}
+                title={
+                  planButtonDisabled
+                    ? "Strategy context must load first."
+                    : "Backlink plan generation will be connected in the next stage."
+                }
+                style={{
+                  marginTop: 8,
+                  opacity: planButtonDisabled ? 0.65 : 1,
+                  cursor: planButtonDisabled ? "not-allowed" : "pointer",
+                }}
               >
                 Generate Backlink Plan
               </button>
@@ -490,7 +683,11 @@ export default function BacklinkAuthorityPage() {
                   <div style={{ marginTop: 6 }}>
                     Backlink Authority needs your Strategy setup before it can generate a plan. Please complete your Strategy setup first.
                   </div>
-                  <a href="/seo/strategy" className="btn btn-soft-primary" style={{ marginTop: 12, display: "inline-flex" }}>
+                  <a
+                    href="/seo/strategy"
+                    className="btn btn-soft-primary"
+                    style={{ marginTop: 12, display: "inline-flex" }}
+                  >
                     Open Strategy
                   </a>
                 </div>
@@ -528,6 +725,184 @@ export default function BacklinkAuthorityPage() {
                       </div>
                     ) : null}
                   </SummaryRow>
+                </div>
+              ) : null}
+            </div>
+
+            <div
+              style={{
+                marginTop: 18,
+                padding: 22,
+                borderRadius: 18,
+                border: CARD_BORDER,
+                background: CARD_BG,
+                boxShadow: SHADOW,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "#111827",
+                  marginBottom: 10,
+                }}
+              >
+                Your Current Backlink Profile
+              </div>
+
+              {contextState === "missing" ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #fde68a",
+                    background: "#fffbeb",
+                    padding: 16,
+                    color: "#92400e",
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Complete your Strategy setup first to unlock your backlink baseline.
+                </div>
+              ) : null}
+
+              {(selfProfileState === "loading" || selfProfileState === "running") && contextState === "ready" ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #e5e7eb",
+                    background: "#ffffff",
+                    padding: 16,
+                    color: "#6b7280",
+                    fontSize: 14,
+                  }}
+                >
+                  {selfProfileState === "running"
+                    ? "Analyzing your backlink profile…"
+                    : "Loading your saved backlink baseline…"}
+                </div>
+              ) : null}
+
+              {selfProfileState === "error" ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #fecaca",
+                    background: "#fef2f2",
+                    padding: 16,
+                    color: "#991b1b",
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {selfProfileError || "We could not analyze your backlink profile right now. Please try again."}
+                </div>
+              ) : null}
+
+              {selfProfileState === "empty" && contextState === "ready" ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #e5e7eb",
+                    background: "#ffffff",
+                    padding: 16,
+                  }}
+                >
+                  <div style={{ color: "#374151", fontSize: 14, lineHeight: 1.7 }}>
+                    Analyze your current backlink profile to establish your authority baseline.
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleAnalyzeSelfBacklinks}
+                    style={{ marginTop: 14 }}
+                  >
+                    Analyze My Backlinks
+                  </button>
+                </div>
+              ) : null}
+
+              {selfProfileState === "ready" && selfProfileData ? (
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid #e5e7eb",
+                    background: "#ffffff",
+                    padding: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                      gap: 12,
+                    }}
+                  >
+                    <MetricBox label="Domain Analyzed" value={selfProfileData.normalizedDomain || "—"} />
+                    <MetricBox
+                      label="Referring Domains"
+                      value={
+                        selfProfileData.referringDomains == null
+                          ? "—"
+                          : String(selfProfileData.referringDomains)
+                      }
+                    />
+                    <MetricBox
+                      label="Total Backlinks"
+                      value={
+                        selfProfileData.totalBacklinks == null
+                          ? "—"
+                          : String(selfProfileData.totalBacklinks)
+                      }
+                    />
+                    <MetricBox
+                      label="Last Analyzed"
+                      value={formatTimestamp(selfProfileData.lastAnalyzedAt || selfProfileData.updatedAt)}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 16,
+                      borderTop: "1px solid #eef2ff",
+                      paddingTop: 14,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 800,
+                        color: "#111827",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Authority Distribution Summary
+                    </div>
+
+                    {showAuthorityBuckets ? (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {Object.entries(selfProfileData.authorityBuckets).map(([label, count]) => (
+                          <SmallChip key={label}>
+                            {label}: {String(count)}
+                          </SmallChip>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ color: "#6b7280", fontSize: 14, lineHeight: 1.6 }}>
+                        Authority mix will be expanded in the next stages.
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-soft-primary"
+                    onClick={handleAnalyzeSelfBacklinks}
+                    style={{ marginTop: 16 }}
+                  >
+                    Refresh Backlink Analysis
+                  </button>
                 </div>
               ) : null}
             </div>
