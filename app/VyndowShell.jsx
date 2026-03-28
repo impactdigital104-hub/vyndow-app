@@ -10,13 +10,14 @@ export default function VyndowShell({ activeModule, children }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const pathname = usePathname() || "";
 
-  const isSeoStrategyRoute = pathname.startsWith("/seo/strategy");
-  const isSeoRoute =
-    pathname === "/seo" || (pathname.startsWith("/seo/") && !isSeoStrategyRoute);
+const isSeoStrategyRoute = pathname.startsWith("/seo/strategy");
+const isBacklinksRoute =
+  pathname === "/seo/backlinks" || pathname.startsWith("/seo/backlinks/");
+const isSeoRoute =
+  pathname === "/seo" ||
+  (pathname.startsWith("/seo/") && !isSeoStrategyRoute && !isBacklinksRoute);
 
-  const isGeoRoute = pathname === "/geo" || pathname.startsWith("/geo/");
-  const isBacklinksRoute =
-    pathname === "/seo/backlinks" || pathname.startsWith("/seo/backlinks/");
+const isGeoRoute = pathname === "/geo" || pathname.startsWith("/geo/");
   const isOgiRoute =
     pathname === "/growth/intelligence" || pathname.startsWith("/growth/intelligence/");
 
