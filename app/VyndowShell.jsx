@@ -1,6 +1,6 @@
 // app/VyndowShell.jsx
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "./firebaseClient";
@@ -9,20 +9,47 @@ export default function VyndowShell({ activeModule, children }) {
   const year = new Date().getFullYear();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const pathname = usePathname() || "";
+    const advisorEnabled = process.env.NEXT_PUBLIC_ORGANIC_ADVISOR_ENABLED === "true";
+  const advisorAdminEmails = (process.env.NEXT_PUBLIC_ORGANIC_ADVISOR_ADMIN_EMAILS || "")
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
 
-const isSeoStrategyRoute = pathname.startsWith("/seo/strategy");
-const isBacklinksRoute =
-  pathname === "/seo/backlinks" || pathname.startsWith("/seo/backlinks/");
-const isSeoRoute =
-  pathname === "/seo" ||
-  (pathname.startsWith("/seo/") && !isSeoStrategyRoute && !isBacklinksRoute);
+  const currentUserEmail = auth.currentUser?.email?.toLowerCase?.() || "";
+  const advisorVisible = advisorEnabled || (!!currentUserEmail && advisorAdminEmails.includes(currentUserEmail));
 
-const isGeoRoute = pathname === "/geo" || pathname.startsWith("/geo/");
+  const isSeoStrategyRoute = pathname.startsWith("/seo/strategy");
+  const isBacklinksRoute =
+    pathname === "/seo/backlinks" || pathname.startsWith("/seo/backlinks/");
+  const isSeoRoute =
+    pathname === "/seo" ||
+    (pathname.startsWith("/seo/") && !isSeoStrategyRoute && !isBacklinksRoute);
+
+  const isGeoRoute = pathname === "/geo" || pathname.startsWith("/geo/");
   const isOgiRoute =
     pathname === "/growth/intelligence" || pathname.startsWith("/growth/intelligence/");
 
   const isOrganicRoute =
     isSeoRoute || isSeoStrategyRoute || isGeoRoute || isBacklinksRoute || isOgiRoute;
+
+  const advisorModule = useMemo(() => {
+    if (isSeoStrategyRoute) {
+      return { id: "strategy", label: "Strategy Engine" };
+    }
+    if (isSeoRoute) {
+      return { id: "seo", label: "SEO Content Engine" };
+    }
+    if (isGeoRoute) {
+      return { id: "geo", label: "GEO Visibility Engine" };
+    }
+    if (isBacklinksRoute) {
+      return { id: "backlinks", label: "Backlink Authority" };
+    }
+    if (isOgiRoute) {
+      return { id: "ogi", label: "Organic Growth Intelligence" };
+    }
+    return { id: "unknown", label: "Vyndow Organic" };
+  }, [isSeoStrategyRoute, isSeoRoute, isGeoRoute, isBacklinksRoute, isOgiRoute]);
 
   const [organicOpen, setOrganicOpen] = useState(false);
   const organicExpanded = organicOpen || isOrganicRoute;
@@ -310,7 +337,60 @@ const isGeoRoute = pathname === "/geo" || pathname.startsWith("/geo/");
           ☰ Menu
         </button>
 
-        {children}
+              {children}
+
+        {advisorVisible && isOrganicRoute && (
+          <div
+            style={{
+              position: "fixed",
+              right: 20,
+              bottom: 20,
+              zIndex: 1200,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              gap: 8,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                lineHeight: 1.4,
+                padding: "8px 10px",
+                borderRadius: 10,
+                background: "rgba(15,23,42,0.92)",
+                color: "#fff",
+                maxWidth: 220,
+                boxShadow: "0 10px 25px rgba(0,0,0,0.18)",
+              }}
+            >
+              Vyndow Organic Advisor hidden preview<br />
+              Active module: {advisorModule.label}
+            </div>
+
+            <button
+              type="button"
+              aria-label="Open Vyndow Organic Advisor"
+              style={{
+                width: 58,
+                height: 58,
+                borderRadius: "999px",
+                border: "none",
+                cursor: "pointer",
+                fontWeight: 700,
+                fontSize: 12,
+                boxShadow: "0 12px 30px rgba(0,0,0,0.18)",
+                background: "linear-gradient(135deg, #1e66ff 0%, #7c3aed 100%)",
+                color: "#fff",
+              }}
+              onClick={() => {
+                alert(`Vyndow Organic Advisor scaffold is active for ${advisorModule.label}. Full chat panel comes in the next stage.`);
+              }}
+            >
+              VOA
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
