@@ -76,9 +76,12 @@ function isOrganicRelated({
     return true;
   }
 
-  const ambiguousButValidPhrases = [
+  const workflowHelpPhrases = [
     "this page",
     "this step",
+    "this workflow",
+    "this field",
+    "this section",
     "on this page",
     "on this step",
     "help me do this",
@@ -88,26 +91,49 @@ function isOrganicRelated({
     "how do i use this page",
     "how do i complete this step",
     "what should i do next",
+    "what should i fill",
+    "what should i write",
+    "what do i enter",
+    "what do i put",
+    "what is this field asking for",
+    "what goes here",
+    "how should i complete this page",
+    "what happens after this step",
+    "what happens next",
   ];
 
-  if (ambiguousButValidPhrases.some((phrase) => text.includes(phrase))) {
+  if (workflowHelpPhrases.some((phrase) => text.includes(phrase))) {
     return true;
   }
 
-  const contextText = [
-    moduleId,
-    moduleLabel,
-    routePath,
-    pageLabel,
-    workflowStep,
-  ]
+  const workflowFieldWords = [
+    "fill",
+    "write",
+    "enter",
+    "put",
+    "field",
+    "form",
+    "section",
+    "step",
+    "page",
+    "workflow",
+    "profile",
+    "url",
+    "competitor",
+    "business",
+    "audience",
+    "industry",
+    "website",
+    "company name",
+    "description",
+  ];
+
+  const contextText = [moduleId, moduleLabel, routePath, pageLabel, workflowStep]
     .map((item) => cleanText(item).toLowerCase())
     .filter(Boolean)
     .join(" ");
 
-  if (!contextText) return false;
-
-  const contextualKeywords = [
+  const organicContextWords = [
     "strategy",
     "seo",
     "geo",
@@ -124,19 +150,28 @@ function isOrganicRelated({
     "content",
   ];
 
-  const userLooksWorkflowRelated =
-    text.includes("complete") ||
-    text.includes("explain") ||
-    text.includes("help") ||
-    text.includes("what does") ||
-    text.includes("how do i") ||
-    text.includes("what should i do");
+  const looksLikeWorkflowQuestion =
+    workflowFieldWords.some((word) => text.includes(word)) &&
+    organicContextWords.some((word) => contextText.includes(word));
 
-  if (
-    userLooksWorkflowRelated &&
-    contextualKeywords.some((word) => contextText.includes(word))
-  ) {
+  if (looksLikeWorkflowQuestion) {
     return true;
+  }
+
+  const unrelatedPatterns = [
+    "cold email",
+    "facebook ads",
+    "meta ads",
+    "google ads campaign",
+    "stock should i buy",
+    "buy this stock",
+    "legal advice",
+    "financial advice",
+    "medical advice",
+  ];
+
+  if (unrelatedPatterns.some((phrase) => text.includes(phrase))) {
+    return false;
   }
 
   return false;
@@ -145,18 +180,18 @@ function isOrganicRelated({
 function moduleGuidance(moduleId) {
   const map = {
     strategy:
-      "Prioritize keyword architecture, clusters, target pages, topical authority, and page planning.",
+      "Prioritize keyword architecture, clusters, target pages, topical authority, page planning, and helping the user complete the current strategy workflow.",
     seo:
-      "Prioritize blog strategy, publishing guidance, article structure, schema, and content quality.",
+      "Prioritize blog strategy, publishing guidance, article structure, schema, content quality, and helping the user use the current SEO content workflow.",
     geo:
-      "Prioritize AI search visibility, generative engine optimization, structured content, and AI answer readiness.",
+      "Prioritize AI search visibility, generative engine optimization, structured content, AI answer readiness, and helping the user use the current GEO workflow.",
     backlinks:
-      "Prioritize authority building, backlink acquisition, outreach logic, BAM score interpretation, and link quality.",
+      "Prioritize authority building, backlink acquisition, outreach logic, BAM score interpretation, link quality, and helping the user use the current backlink workflow.",
     ogi:
-      "Prioritize Search Console interpretation, traffic trends, CTR/ranking analysis, SEO gaps, and next actions.",
+      "Prioritize Search Console interpretation, traffic trends, CTR/ranking analysis, SEO gaps, next actions, and helping the user use the current organic intelligence workflow.",
   };
 
-  return map[moduleId] || "Prioritize practical organic growth guidance.";
+  return map[moduleId] || "Prioritize practical organic growth guidance and help the user complete the current Vyndow workflow.";
 }
 
 function buildSystemPrompt({
@@ -168,11 +203,16 @@ function buildSystemPrompt({
 }) {
   return `You are Vyndow Organic Advisor, a specialist advisor inside the Vyndow platform.
 
+You help in two ways:
+1. Organic growth guidance
+2. Help using the current Vyndow Organic workflow
+
 Your role:
 - Explain Vyndow Organic outputs clearly.
 - Act like a senior SEO / GEO / backlinks / content / analytics advisor.
 - Use the user's current Vyndow context to understand what they are trying to do inside the product.
 - Explain platform outputs and guide the user within the current workflow.
+- Treat current-page help, field help, section help, and step help as in scope when they relate to the active Vyndow Organic page.
 
 Current Vyndow context:
 - Current Vyndow Module: ${cleanText(moduleLabel) || "Vyndow Organic"}
@@ -183,13 +223,24 @@ Current Vyndow context:
 - Module Guidance: ${moduleGuidance(moduleId)}
 
 Scope guidance:
-You should primarily help with topics related to SEO, GEO, backlinks, content strategy, blog writing, topical authority, keyword architecture, organic performance analytics, Search Console interpretation, and organic growth strategy.
+You should answer questions if they are either:
+- related to SEO, GEO, backlinks, content strategy, blog writing, topical authority, keyword architecture, Search Console interpretation, organic analytics, or organic growth strategy
+- OR related to completing the current page, field, section, step, or workflow inside the active Vyndow Organic module
+
+Examples of valid workflow help:
+- what should I fill in this field
+- what should I write here
+- what does this step want
+- how do I complete this page
+- what happens next in this workflow
+- what should I fill up in competitor url
+- what should I write in business profile
 
 Guardrail behavior:
 - If the user's question is reasonably related to organic growth, answer helpfully.
-- If the user's question refers to "this page", "this step", "this workflow", or "what should I do here", use the current page and workflow context first.
-- If the user's question is outside organic growth, politely redirect them back to organic growth topics.
-- Do not answer unrelated requests like sales emails, legal advice, finance, or general business writing.
+- If the user's question is about using the current Vyndow page, field, section, step, or workflow, answer helpfully even if the wording is not directly SEO-like.
+- Only refuse questions that are genuinely unrelated to both organic growth and the current Vyndow workflow.
+- Politely redirect unrelated questions like sales emails, stock picking, legal advice, finance, or non-organic advertising topics.
 - If the user asks about competitive tools, do not belittle them. Explain Vyndow's advantage respectfully.
 
 Tone and style:
@@ -269,7 +320,7 @@ export default async function handler(req, res) {
     ) {
       return res.status(200).json({
         reply:
-          "That sounds outside my scope. I can help with SEO, GEO, backlinks, blog strategy, keyword architecture, Search Console interpretation, and organic growth decisions inside Vyndow.",
+          "That sounds outside my scope. I can help with SEO, GEO, backlinks, blog strategy, keyword architecture, Search Console interpretation, organic growth decisions, and how to use the current Vyndow Organic page or workflow.",
       });
     }
 
