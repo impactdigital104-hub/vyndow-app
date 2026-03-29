@@ -7,7 +7,8 @@ import { auth } from "./firebaseClient";
 
 export default function VyndowShell({ activeModule, children }) {
   const year = new Date().getFullYear();
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isAdvisorOpen, setIsAdvisorOpen] = useState(false);
   const pathname = usePathname() || "";
     const advisorEnabled = process.env.NEXT_PUBLIC_ORGANIC_ADVISOR_ENABLED === "true";
   const advisorAdminEmails = (process.env.NEXT_PUBLIC_ORGANIC_ADVISOR_ADMIN_EMAILS || "")
@@ -51,11 +52,47 @@ export default function VyndowShell({ activeModule, children }) {
     return { id: "unknown", label: "Vyndow Organic" };
   }, [isSeoStrategyRoute, isSeoRoute, isGeoRoute, isBacklinksRoute, isOgiRoute]);
 
+  const advisorSuggestions = useMemo(() => {
+    const suggestionMap = {
+      strategy: [
+        "What does my keyword architecture mean?",
+        "Which pages should I build first?",
+        "What is topical authority?",
+      ],
+      seo: [
+        "Why was this blog topic selected?",
+        "How do I publish this content?",
+        "What is article schema?",
+      ],
+      geo: [
+        "What is GEO?",
+        "How is GEO different from SEO?",
+        "How does AI search decide what to show?",
+      ],
+      backlinks: [
+        "What is my BAM score?",
+        "How do I get this backlink?",
+        "Why are backlinks important?",
+      ],
+      ogi: [
+        "What is my biggest SEO gap?",
+        "How do I read this performance report?",
+        "What should I do next?",
+      ],
+    };
+
+    return suggestionMap[advisorModule?.id] || [];
+  }, [advisorModule]);
+
   const [organicOpen, setOrganicOpen] = useState(false);
   const organicExpanded = organicOpen || isOrganicRoute;
 
   function closeMobileSidebar() {
     setIsMobileOpen(false);
+  }
+
+  function openAdvisorPanel() {
+    setIsAdvisorOpen(true);
   }
 
   async function handleLogout() {
@@ -340,56 +377,254 @@ export default function VyndowShell({ activeModule, children }) {
               {children}
 
         {advisorVisible && isOrganicRoute && (
-          <div
-            style={{
-              position: "fixed",
-              right: 20,
-              bottom: 20,
-              zIndex: 1200,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              gap: 8,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                lineHeight: 1.4,
-                padding: "8px 10px",
-                borderRadius: 10,
-                background: "rgba(15,23,42,0.92)",
-                color: "#fff",
-                maxWidth: 220,
-                boxShadow: "0 10px 25px rgba(0,0,0,0.18)",
-              }}
-            >
-              Vyndow Organic Advisor hidden preview<br />
-              Active module: {advisorModule.label}
-            </div>
+          <>
+            {!isAdvisorOpen && (
+              <div
+                style={{
+                  position: "fixed",
+                  right: 20,
+                  bottom: 20,
+                  zIndex: 1200,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-end",
+                  gap: 8,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    lineHeight: 1.4,
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    background: "rgba(15,23,42,0.92)",
+                    color: "#fff",
+                    maxWidth: 220,
+                    boxShadow: "0 10px 25px rgba(0,0,0,0.18)",
+                  }}
+                >
+                  Vyndow Organic Advisor preview<br />
+                  Active module: {advisorModule.label}
+                </div>
 
-            <button
-              type="button"
-              aria-label="Open Vyndow Organic Advisor"
-              style={{
-                width: 58,
-                height: 58,
-                borderRadius: "999px",
-                border: "none",
-                cursor: "pointer",
-                fontWeight: 700,
-                fontSize: 12,
-                boxShadow: "0 12px 30px rgba(0,0,0,0.18)",
-                background: "linear-gradient(135deg, #1e66ff 0%, #7c3aed 100%)",
-                color: "#fff",
-              }}
-              onClick={() => {
-                alert(`Vyndow Organic Advisor scaffold is active for ${advisorModule.label}. Full chat panel comes in the next stage.`);
-              }}
-            >
-              VOA
-            </button>
-          </div>
+                <button
+                  type="button"
+                  aria-label="Open Vyndow Organic Advisor"
+                  onClick={openAdvisorPanel}
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: "999px",
+                    border: "none",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    boxShadow: "0 12px 30px rgba(0,0,0,0.18)",
+                    background: "linear-gradient(135deg, #1e66ff 0%, #7c3aed 100%)",
+                    color: "#fff",
+                  }}
+                >
+                  VOA
+                </button>
+              </div>
+            )}
+
+            {isAdvisorOpen && (
+              <div
+                style={{
+                  position: "fixed",
+                  right: 20,
+                  bottom: 20,
+                  width: "min(380px, calc(100vw - 24px))",
+                  maxHeight: "70vh",
+                  background: "#fff",
+                  border: "1px solid rgba(15,23,42,0.08)",
+                  borderRadius: 18,
+                  boxShadow: "0 24px 60px rgba(15,23,42,0.18)",
+                  zIndex: 1250,
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "14px 16px",
+                    borderBottom: "1px solid rgba(15,23,42,0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 800,
+                        color: "#111827",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      Vyndow Organic Advisor
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#6b7280",
+                      }}
+                    >
+                      {advisorModule.label}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAdvisorOpen(false)}
+                    aria-label="Close advisor"
+                    style={{
+                      border: "1px solid rgba(15,23,42,0.08)",
+                      background: "#fff",
+                      color: "#374151",
+                      borderRadius: 10,
+                      padding: "8px 10px",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    padding: 16,
+                    overflowY: "auto",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 14,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 1.6,
+                      color: "#374151",
+                    }}
+                  >
+                    Welcome to the Vyndow Organic Advisor. I can help explain this module,
+                    guide you on what things mean, and point you to the next useful step.
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 8,
+                    }}
+                  >
+                    {advisorSuggestions.map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        style={{
+                          border: "1px solid rgba(30,102,255,0.16)",
+                          background: "rgba(30,102,255,0.06)",
+                          color: "#1e40af",
+                          borderRadius: 999,
+                          padding: "8px 12px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "default",
+                        }}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div
+                    style={{
+                      minHeight: 180,
+                      border: "1px dashed rgba(15,23,42,0.12)",
+                      borderRadius: 14,
+                      background: "#f8fafc",
+                      padding: 14,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      color: "#6b7280",
+                      fontSize: 13,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    Conversation area preview. Live advisor answers will appear here in the next stage.
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: 16,
+                    borderTop: "1px solid rgba(15,23,42,0.08)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                    }}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Ask about this module..."
+                      disabled
+                      style={{
+                        flex: 1,
+                        height: 42,
+                        borderRadius: 12,
+                        border: "1px solid rgba(15,23,42,0.12)",
+                        padding: "0 12px",
+                        fontSize: 14,
+                        color: "#111827",
+                        background: "#f9fafb",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled
+                      style={{
+                        height: 42,
+                        border: "none",
+                        borderRadius: 12,
+                        background: "#dbeafe",
+                        color: "#1e3a8a",
+                        padding: "0 14px",
+                        fontWeight: 800,
+                        cursor: "not-allowed",
+                      }}
+                    >
+                      Send
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "#6b7280",
+                    }}
+                  >
+                    Advisor UI preview — live intelligence comes in the next stage.
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
