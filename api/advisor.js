@@ -1,4 +1,5 @@
 import admin from "./firebaseAdmin";
+import { resolveEffectiveContext } from "./ogi/buildContext";
 
 async function getUidFromRequest(req) {
   const authHeader = req.headers.authorization || "";
@@ -11,6 +12,345 @@ async function getUidFromRequest(req) {
 
 function cleanText(value) {
   return String(value || "").trim();
+}
+function safeObj(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function safeArr(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function firstNonEmpty(...values) {
+  for (const value of values) {
+    const cleaned = cleanText(value);
+    if (cleaned) return cleaned;
+  }
+  return "";
+}
+
+function extractTargetAudience(strategyDocs) {
+  const businessContext = safeObj(strategyDocs.businessContext);
+  const businessProfile = safeObj(strategyDocs.businessProfile);
+
+  const aiVersion = safeObj(businessContext.aiVersion);
+  const finalVersion = safeObj(businessContext.finalVersion);
+
+  const audienceFromAi = aiVersion.target_audience;
+  const audienceText = Array.isArray(audienceFromAi)
+    ? audienceFromAi.map((item) => cleanText(item)).filter(Boolean).join(", ")
+    : cleanText(audienceFromAi);
+
+  return (
+    audienceText ||
+    cleanText(finalVersion.targetAudience) ||
+    cleanText(finalVersion.targetCustomer) ||
+    cleanText(businessProfile.targetCustomer)
+  );
+}
+
+function pickKeywordClusteringView(docData) {
+  const data = safeObj(docData);
+
+  if (
+    safeObj(data.finalVersion) &&
+    (safeArr(data.finalVersion.pillars).length || safeArr(data.finalVersion.shortlist).length)
+  ) {
+    return safeObj(data.finalVersion);
+  }
+
+  if (
+    safeObj(data.userVersion) &&
+    (safeArr(data.userVersion.pillars).length || safeArr(data.userVersion.shortlist).length)
+  ) {
+    return safeObj(data.userVersion);
+  }
+
+  if (
+    safeObj(data.aiVersion) &&
+    (safeArr(data.aiVersion.pillars).length || safeArr(data.aiVersion.shortlist).length)
+  ) {
+    return safeObj(data.aiVersion);
+  }
+
+  return {};
+}
+
+function pickKeywordMappingView(docData) {
+  const data = safeObj(docData);
+
+  if (
+    data.approved === true &&
+    safeObj(data.finalVersion) &&
+    (safeArr(data.finalVersion.existingPages).length || safeArr(data.finalVersion.gapPages).length)
+  ) {
+    return safeObj(data.finalVersion);
+  }
+
+  if (
+    safeObj(data.userVersion) &&
+    (safeArr(data.userVersion.existingPages).length || safeArr(data.userVersion.gapPages).length)
+  ) {
+    return safeObj(data.userVersion);
+  }
+
+  return {
+    existingPages: safeArr(data.existingPages),
+    gapPages: safeArr(data.gapPages),
+  };
+}
+
+function normalizePageLabel(item) {
+  return firstNonEmpty(
+    item?.pageLabel,
+    item?.label,
+    item?.title,
+    item?.primaryKeyword,
+    item?.keyword,
+    item?.suggestedSlug,
+    item?.slug,
+    item?.url
+  );
+}
+
+function deriveStrategyProgress({
+  businessProfile,
+  pageDiscovery,
+  businessContext,
+  keywordClustering,
+  keywordMapping,
+  pageOptimization,
+  authorityPlan,
+}) {
+  const steps = [
+    {
+      label: "Business Profile",
+      done: safeObj(businessProfile).status === "draft" || Object.keys(safeObj(businessProfile)).length > 0,
+    },
+    {
+      label: "Page Discovery",
+      done: Object.keys(safeObj(pageDiscovery)).length > 0,
+    },
+    {
+      label: "URL Audit",
+      done: safeObj(pageDiscovery).auditLocked === true,
+    },
+    {
+      label: "Business Context",
+      done: safeObj(businessContext).approved === true,
+    },
+    {
+      label: "Keyword Clustering",
+      done: safeObj(keywordClustering).approved === true,
+    },
+    {
+      label: "Keyword Mapping",
+      done: safeObj(keywordMapping).approved === true,
+    },
+    {
+      label: "On-Page Blueprint",
+      done: Object.keys(safeObj(pageOptimization).pages).length > 0,
+    },
+    {
+      label: "90-Day Plan",
+      done: Object.keys(safeObj(authorityPlan)).length > 0,
+    },
+  ];
+
+  const completedCount = steps.filter((step) => step.done).length;
+  const totalCount = steps.length;
+  const nextIncomplete = steps.find((step) => !step.done)?.label || "";
+
+  let overallStatus = "Not started";
+  if (completedCount === 0) overallStatus = "Not started";
+  else if (completedCount >= totalCount) overallStatus = "Complete";
+  else overallStatus = "In progress";
+
+  return {
+    overallStatus,
+    completedCount,
+    totalCount,
+    nextIncomplete,
+    completedLabels: steps.filter((step) => step.done).map((step) => step.label),
+  };
+}
+
+async function loadStrategyAdvisorContext({ uid, websiteId }) {
+  const cleanWebsiteId = cleanText(websiteId);
+  if (!cleanWebsiteId) return null;
+
+  const { effectiveUid, effectiveWebsiteId } = await resolveEffectiveContext(uid, cleanWebsiteId);
+  const db = admin.firestore();
+
+  const strategyBase = `users/${effectiveUid}/websites/${effectiveWebsiteId}/modules/seo/strategy`;
+
+  const websiteRef = db.doc(`users/${effectiveUid}/websites/${effectiveWebsiteId}`);
+  const businessProfileRef = db.doc(`${strategyBase}/businessProfile`);
+  const pageDiscoveryRef = db.doc(`${strategyBase}/pageDiscovery`);
+  const businessContextRef = db.doc(`${strategyBase}/businessContext`);
+  const keywordClusteringRef = db.doc(`${strategyBase}/keywordClustering`);
+  const keywordMappingRef = db.doc(`${strategyBase}/keywordMapping`);
+  const pageOptimizationRef = db.doc(`${strategyBase}/pageOptimization`);
+  const authorityPlanRef = db.doc(`${strategyBase}/authorityPlan`);
+
+  const [
+    websiteSnap,
+    businessProfileSnap,
+    pageDiscoverySnap,
+    businessContextSnap,
+    keywordClusteringSnap,
+    keywordMappingSnap,
+    pageOptimizationSnap,
+    authorityPlanSnap,
+  ] = await Promise.all([
+    websiteRef.get(),
+    businessProfileRef.get(),
+    pageDiscoveryRef.get(),
+    businessContextRef.get(),
+    keywordClusteringRef.get(),
+    keywordMappingRef.get(),
+    pageOptimizationRef.get(),
+    authorityPlanRef.get(),
+  ]);
+
+  const websiteDoc = websiteSnap.exists ? safeObj(websiteSnap.data()) : {};
+  const businessProfile = businessProfileSnap.exists ? safeObj(businessProfileSnap.data()) : {};
+  const pageDiscovery = pageDiscoverySnap.exists ? safeObj(pageDiscoverySnap.data()) : {};
+  const businessContext = businessContextSnap.exists ? safeObj(businessContextSnap.data()) : {};
+  const keywordClustering = keywordClusteringSnap.exists ? safeObj(keywordClusteringSnap.data()) : {};
+  const keywordMapping = keywordMappingSnap.exists ? safeObj(keywordMappingSnap.data()) : {};
+  const pageOptimization = pageOptimizationSnap.exists ? safeObj(pageOptimizationSnap.data()) : {};
+  const authorityPlan = authorityPlanSnap.exists ? safeObj(authorityPlanSnap.data()) : {};
+
+  const keywordClusteringView = pickKeywordClusteringView(keywordClustering);
+  const keywordMappingView = pickKeywordMappingView(keywordMapping);
+
+  const pillars = safeArr(keywordClusteringView.pillars)
+    .map((pillar) => ({
+      name: cleanText(pillar?.name),
+      keywordCount: safeArr(pillar?.keywords).length,
+    }))
+    .filter((pillar) => pillar.name);
+
+  const mappedPages = safeArr(keywordMappingView.existingPages)
+    .map((page) => normalizePageLabel(page))
+    .filter(Boolean);
+
+  const gapPages = safeArr(keywordMappingView.gapPages)
+    .map((page) => normalizePageLabel(page))
+    .filter(Boolean);
+
+  const optimizedPages = Object.values(safeObj(pageOptimization.pages))
+    .map((page) => firstNonEmpty(page?.title, page?.url, page?.primaryKeyword))
+    .filter(Boolean);
+
+  const progress = deriveStrategyProgress({
+    businessProfile,
+    pageDiscovery,
+    businessContext,
+    keywordClustering,
+    keywordMapping,
+    pageOptimization,
+    authorityPlan,
+  });
+
+  const totalShortlistedKeywords = safeArr(keywordClusteringView.shortlist).length;
+  const blueprintPageCount = Object.keys(safeObj(pageOptimization.pages)).length;
+
+  return {
+    effectiveUid,
+    effectiveWebsiteId,
+    businessName: firstNonEmpty(businessProfile.businessName, websiteDoc.name, websiteDoc.websiteName),
+    websiteUrl: firstNonEmpty(websiteDoc.websiteUrl, websiteDoc.domain, websiteDoc.url, websiteDoc.siteUrl),
+    industry: firstNonEmpty(businessProfile.industry, safeObj(websiteDoc.profile).industry),
+    targetAudience: extractTargetAudience({ businessProfile, businessContext }),
+    pillars,
+    totalShortlistedKeywords,
+    mappedPages,
+    gapPages,
+    optimizedPages,
+    blueprintPageCount,
+    authorityPlanExists: Object.keys(authorityPlan).length > 0,
+    progress,
+  };
+}
+
+function formatStrategyDataForPrompt(strategyData) {
+  if (!strategyData) {
+    return "Current Strategy Data: Not available for this request.";
+  }
+
+  const lines = ["Current Strategy Data:"];
+
+  const topLines = [
+    ["Business Name", strategyData.businessName],
+    ["Website URL", strategyData.websiteUrl],
+    ["Industry", strategyData.industry],
+    ["Target Audience", strategyData.targetAudience],
+  ];
+
+  for (const [label, value] of topLines) {
+    const cleanValue = cleanText(value);
+    if (cleanValue) {
+      lines.push(`${label}: ${cleanValue}`);
+    }
+  }
+
+  if (strategyData.pillars.length) {
+    lines.push("");
+    lines.push("Pillars:");
+    for (const pillar of strategyData.pillars.slice(0, 6)) {
+      const suffix =
+        Number.isFinite(pillar.keywordCount) && pillar.keywordCount > 0
+          ? ` (${pillar.keywordCount} keywords)`
+          : "";
+      lines.push(`- ${pillar.name}${suffix}`);
+    }
+  }
+
+  if (strategyData.totalShortlistedKeywords > 0) {
+    lines.push("");
+    lines.push(`Keyword Shortlist Count: ${strategyData.totalShortlistedKeywords}`);
+  }
+
+  if (strategyData.mappedPages.length) {
+    lines.push("");
+    lines.push("Mapped Pages:");
+    for (const page of strategyData.mappedPages.slice(0, 8)) {
+      lines.push(`- ${page}`);
+    }
+  }
+
+  if (strategyData.gapPages.length) {
+    lines.push("");
+    lines.push("Identified Content Gaps:");
+    for (const page of strategyData.gapPages.slice(0, 6)) {
+      lines.push(`- ${page}`);
+    }
+  }
+
+  if (strategyData.blueprintPageCount > 0 || strategyData.authorityPlanExists) {
+    lines.push("");
+    lines.push("Strategy Outputs:");
+    if (strategyData.blueprintPageCount > 0) {
+      lines.push(`- On-Page Blueprint pages generated: ${strategyData.blueprintPageCount}`);
+    }
+    if (strategyData.authorityPlanExists) {
+      lines.push("- 90-Day Authority Plan: available");
+    }
+  }
+
+  if (strategyData.progress) {
+    lines.push("");
+    lines.push(
+      `Roadmap Status: ${strategyData.progress.overallStatus} (${strategyData.progress.completedCount}/${strategyData.progress.totalCount} major steps completed)`
+    );
+    if (strategyData.progress.nextIncomplete) {
+      lines.push(`Next Incomplete Major Step: ${strategyData.progress.nextIncomplete}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 function getPageFieldSchema({ moduleId, routePath, pageLabel, workflowStep }) {
@@ -414,6 +754,7 @@ function buildSystemPrompt({
   pageLabel,
   workflowStep,
   pageFields,
+  strategyData,
 }) {
   return `You are Vyndow Organic Advisor, a specialist advisor inside the Vyndow platform.
 
@@ -439,6 +780,8 @@ Current Vyndow context:
 
 Current Page Fields:
 ${formatPageFieldsForPrompt(pageFields)}
+
+${formatStrategyDataForPrompt(strategyData)}
 
 Scope guidance:
 You should answer questions if they are either:
@@ -481,7 +824,11 @@ Response rules:
 - Keep the answer short: around 3 to 5 sentences or a short list.
 - Where helpful, suggest the next logical action.
 - Never make ranking guarantees.
-- Do not pretend to have live data you do not actually have in this chat.
+- Do not pretend to have user data unless it was actually loaded for this request.
+- If Strategy data is present, use it carefully and only reference values that appear in Current Strategy Data.
+- If a Strategy field is missing, unavailable, or not shown in Current Strategy Data, say you do not have that specific Strategy data yet and then give general guidance.
+- If the user asks what they should do next, use Next Incomplete Major Step first when Strategy data is available.
+- If the user asks what pages to build first, use Mapped Pages or Identified Content Gaps when available.
 - If you are unsure, say so clearly and still give the closest useful answer.`;
 }
 
@@ -520,16 +867,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    await getUidFromRequest(req);
+   const uid = await getUidFromRequest(req);
 
     const message = cleanText(req.body?.message);
     const moduleId = cleanText(req.body?.moduleId);
     const moduleLabel = cleanText(req.body?.moduleLabel);
     const routePath = cleanText(req.body?.routePath);
     const pageLabel = cleanText(req.body?.pageLabel);
-    const workflowStep = cleanText(req.body?.workflowStep);
+const workflowStep = cleanText(req.body?.workflowStep);
+const websiteId = cleanText(req.body?.websiteId);
 
-    if (!message) {
+if (!message) {
       return res.status(400).json({ error: "Message is required." });
     }
 
@@ -556,6 +904,24 @@ export default async function handler(req, res) {
       workflowStep,
     });
 
+    let strategyData = null;
+
+    if (
+      websiteId &&
+      (
+        moduleId === "strategy" ||
+        routePath === "/seo/strategy" ||
+        routePath.startsWith("/seo/strategy/")
+      )
+    ) {
+      try {
+        strategyData = await loadStrategyAdvisorContext({ uid, websiteId });
+      } catch (strategyError) {
+        console.error("advisor strategy context error", strategyError);
+        strategyData = null;
+      }
+    }
+
     const system = buildSystemPrompt({
       moduleId,
       moduleLabel,
@@ -563,6 +929,7 @@ export default async function handler(req, res) {
       pageLabel,
       workflowStep,
       pageFields,
+      strategyData,
     });
 
     const reply = await callOpenAI({ system, user: message });
