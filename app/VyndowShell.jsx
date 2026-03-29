@@ -708,52 +708,8 @@ export default function VyndowShell({ activeModule, children }) {
                   </div>
                 </div>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: 8,
-                    }}
-                  >
-                    {advisorSuggestions.map((chip) => (
-                      <button
-                        key={chip}
-                        type="button"
-                        style={{
-                          border: "1px solid rgba(30,102,255,0.16)",
-                          background: "rgba(30,102,255,0.06)",
-                          color: "#1e40af",
-                          borderRadius: 999,
-                          padding: "8px 12px",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: "default",
-                        }}
-                      >
-                        {chip}
-                      </button>
-                    ))}
-                  </div>
 
-                  <div
-                    style={{
-                      minHeight: 180,
-                      border: "1px dashed rgba(15,23,42,0.12)",
-                      borderRadius: 14,
-                      background: "#f8fafc",
-                      padding: 14,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      textAlign: "center",
-                      color: "#6b7280",
-                      fontSize: 13,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    Conversation area preview. Live advisor answers will appear here in the next stage.
 </div>
-</div>,
 
 <div
   style={{
