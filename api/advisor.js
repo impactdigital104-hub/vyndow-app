@@ -582,160 +582,40 @@ function isOrganicRelated({
   pageLabel,
   workflowStep,
 }) {
+
   const text = cleanText(message).toLowerCase();
   if (!text) return false;
 
-  const directKeywords = [
-    "seo",
-    "geo",
-    "ai search",
-    "organic",
-    "backlink",
-    "backlinks",
-    "link building",
-    "blog",
-    "blogs",
-    "content",
-    "content strategy",
-    "topical authority",
-    "keyword",
-    "keywords",
-    "cluster",
-    "pillar",
-    "schema",
-    "meta title",
-    "meta description",
-    "search console",
-    "ctr",
-    "rankings",
-    "impressions",
-    "clicks",
-    "serp",
-    "authority",
-    "bam",
-    "site structure",
-    "page optimization",
-    "on-page",
-    "technical seo",
-    "crawl",
-    "indexing",
-    "google",
-    "chatgpt",
-    "ai overview",
-    "organic growth",
-    "content gap",
-    "anchor text",
-    "internal link",
-    "business profile",
-    "page mapping",
-    "blueprint",
-    "authority plan",
-    "performance report",
-  ];
-
-  if (directKeywords.some((word) => text.includes(word))) {
-    return true;
-  }
-
-  const workflowHelpPhrases = [
-    "this page",
-    "this step",
-    "this workflow",
-    "this field",
-    "this section",
-    "on this page",
-    "on this step",
-    "help me do this",
-    "help me complete this",
-    "what does this page help me do",
-    "what am i supposed to do here",
-    "how do i use this page",
-    "how do i complete this step",
-    "what should i do next",
-    "what should i fill",
-    "what should i write",
-    "what do i enter",
-    "what do i put",
-    "what is this field asking for",
-    "what goes here",
-    "how should i complete this page",
-    "what happens after this step",
-    "what happens next",
-  ];
-
-  if (workflowHelpPhrases.some((phrase) => text.includes(phrase))) {
-    return true;
-  }
-
-  const workflowFieldWords = [
-    "fill",
-    "write",
-    "enter",
-    "put",
-    "field",
-    "form",
-    "section",
-    "step",
-    "page",
-    "workflow",
-    "profile",
-    "url",
-    "competitor",
-    "business",
-    "audience",
-    "industry",
-    "website",
-    "company name",
-    "description",
-  ];
-
-  const contextText = [moduleId, moduleLabel, routePath, pageLabel, workflowStep]
-    .map((item) => cleanText(item).toLowerCase())
-    .filter(Boolean)
-    .join(" ");
-
-  const organicContextWords = [
-    "strategy",
-    "seo",
-    "geo",
-    "backlink",
-    "authority",
-    "intelligence",
-    "business profile",
-    "keyword architecture",
-    "keyword mapping",
-    "on-page optimization blueprint",
-    "authority growth plan",
-    "search console",
-    "blog",
-    "content",
-  ];
-
-  const looksLikeWorkflowQuestion =
-    workflowFieldWords.some((word) => text.includes(word)) &&
-    organicContextWords.some((word) => contextText.includes(word));
-
-  if (looksLikeWorkflowQuestion) {
-    return true;
-  }
-
   const unrelatedPatterns = [
     "cold email",
+    "sales email",
+    "outreach email",
     "facebook ads",
     "meta ads",
+    "instagram ads",
     "google ads campaign",
+    "ppc campaign",
+    "performance marketing campaign",
     "stock should i buy",
     "buy this stock",
+    "stock market",
     "legal advice",
     "financial advice",
     "medical advice",
+    "contract draft",
+    "payroll",
+    "invoice format",
+    "resume rewrite",
+    "cover letter",
+    "wedding speech"
   ];
 
   if (unrelatedPatterns.some((phrase) => text.includes(phrase))) {
     return false;
   }
 
-  return false;
+  return true;
+
 }
 
 function moduleGuidance(moduleId) {
