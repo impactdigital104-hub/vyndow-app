@@ -752,11 +752,11 @@ export default function VyndowShell({ activeModule, children }) {
                     }}
                   >
                     Conversation area preview. Live advisor answers will appear here in the next stage.
-                  </div>
-                </div>
+</div>
+</div>,
 
-                <div
-                  style={{
+<div
+  style={{
                     padding: 16,
                     borderTop: "1px solid rgba(15,23,42,0.08)",
                     display: "flex",
