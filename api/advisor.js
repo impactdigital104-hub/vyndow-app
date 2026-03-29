@@ -13,11 +13,18 @@ function cleanText(value) {
   return String(value || "").trim();
 }
 
-function isOrganicRelated(message) {
+function isOrganicRelated({
+  message,
+  moduleId,
+  moduleLabel,
+  routePath,
+  pageLabel,
+  workflowStep,
+}) {
   const text = cleanText(message).toLowerCase();
   if (!text) return false;
 
-  const keywords = [
+  const directKeywords = [
     "seo",
     "geo",
     "ai search",
@@ -58,9 +65,81 @@ function isOrganicRelated(message) {
     "content gap",
     "anchor text",
     "internal link",
+    "business profile",
+    "page mapping",
+    "blueprint",
+    "authority plan",
+    "performance report",
   ];
 
-  return keywords.some((word) => text.includes(word));
+  if (directKeywords.some((word) => text.includes(word))) {
+    return true;
+  }
+
+  const ambiguousButValidPhrases = [
+    "this page",
+    "this step",
+    "on this page",
+    "on this step",
+    "help me do this",
+    "help me complete this",
+    "what does this page help me do",
+    "what am i supposed to do here",
+    "how do i use this page",
+    "how do i complete this step",
+    "what should i do next",
+  ];
+
+  if (ambiguousButValidPhrases.some((phrase) => text.includes(phrase))) {
+    return true;
+  }
+
+  const contextText = [
+    moduleId,
+    moduleLabel,
+    routePath,
+    pageLabel,
+    workflowStep,
+  ]
+    .map((item) => cleanText(item).toLowerCase())
+    .filter(Boolean)
+    .join(" ");
+
+  if (!contextText) return false;
+
+  const contextualKeywords = [
+    "strategy",
+    "seo",
+    "geo",
+    "backlink",
+    "authority",
+    "intelligence",
+    "business profile",
+    "keyword architecture",
+    "keyword mapping",
+    "on-page optimization blueprint",
+    "authority growth plan",
+    "search console",
+    "blog",
+    "content",
+  ];
+
+  const userLooksWorkflowRelated =
+    text.includes("complete") ||
+    text.includes("explain") ||
+    text.includes("help") ||
+    text.includes("what does") ||
+    text.includes("how do i") ||
+    text.includes("what should i do");
+
+  if (
+    userLooksWorkflowRelated &&
+    contextualKeywords.some((word) => contextText.includes(word))
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function moduleGuidance(moduleId) {
@@ -80,26 +159,38 @@ function moduleGuidance(moduleId) {
   return map[moduleId] || "Prioritize practical organic growth guidance.";
 }
 
-function buildSystemPrompt({ moduleId, moduleLabel }) {
+function buildSystemPrompt({
+  moduleId,
+  moduleLabel,
+  routePath,
+  pageLabel,
+  workflowStep,
+}) {
   return `You are Vyndow Organic Advisor, a specialist advisor inside the Vyndow platform.
 
 Your role:
 - Explain Vyndow Organic outputs clearly.
 - Act like a senior SEO / GEO / backlinks / content / analytics advisor.
+- Use the user's current Vyndow context to understand what they are trying to do inside the product.
+- Explain platform outputs and guide the user within the current workflow.
 
-Current module:
-- Module ID: ${cleanText(moduleId) || "unknown"}
-- Module label: ${cleanText(moduleLabel) || "Vyndow Organic"}
-- Module guidance: ${moduleGuidance(moduleId)}
+Current Vyndow context:
+- Current Vyndow Module: ${cleanText(moduleLabel) || "Vyndow Organic"}
+- Current Module ID: ${cleanText(moduleId) || "unknown"}
+- Current Page: ${cleanText(pageLabel) || "Unknown page"}
+- Current Route: ${cleanText(routePath) || "Unknown route"}
+- Current Workflow Step: ${cleanText(workflowStep) || "Not available"}
+- Module Guidance: ${moduleGuidance(moduleId)}
 
 Scope guidance:
 You should primarily help with topics related to SEO, GEO, backlinks, content strategy, blog writing, topical authority, keyword architecture, organic performance analytics, Search Console interpretation, and organic growth strategy.
 
 Guardrail behavior:
 - If the user's question is reasonably related to organic growth, answer helpfully.
+- If the user's question refers to "this page", "this step", "this workflow", or "what should I do here", use the current page and workflow context first.
 - If the user's question is outside organic growth, politely redirect them back to organic growth topics.
 - Do not answer unrelated requests like sales emails, legal advice, finance, or general business writing.
-- if the user question is related to competative tools, do not belittle the tools but talk of the advantage of Vyndow over competition tools.
+- If the user asks about competitive tools, do not belittle them. Explain Vyndow's advantage respectfully.
 
 Tone and style:
 - Practical
@@ -158,19 +249,38 @@ export default async function handler(req, res) {
     const message = cleanText(req.body?.message);
     const moduleId = cleanText(req.body?.moduleId);
     const moduleLabel = cleanText(req.body?.moduleLabel);
+    const routePath = cleanText(req.body?.routePath);
+    const pageLabel = cleanText(req.body?.pageLabel);
+    const workflowStep = cleanText(req.body?.workflowStep);
 
     if (!message) {
       return res.status(400).json({ error: "Message is required." });
     }
 
-    if (!isOrganicRelated(message)) {
+    if (
+      !isOrganicRelated({
+        message,
+        moduleId,
+        moduleLabel,
+        routePath,
+        pageLabel,
+        workflowStep,
+      })
+    ) {
       return res.status(200).json({
         reply:
-          "That sounds outside my skill. I am senior experienced organic growth expert. I can help with SEO, GEO, backlinks, blog strategy, keyword architecture, Search Console interpretation, and organic growth decisions inside Vyndow.",
+          "That sounds outside my scope. I can help with SEO, GEO, backlinks, blog strategy, keyword architecture, Search Console interpretation, and organic growth decisions inside Vyndow.",
       });
     }
 
-    const system = buildSystemPrompt({ moduleId, moduleLabel });
+    const system = buildSystemPrompt({
+      moduleId,
+      moduleLabel,
+      routePath,
+      pageLabel,
+      workflowStep,
+    });
+
     const reply = await callOpenAI({ system, user: message });
 
     return res.status(200).json({
