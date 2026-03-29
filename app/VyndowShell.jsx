@@ -1,9 +1,11 @@
 // app/VyndowShell.jsx
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "./firebaseClient";
+
+const ADVISOR_FALLBACK_MESSAGE = "I’m having trouble responding right now. Please try again.";
 
 export default function VyndowShell({ activeModule, children }) {
   const year = new Date().getFullYear();
@@ -84,8 +86,18 @@ export default function VyndowShell({ activeModule, children }) {
     return suggestionMap[advisorModule?.id] || [];
   }, [advisorModule]);
 
+  const [advisorMessages, setAdvisorMessages] = useState([]);
+  const [advisorInput, setAdvisorInput] = useState("");
+  const [advisorLoading, setAdvisorLoading] = useState(false);
+  const conversationScrollRef = useRef(null);
   const [organicOpen, setOrganicOpen] = useState(false);
   const organicExpanded = organicOpen || isOrganicRoute;
+
+  useEffect(() => {
+    if (conversationScrollRef.current) {
+      conversationScrollRef.current.scrollTop = conversationScrollRef.current.scrollHeight;
+    }
+  }, [advisorMessages, advisorLoading]);
 
   function closeMobileSidebar() {
     setIsMobileOpen(false);
@@ -93,6 +105,66 @@ export default function VyndowShell({ activeModule, children }) {
 
   function openAdvisorPanel() {
     setIsAdvisorOpen(true);
+  }
+
+  async function sendAdvisorMessage(rawMessage) {
+    const content = String(rawMessage || "").trim();
+    if (!content || advisorLoading) return;
+
+    const nextUserMessage = { role: "user", content };
+    setAdvisorMessages((prev) => [...prev, nextUserMessage]);
+    setAdvisorInput("");
+    setAdvisorLoading(true);
+
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Missing user token.");
+
+      const response = await fetch("/api/advisor", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          message: content,
+          moduleId: advisorModule.id,
+          moduleLabel: advisorModule.label,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Advisor request failed.");
+      }
+
+      const reply = String(data?.reply || "").trim() || ADVISOR_FALLBACK_MESSAGE;
+      setAdvisorMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    } catch (error) {
+      console.error("advisor send failed", error);
+      setAdvisorMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: ADVISOR_FALLBACK_MESSAGE },
+      ]);
+    } finally {
+      setAdvisorLoading(false);
+    }
+  }
+
+  async function handleAdvisorChipClick(chip) {
+    await sendAdvisorMessage(chip);
+  }
+
+  async function handleAdvisorSubmit() {
+    await sendAdvisorMessage(advisorInput);
+  }
+
+  async function handleAdvisorInputKeyDown(event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      await handleAdvisorSubmit();
+    }
   }
 
   async function handleLogout() {
@@ -499,6 +571,7 @@ export default function VyndowShell({ activeModule, children }) {
                 </div>
 
                 <div
+                  ref={conversationScrollRef}
                   style={{
                     padding: 16,
                     overflowY: "auto",
@@ -507,16 +580,133 @@ export default function VyndowShell({ activeModule, children }) {
                     gap: 14,
                   }}
                 >
+                  {advisorMessages.length === 0 ? (
+                    <>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          lineHeight: 1.6,
+                          color: "#374151",
+                        }}
+                      >
+                        Welcome to the Vyndow Organic Advisor. I can help explain this module,
+                        guide you on what things mean, and point you to the next useful step.
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 8,
+                        }}
+                      >
+                        {advisorSuggestions.map((chip) => (
+                          <button
+                            key={chip}
+                            type="button"
+                            onClick={() => handleAdvisorChipClick(chip)}
+                            disabled={advisorLoading}
+                            style={{
+                              border: "1px solid rgba(30,102,255,0.16)",
+                              background: "rgba(30,102,255,0.06)",
+                              color: "#1e40af",
+                              borderRadius: 999,
+                              padding: "8px 12px",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: advisorLoading ? "not-allowed" : "pointer",
+                              opacity: advisorLoading ? 0.7 : 1,
+                            }}
+                          >
+                            {chip}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
+
                   <div
                     style={{
-                      fontSize: 14,
-                      lineHeight: 1.6,
-                      color: "#374151",
+                      minHeight: 180,
+                      border: "1px solid rgba(15,23,42,0.08)",
+                      borderRadius: 14,
+                      background: "#f8fafc",
+                      padding: 14,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
                     }}
                   >
-                    Welcome to the Vyndow Organic Advisor. I can help explain this module,
-                    guide you on what things mean, and point you to the next useful step.
+                    {advisorMessages.length === 0 ? (
+                      <div
+                        style={{
+                          textAlign: "center",
+                          color: "#6b7280",
+                          fontSize: 13,
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        Start with a suggested question or type your own organic growth question below.
+                      </div>
+                    ) : (
+                      advisorMessages.map((message, index) => {
+                        const isUser = message.role === "user";
+
+                        return (
+                          <div
+                            key={`${message.role}-${index}`}
+                            style={{
+                              display: "flex",
+                              justifyContent: isUser ? "flex-end" : "flex-start",
+                            }}
+                          >
+                            <div
+                              style={{
+                                maxWidth: "88%",
+                                borderRadius: 14,
+                                padding: "10px 12px",
+                                fontSize: 13,
+                                lineHeight: 1.6,
+                                whiteSpace: "pre-wrap",
+                                background: isUser ? "#1e66ff" : "#ffffff",
+                                color: isUser ? "#ffffff" : "#111827",
+                                border: isUser ? "none" : "1px solid rgba(15,23,42,0.08)",
+                                boxShadow: isUser ? "none" : "0 4px 14px rgba(15,23,42,0.05)",
+                              }}
+                            >
+                              {message.content}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+
+                    {advisorLoading && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "flex-start",
+                        }}
+                      >
+                        <div
+                          style={{
+                            maxWidth: "88%",
+                            borderRadius: 14,
+                            padding: "10px 12px",
+                            fontSize: 13,
+                            lineHeight: 1.6,
+                            background: "#ffffff",
+                            color: "#6b7280",
+                            border: "1px solid rgba(15,23,42,0.08)",
+                            boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
+                          }}
+                        >
+                          Thinking…
+                        </div>
+                      </div>
+                    )}
                   </div>
+                </div>
 
                   <div
                     style={{
@@ -583,7 +773,10 @@ export default function VyndowShell({ activeModule, children }) {
                     <input
                       type="text"
                       placeholder="Ask about this module..."
-                      disabled
+                      value={advisorInput}
+                      onChange={(event) => setAdvisorInput(event.target.value)}
+                      onKeyDown={handleAdvisorInputKeyDown}
+                      disabled={advisorLoading}
                       style={{
                         flex: 1,
                         height: 42,
@@ -592,21 +785,22 @@ export default function VyndowShell({ activeModule, children }) {
                         padding: "0 12px",
                         fontSize: 14,
                         color: "#111827",
-                        background: "#f9fafb",
+                        background: advisorLoading ? "#f3f4f6" : "#ffffff",
                       }}
                     />
                     <button
                       type="button"
-                      disabled
+                      onClick={handleAdvisorSubmit}
+                      disabled={advisorLoading || !advisorInput.trim()}
                       style={{
                         height: 42,
                         border: "none",
                         borderRadius: 12,
-                        background: "#dbeafe",
-                        color: "#1e3a8a",
+                        background: advisorLoading || !advisorInput.trim() ? "#dbeafe" : "#1e66ff",
+                        color: advisorLoading || !advisorInput.trim() ? "#1e3a8a" : "#ffffff",
                         padding: "0 14px",
                         fontWeight: 800,
-                        cursor: "not-allowed",
+                        cursor: advisorLoading || !advisorInput.trim() ? "not-allowed" : "pointer",
                       }}
                     >
                       Send
@@ -619,7 +813,7 @@ export default function VyndowShell({ activeModule, children }) {
                       color: "#6b7280",
                     }}
                   >
-                    Advisor UI preview — live intelligence comes in the next stage.
+                    AI-generated advice. Always verify important decisions.
                   </div>
                 </div>
               </div>
