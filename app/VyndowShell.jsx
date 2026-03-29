@@ -198,6 +198,11 @@ export default function VyndowShell({ activeModule, children }) {
 
       const workflowStep = isSeoStrategyRoute ? getStrategyWorkflowStepFromDom() : null;
 
+      const selectedWebsiteId =
+        typeof window !== "undefined"
+          ? String(window.localStorage.getItem("vyndow_selectedWebsiteId") || "").trim()
+          : "";
+
       const response = await fetch("/api/advisor", {
         method: "POST",
         headers: {
@@ -211,6 +216,7 @@ export default function VyndowShell({ activeModule, children }) {
           routePath: pathname,
           pageLabel,
           workflowStep,
+          websiteId: selectedWebsiteId,
         }),
       });
 
