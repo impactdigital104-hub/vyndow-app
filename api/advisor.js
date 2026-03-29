@@ -255,6 +255,9 @@ async function loadStrategyAdvisorContext({ uid, websiteId }) {
   });
 
   const totalShortlistedKeywords = safeArr(keywordClusteringView.shortlist).length;
+  const keywordShortlist = safeArr(keywordClusteringView.shortlist)
+  .map((kw) => cleanText(kw?.keyword || kw))
+  .filter(Boolean);
   const blueprintPageCount = Object.keys(safeObj(pageOptimization.pages)).length;
 
   return {
@@ -266,6 +269,7 @@ async function loadStrategyAdvisorContext({ uid, websiteId }) {
     targetAudience: extractTargetAudience({ businessProfile, businessContext }),
     pillars,
     totalShortlistedKeywords,
+    keywordShortlist,
     mappedPages,
     gapPages,
     optimizedPages,
@@ -312,6 +316,13 @@ function formatStrategyDataForPrompt(strategyData) {
     lines.push("");
     lines.push(`Keyword Shortlist Count: ${strategyData.totalShortlistedKeywords}`);
   }
+  if (strategyData.keywordShortlist && strategyData.keywordShortlist.length) {
+  lines.push("");
+  lines.push("Keyword Shortlist:");
+  for (const kw of strategyData.keywordShortlist.slice(0, 40)) {
+    lines.push(`- ${kw}`);
+  }
+}
 
   if (strategyData.mappedPages.length) {
     lines.push("");
