@@ -6,6 +6,82 @@ import { signOut } from "firebase/auth";
 import { auth } from "./firebaseClient";
 
 const ADVISOR_FALLBACK_MESSAGE = "I’m having trouble responding right now. Please try again.";
+function getAdvisorPageLabel(pathname) {
+  const path = String(pathname || "").trim();
+
+  if (path === "/seo/strategy" || path.startsWith("/seo/strategy/")) {
+    return "Strategy";
+  }
+  if (path === "/seo/backlinks/strategy" || path.startsWith("/seo/backlinks/strategy/")) {
+    return "Backlink Strategy";
+  }
+  if (path === "/seo/backlinks/plan" || path.startsWith("/seo/backlinks/plan/")) {
+    return "Backlink Plan";
+  }
+  if (path === "/seo/backlinks" || path.startsWith("/seo/backlinks/")) {
+    return "Backlink Authority";
+  }
+  if (path === "/seo" || path.startsWith("/seo/")) {
+    return "SEO Content";
+  }
+  if (path === "/geo/runs" || path.startsWith("/geo/runs/")) {
+    return "GEO Run";
+  }
+  if (path === "/geo" || path.startsWith("/geo/")) {
+    return "GEO Visibility";
+  }
+  if (
+    path === "/growth/intelligence/history" ||
+    path.startsWith("/growth/intelligence/history/")
+  ) {
+    return "Organic Growth Intelligence History";
+  }
+  if (
+    path === "/growth/intelligence/report" ||
+    path.startsWith("/growth/intelligence/report/")
+  ) {
+    return "Organic Growth Intelligence Report";
+  }
+  if (
+    path === "/growth/intelligence" ||
+    path.startsWith("/growth/intelligence/")
+  ) {
+    return "Organic Growth Intelligence";
+  }
+
+  return "Vyndow Organic";
+}
+
+function getStrategyWorkflowStepFromDom() {
+  if (typeof document === "undefined") return null;
+
+  const expandedHeader = Array.from(
+    document.querySelectorAll('[aria-expanded="true"]')
+  ).find((node) => {
+    const text = String(node?.textContent || "").replace(/\s+/g, " ").trim();
+    return text.includes("Step 1:") || text.includes("Step 2:") || text.includes("Step 3:");
+  });
+
+  if (!expandedHeader) return null;
+
+  const text = String(expandedHeader.textContent || "").replace(/\s+/g, " ").trim();
+
+  const matches = [
+    ["Business Profile", "business profile"],
+    ["URL Page Selection", "url page selection"],
+    ["On-Page SEO Audit Diagnostics", "on-page seo audit diagnostics"],
+    ["On-Page Audit Report", "on-page audit report"],
+    ["Keyword Research", "keyword research"],
+    ["Business Profiling", "business profiling"],
+    ["SEO Pillars and Content Cluster Architecture", "seo pillars and content cluster architecture"],
+    ["Keyword Mapping", "keyword mapping"],
+    ["On-Page Optimization Blueprint", "on-page optimization blueprint"],
+    ["Authority Growth Plan (90-Day Blueprint)", "authority growth plan"],
+  ];
+
+  const found = matches.find(([label]) => text.includes(label));
+  return found ? found[1] : null;
+}
 
 export default function VyndowShell({ activeModule, children }) {
   const year = new Date().getFullYear();
@@ -53,7 +129,7 @@ export default function VyndowShell({ activeModule, children }) {
     }
     return { id: "unknown", label: "Vyndow Organic" };
   }, [isSeoStrategyRoute, isSeoRoute, isGeoRoute, isBacklinksRoute, isOgiRoute]);
-
+  const pageLabel = useMemo(() => getAdvisorPageLabel(pathname), [pathname]);
   const advisorSuggestions = useMemo(() => {
     const suggestionMap = {
       strategy: [
@@ -120,6 +196,8 @@ export default function VyndowShell({ activeModule, children }) {
       const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) throw new Error("Missing user token.");
 
+      const workflowStep = isSeoStrategyRoute ? getStrategyWorkflowStepFromDom() : null;
+
       const response = await fetch("/api/advisor", {
         method: "POST",
         headers: {
@@ -130,6 +208,9 @@ export default function VyndowShell({ activeModule, children }) {
           message: content,
           moduleId: advisorModule.id,
           moduleLabel: advisorModule.label,
+          routePath: pathname,
+          pageLabel,
+          workflowStep,
         }),
       });
 
