@@ -705,14 +705,11 @@ export default function VyndowShell({ activeModule, children }) {
                         </div>
                       </div>
                     )}
-                  </div>
+                                    </div>
                 </div>
 
-
-</div>
-
-<div
-  style={{
+                <div
+                  style={{
                     padding: 16,
                     borderTop: "1px solid rgba(15,23,42,0.08)",
                     display: "flex",
