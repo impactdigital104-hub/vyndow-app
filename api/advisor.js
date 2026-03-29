@@ -13,6 +13,216 @@ function cleanText(value) {
   return String(value || "").trim();
 }
 
+function getPageFieldSchema({ moduleId, routePath, pageLabel, workflowStep }) {
+  const route = cleanText(routePath);
+  const page = cleanText(pageLabel).toLowerCase();
+  const step = cleanText(workflowStep).toLowerCase();
+  const module = cleanText(moduleId).toLowerCase();
+
+  if (
+    module === "strategy" ||
+    route === "/seo/strategy" ||
+    route.startsWith("/seo/strategy/") ||
+    page === "strategy"
+  ) {
+    const baseFields = [
+      {
+        name: "businessDescription",
+        label: "Business Description",
+        purpose:
+          "Helps Vyndow understand what the business offers, how it is positioned, and what kind of messaging should shape the organic strategy.",
+        whatToEnter:
+          "Enter a short plain-English description of the business, its services or products, who it serves, and what makes it different.",
+      },
+      {
+        name: "targetAudience",
+        label: "Target Audience",
+        purpose:
+          "Helps Vyndow understand who the business wants to attract so strategy recommendations align with the right audience intent.",
+        whatToEnter:
+          "Enter the main customer types you want to reach, such as small business owners, local families, enterprise buyers, or students.",
+      },
+      {
+        name: "targetGeography",
+        label: "Target Geography",
+        purpose:
+          "Defines the location focus of the organic strategy so Vyndow can shape recommendations around the right market.",
+        whatToEnter:
+          "Enter the country, city, region, or service area you want to target in search.",
+      },
+      {
+        name: "competitorUrls",
+        label: "Competitor URLs",
+        purpose:
+          "Used by Vyndow to analyze competing websites for keyword coverage, topical focus, and organic opportunities.",
+        whatToEnter:
+          "Enter website URLs of real search competitors offering similar services, products, or content to a similar audience.",
+      },
+    ];
+
+    const businessProfileFields = [
+      {
+        name: "businessName",
+        label: "Business Name",
+        purpose:
+          "Helps Vyndow identify the brand it is building the strategy for.",
+        whatToEnter:
+          "Enter the actual business or brand name exactly as you want it reflected in strategy and content guidance.",
+      },
+      {
+        name: "websiteUrl",
+        label: "Website URL",
+        purpose:
+          "Tells Vyndow which website the strategy should be built around.",
+        whatToEnter:
+          "Enter the main website address for the business, usually the homepage domain.",
+      },
+      ...baseFields,
+    ];
+
+    if (step.includes("business profile")) {
+      return businessProfileFields;
+    }
+
+    return baseFields;
+  }
+
+  if (
+    module === "seo" ||
+    route === "/seo" ||
+    (route.startsWith("/seo/") && !route.startsWith("/seo/strategy") && !route.startsWith("/seo/backlinks"))
+  ) {
+    return [
+      {
+        name: "blogTopic",
+        label: "Blog Topic",
+        purpose:
+          "Defines the main topic the content piece should cover.",
+        whatToEnter:
+          "Enter the exact topic or angle you want the blog to focus on.",
+      },
+      {
+        name: "primaryKeyword",
+        label: "Primary Keyword",
+        purpose:
+          "Tells Vyndow the main search term the blog should target.",
+        whatToEnter:
+          "Enter the core keyword or phrase the blog should be optimized around.",
+      },
+      {
+        name: "brandVoice",
+        label: "Brand Voice",
+        purpose:
+          "Helps Vyndow shape the tone and style of the content.",
+        whatToEnter:
+          "Enter the tone you want, such as professional, friendly, expert, warm, or authoritative.",
+      },
+    ];
+  }
+
+  if (module === "geo" || route === "/geo" || route.startsWith("/geo/")) {
+    return [
+      {
+        name: "targetPage",
+        label: "Target Page",
+        purpose:
+          "Tells Vyndow which page is being prepared for stronger AI-search visibility.",
+        whatToEnter:
+          "Enter or select the page you want to improve for GEO guidance.",
+      },
+      {
+        name: "answerFocus",
+        label: "Answer Focus",
+        purpose:
+          "Helps Vyndow understand what type of AI answer coverage the page should support.",
+        whatToEnter:
+          "Enter the topic, question theme, or intent the page should answer clearly.",
+      },
+      {
+        name: "geoObjective",
+        label: "GEO Objective",
+        purpose:
+          "Defines the outcome Vyndow should optimize for in AI-driven search visibility.",
+        whatToEnter:
+          "Enter the result you want, such as clearer AI answers, stronger topical coverage, or better citation readiness.",
+      },
+    ];
+  }
+
+  if (
+    module === "backlinks" ||
+    route === "/seo/backlinks" ||
+    route.startsWith("/seo/backlinks/")
+  ) {
+    return [
+      {
+        name: "competitorDomain",
+        label: "Competitor Domain",
+        purpose:
+          "Helps Vyndow compare backlink profiles against relevant competitors.",
+        whatToEnter:
+          "Enter a competing domain that targets similar search demand in your market.",
+      },
+      {
+        name: "targetWebsite",
+        label: "Target Website",
+        purpose:
+          "Identifies the website whose backlink authority is being improved.",
+        whatToEnter:
+          "Enter the main website or domain you want backlink recommendations for.",
+      },
+      {
+        name: "backlinkObjective",
+        label: "Backlink Objective",
+        purpose:
+          "Clarifies the type of authority-building outcome the user wants.",
+        whatToEnter:
+          "Enter the main goal, such as closing a backlink gap, improving authority, or finding outreach targets.",
+      },
+    ];
+  }
+
+  if (
+    module === "ogi" ||
+    route === "/growth/intelligence" ||
+    route.startsWith("/growth/intelligence/")
+  ) {
+    return [
+      {
+        name: "reportSelection",
+        label: "Report Selection",
+        purpose:
+          "Determines which organic performance report the user is viewing or generating.",
+        whatToEnter:
+          "Choose the report or website context you want Vyndow to analyze.",
+      },
+      {
+        name: "analysisScope",
+        label: "Analysis Scope",
+        purpose:
+          "Defines which part of organic performance the report should focus on.",
+        whatToEnter:
+          "Enter or select the area you want insight on, such as traffic trends, ranking gaps, or CTR issues.",
+      },
+    ];
+  }
+
+  return [];
+}
+
+function formatPageFieldsForPrompt(pageFields) {
+  if (!pageFields.length) {
+    return "No specific page fields are available for this page yet.";
+  }
+
+  return pageFields
+    .map(
+      (field) =>
+        `- ${field.label}\n  Purpose: ${field.purpose}\n  What the user should enter: ${field.whatToEnter}`
+    )
+    .join("\n");
+}
+
 function isOrganicRelated({
   message,
   moduleId,
@@ -191,7 +401,10 @@ function moduleGuidance(moduleId) {
       "Prioritize Search Console interpretation, traffic trends, CTR/ranking analysis, SEO gaps, next actions, and helping the user use the current organic intelligence workflow.",
   };
 
-  return map[moduleId] || "Prioritize practical organic growth guidance and help the user complete the current Vyndow workflow.";
+  return (
+    map[moduleId] ||
+    "Prioritize practical organic growth guidance and help the user complete the current Vyndow workflow."
+  );
 }
 
 function buildSystemPrompt({
@@ -200,6 +413,7 @@ function buildSystemPrompt({
   routePath,
   pageLabel,
   workflowStep,
+  pageFields,
 }) {
   return `You are Vyndow Organic Advisor, a specialist advisor inside the Vyndow platform.
 
@@ -213,6 +427,7 @@ Your role:
 - Use the user's current Vyndow context to understand what they are trying to do inside the product.
 - Explain platform outputs and guide the user within the current workflow.
 - Treat current-page help, field help, section help, and step help as in scope when they relate to the active Vyndow Organic page.
+- When a user asks about a field, explain what the field means, why Vyndow asks for it, and what type of information they should enter.
 
 Current Vyndow context:
 - Current Vyndow Module: ${cleanText(moduleLabel) || "Vyndow Organic"}
@@ -221,6 +436,9 @@ Current Vyndow context:
 - Current Route: ${cleanText(routePath) || "Unknown route"}
 - Current Workflow Step: ${cleanText(workflowStep) || "Not available"}
 - Module Guidance: ${moduleGuidance(moduleId)}
+
+Current Page Fields:
+${formatPageFieldsForPrompt(pageFields)}
 
 Scope guidance:
 You should answer questions if they are either:
@@ -233,8 +451,15 @@ Examples of valid workflow help:
 - what does this step want
 - how do I complete this page
 - what happens next in this workflow
-- what should I fill up in competitor url
+- what should I fill in competitor url
 - what should I write in business profile
+
+Field-aware behavior:
+- If the user asks about a page field, use the Current Page Fields list first.
+- Explain the field in plain English.
+- Explain why Vyndow uses that field.
+- Guide the user on the type of information to enter.
+- If the exact field is not listed, still answer using the nearest current-page context and stay practical.
 
 Guardrail behavior:
 - If the user's question is reasonably related to organic growth, answer helpfully.
@@ -324,12 +549,20 @@ export default async function handler(req, res) {
       });
     }
 
+    const pageFields = getPageFieldSchema({
+      moduleId,
+      routePath,
+      pageLabel,
+      workflowStep,
+    });
+
     const system = buildSystemPrompt({
       moduleId,
       moduleLabel,
       routePath,
       pageLabel,
       workflowStep,
+      pageFields,
     });
 
     const reply = await callOpenAI({ system, user: message });
