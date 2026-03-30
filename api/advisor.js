@@ -278,7 +278,41 @@ async function loadStrategyAdvisorContext({ uid, websiteId }) {
     progress,
   };
 }
+function buildStrategyIntelligence(strategyData) {
 
+  if (!strategyData) return null;
+
+  const pillars = strategyData.pillars || [];
+  const mappedPages = strategyData.mappedPages || [];
+  const gapPages = strategyData.gapPages || [];
+  const keywordShortlist = strategyData.keywordShortlist || [];
+
+  const pillarMetrics = pillars.map(p => ({
+    name: p.name,
+    keywordCount: p.keywordCount || 0,
+    mappedPageCount: mappedPages.filter(page =>
+      page.toLowerCase().includes(p.name.toLowerCase())
+    ).length,
+    gapCount: gapPages.filter(page =>
+      page.toLowerCase().includes(p.name.toLowerCase())
+    ).length
+  }));
+
+  const strategyOverview = {
+    totalPillars: pillars.length,
+    totalKeywords: keywordShortlist.length,
+    mappedPageCount: mappedPages.length,
+    gapPageCount: gapPages.length,
+    blueprintPageCount: strategyData.blueprintPageCount || 0,
+    authorityPlanExists: strategyData.authorityPlanExists === true
+  };
+
+  return {
+    overview: strategyOverview,
+    pillars: pillarMetrics
+  };
+
+}
 function formatStrategyDataForPrompt(strategyData) {
   if (!strategyData) {
     return "Current Strategy Data: Not available for this request.";
@@ -646,6 +680,7 @@ function buildSystemPrompt({
   workflowStep,
   pageFields,
   strategyData,
+  strategyIntelligence,
 }) {
   return `You are Vyndow Organic Advisor, a specialist advisor inside the Vyndow platform.
 
@@ -673,6 +708,18 @@ Current Page Fields:
 ${formatPageFieldsForPrompt(pageFields)}
 
 ${formatStrategyDataForPrompt(strategyData)}
+Strategy Intelligence:
+
+Strategy Overview:
+Total Pillars: ${strategyIntelligence?.overview?.totalPillars || "unknown"}
+Total Keywords: ${strategyIntelligence?.overview?.totalKeywords || "unknown"}
+Mapped Pages: ${strategyIntelligence?.overview?.mappedPageCount || "unknown"}
+Content Gaps: ${strategyIntelligence?.overview?.gapPageCount || "unknown"}
+
+Pillar Strength:
+${(strategyIntelligence?.pillars || [])
+  .map(p => `- ${p.name}: ${p.keywordCount} keywords, ${p.mappedPageCount} mapped pages, ${p.gapCount} gaps`)
+  .join("\n")}
 
 Scope guidance:
 You should answer questions if they are either:
@@ -807,6 +854,7 @@ if (!message) {
     ) {
       try {
         strategyData = await loadStrategyAdvisorContext({ uid, websiteId });
+        const strategyIntelligence = buildStrategyIntelligence(strategyData);
       } catch (strategyError) {
         console.error("advisor strategy context error", strategyError);
         strategyData = null;
@@ -821,6 +869,7 @@ if (!message) {
       workflowStep,
       pageFields,
       strategyData,
+      strategyIntelligence,
     });
 
     const reply = await callOpenAI({ system, user: message });
