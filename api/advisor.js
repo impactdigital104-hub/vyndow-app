@@ -843,7 +843,7 @@ if (!message) {
     });
 
     let strategyData = null;
-
+let strategyIntelligence = null;
     if (
       websiteId &&
       (
@@ -854,7 +854,7 @@ if (!message) {
     ) {
       try {
         strategyData = await loadStrategyAdvisorContext({ uid, websiteId });
-        const strategyIntelligence = buildStrategyIntelligence(strategyData);
+       strategyIntelligence = buildStrategyIntelligence(strategyData);
       } catch (strategyError) {
         console.error("advisor strategy context error", strategyError);
         strategyData = null;
