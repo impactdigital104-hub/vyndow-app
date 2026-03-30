@@ -88,14 +88,24 @@ export default function VyndowShell({ activeModule, children }) {
    const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isAdvisorOpen, setIsAdvisorOpen] = useState(false);
   const pathname = usePathname() || "";
-    const advisorEnabled = process.env.NEXT_PUBLIC_ORGANIC_ADVISOR_ENABLED === "true";
-  const advisorAdminEmails = (process.env.NEXT_PUBLIC_ORGANIC_ADVISOR_ADMIN_EMAILS || "")
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
+  const advisorEnabled =
+    process.env.NEXT_PUBLIC_ORGANIC_ADVISOR_ENABLED === "true";
 
-  const currentUserEmail = auth.currentUser?.email?.toLowerCase?.() || "";
-  const advisorVisible = advisorEnabled || (!!currentUserEmail && advisorAdminEmails.includes(currentUserEmail));
+  const advisorTestEmail = String(
+    process.env.NEXT_PUBLIC_ADVISOR_TEST_EMAIL || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const currentUserEmail = String(auth.currentUser?.email || "")
+    .trim()
+    .toLowerCase();
+
+  const advisorVisible =
+    advisorEnabled &&
+    !!currentUserEmail &&
+    !!advisorTestEmail &&
+    currentUserEmail === advisorTestEmail;
 
   const isSeoStrategyRoute = pathname.startsWith("/seo/strategy");
   const isBacklinksRoute =
