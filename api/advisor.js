@@ -225,25 +225,64 @@ async function loadStrategyAdvisorContext({ uid, websiteId }) {
   const keywordClusteringView = pickKeywordClusteringView(keywordClustering);
   const keywordMappingView = pickKeywordMappingView(keywordMapping);
 
-  const pillars = safeArr(keywordClusteringView.pillars)
-    .map((pillar) => ({
-      name: cleanText(pillar?.name),
-      keywordCount: safeArr(pillar?.keywords).length,
-    }))
-    .filter((pillar) => pillar.name);
+const pillarDetails = safeArr(keywordClusteringView.pillars)
+  .map((pillar) => ({
+    name: cleanText(pillar?.name),
+    keywords: safeArr(pillar?.keywords)
+      .map((kw) => cleanText(kw?.keyword || kw?.term || kw))
+      .filter(Boolean),
+  }))
+  .filter((pillar) => pillar.name);
 
-  const mappedPages = safeArr(keywordMappingView.existingPages)
-    .map((page) => normalizePageLabel(page))
-    .filter(Boolean);
+const pillars = pillarDetails.map((pillar) => ({
+  name: pillar.name,
+  keywordCount: pillar.keywords.length,
+}));
 
-  const gapPages = safeArr(keywordMappingView.gapPages)
-    .map((page) => normalizePageLabel(page))
-    .filter(Boolean);
+const mappedPageDetails = safeArr(keywordMappingView.existingPages)
+  .map((page) => ({
+    label: normalizePageLabel(page),
+    primaryKeyword: cleanText(
+      page?.primaryKeyword || page?.keyword || page?.mainKeyword || page?.targetKeyword
+    ),
+    secondaryKeywords: safeArr(
+      page?.secondaryKeywords || page?.keywords || page?.supportingKeywords
+    )
+      .map((kw) => cleanText(kw?.keyword || kw))
+      .filter(Boolean),
+    url: cleanText(page?.url || page?.slug || page?.suggestedSlug),
+  }))
+  .filter((page) => page.label);
 
-  const optimizedPages = Object.values(safeObj(pageOptimization.pages))
-    .map((page) => firstNonEmpty(page?.title, page?.url, page?.primaryKeyword))
-    .filter(Boolean);
+const gapPageDetails = safeArr(keywordMappingView.gapPages)
+  .map((page) => ({
+    label: normalizePageLabel(page),
+    primaryKeyword: cleanText(
+      page?.primaryKeyword || page?.keyword || page?.mainKeyword || page?.targetKeyword
+    ),
+    secondaryKeywords: safeArr(
+      page?.secondaryKeywords || page?.keywords || page?.supportingKeywords
+    )
+      .map((kw) => cleanText(kw?.keyword || kw))
+      .filter(Boolean),
+    url: cleanText(page?.url || page?.slug || page?.suggestedSlug),
+  }))
+  .filter((page) => page.label);
 
+const mappedPages = mappedPageDetails.map((page) => page.label).filter(Boolean);
+
+const gapPages = gapPageDetails.map((page) => page.label).filter(Boolean);
+
+
+const blueprintPageDetails = Object.values(safeObj(pageOptimization.pages))
+  .map((page) => ({
+    label: firstNonEmpty(page?.title, page?.url, page?.primaryKeyword),
+    primaryKeyword: cleanText(page?.primaryKeyword || page?.keyword),
+    url: cleanText(page?.url),
+  }))
+  .filter((page) => page.label);
+
+const optimizedPages = blueprintPageDetails.map((page) => page.label).filter(Boolean);
   const progress = deriveStrategyProgress({
     businessProfile,
     pageDiscovery,
@@ -267,51 +306,146 @@ async function loadStrategyAdvisorContext({ uid, websiteId }) {
     websiteUrl: firstNonEmpty(websiteDoc.websiteUrl, websiteDoc.domain, websiteDoc.url, websiteDoc.siteUrl),
     industry: firstNonEmpty(businessProfile.industry, safeObj(websiteDoc.profile).industry),
     targetAudience: extractTargetAudience({ businessProfile, businessContext }),
-    pillars,
-    totalShortlistedKeywords,
-    keywordShortlist,
-    mappedPages,
-    gapPages,
-    optimizedPages,
-    blueprintPageCount,
+pillars,
+pillarDetails,
+totalShortlistedKeywords,
+keywordShortlist,
+mappedPages,
+mappedPageDetails,
+gapPages,
+gapPageDetails,
+optimizedPages,
+blueprintPageDetails,
     authorityPlanExists: Object.keys(authorityPlan).length > 0,
     progress,
   };
 }
 function buildStrategyIntelligence(strategyData) {
-
   if (!strategyData) return null;
 
-  const pillars = strategyData.pillars || [];
-  const mappedPages = strategyData.mappedPages || [];
-  const gapPages = strategyData.gapPages || [];
-  const keywordShortlist = strategyData.keywordShortlist || [];
+  const pillarDetails = safeArr(strategyData.pillarDetails);
+  const mappedPageDetails = safeArr(strategyData.mappedPageDetails);
+  const gapPageDetails = safeArr(strategyData.gapPageDetails);
+  const blueprintPageDetails = safeArr(strategyData.blueprintPageDetails);
+  const keywordShortlist = safeArr(strategyData.keywordShortlist);
 
-  const pillarMetrics = pillars.map(p => ({
-    name: p.name,
-    keywordCount: p.keywordCount || 0,
-    mappedPageCount: mappedPages.filter(page =>
-      page.toLowerCase().includes(p.name.toLowerCase())
-    ).length,
-    gapCount: gapPages.filter(page =>
-      page.toLowerCase().includes(p.name.toLowerCase())
-    ).length
-  }));
+  const normalize = (value) => cleanText(value).toLowerCase();
+
+  const blueprintKeywordSet = new Set(
+    blueprintPageDetails
+      .flatMap((page) => [page?.primaryKeyword, page?.label, page?.url])
+      .map(normalize)
+      .filter(Boolean)
+  );
+
+  const pageSummaries = mappedPageDetails.map((page) => {
+    const pageKeywords = [
+      cleanText(page?.primaryKeyword),
+      ...safeArr(page?.secondaryKeywords).map((kw) => cleanText(kw)),
+    ].filter(Boolean);
+
+    const relatedPillars = pillarDetails
+      .filter((pillar) =>
+        safeArr(pillar.keywords).some((kw) =>
+          pageKeywords.map(normalize).includes(normalize(kw))
+        )
+      )
+      .map((pillar) => pillar.name);
+
+    const hasBlueprint =
+      pageKeywords.some((kw) => blueprintKeywordSet.has(normalize(kw))) ||
+      blueprintKeywordSet.has(normalize(page?.label)) ||
+      blueprintKeywordSet.has(normalize(page?.url));
+
+    return {
+      label: page?.label || "",
+      primaryKeyword: cleanText(page?.primaryKeyword),
+      secondaryKeywords: safeArr(page?.secondaryKeywords).slice(0, 5),
+      relatedPillars,
+      hasBlueprint,
+    };
+  });
+
+  const pillarMetrics = pillarDetails.map((pillar) => {
+    const pillarKeywordSet = new Set(safeArr(pillar.keywords).map(normalize).filter(Boolean));
+
+    const mappedPageCount = pageSummaries.filter((page) =>
+      safeArr(page.relatedPillars).includes(pillar.name)
+    ).length;
+
+    const gapCount = gapPageDetails.filter((gap) => {
+      const gapKeywords = [
+        cleanText(gap?.primaryKeyword),
+        cleanText(gap?.label),
+        ...safeArr(gap?.secondaryKeywords),
+      ]
+        .map(normalize)
+        .filter(Boolean);
+
+      return gapKeywords.some((kw) => pillarKeywordSet.has(kw));
+    }).length;
+
+    const blueprintSupportCount = pageSummaries.filter(
+      (page) => safeArr(page.relatedPillars).includes(pillar.name) && page.hasBlueprint
+    ).length;
+
+    return {
+      name: pillar.name,
+      keywordCount: safeArr(pillar.keywords).length,
+      mappedPageCount,
+      gapCount,
+      blueprintSupportCount,
+    };
+  });
+
+  const mappedKeywordSet = new Set(
+    mappedPageDetails
+      .flatMap((page) => [page?.primaryKeyword, ...safeArr(page?.secondaryKeywords)])
+      .map(normalize)
+      .filter(Boolean)
+  );
+
+  const gapKeywordSet = new Set(
+    gapPageDetails
+      .flatMap((gap) => [gap?.primaryKeyword, gap?.label, ...safeArr(gap?.secondaryKeywords)])
+      .map(normalize)
+      .filter(Boolean)
+  );
+
+  const shortlistedKeywordSet = new Set(keywordShortlist.map(normalize).filter(Boolean));
+
+  const unmappedKeywords = [...shortlistedKeywordSet].filter((kw) => !mappedKeywordSet.has(kw));
 
   const strategyOverview = {
-    totalPillars: pillars.length,
+    totalPillars: pillarDetails.length,
     totalKeywords: keywordShortlist.length,
-    mappedPageCount: mappedPages.length,
-    gapPageCount: gapPages.length,
-    blueprintPageCount: strategyData.blueprintPageCount || 0,
-    authorityPlanExists: strategyData.authorityPlanExists === true
+    mappedPageCount: mappedPageDetails.length,
+    gapPageCount: gapPageDetails.length,
+    blueprintPageCount: safeArr(blueprintPageDetails).length,
+    authorityPlanExists: strategyData.authorityPlanExists === true,
   };
+
+  const weakestPillar =
+    pillarMetrics.length
+      ? [...pillarMetrics].sort((a, b) => {
+          const scoreA = a.mappedPageCount + a.blueprintSupportCount - a.gapCount;
+          const scoreB = b.mappedPageCount + b.blueprintSupportCount - b.gapCount;
+          return scoreA - scoreB;
+        })[0]
+      : null;
 
   return {
     overview: strategyOverview,
-    pillars: pillarMetrics
+    pillars: pillarMetrics,
+    pages: pageSummaries.slice(0, 20),
+    coverage: {
+      mappedKeywordCount: mappedKeywordSet.size,
+      unmappedKeywordCount: unmappedKeywords.length,
+      gapKeywordCount: gapKeywordSet.size,
+      unmappedKeywords: unmappedKeywords.slice(0, 20),
+    },
+    weakestPillar,
   };
-
 }
 function formatStrategyDataForPrompt(strategyData) {
   if (!strategyData) {
@@ -710,16 +844,39 @@ ${formatPageFieldsForPrompt(pageFields)}
 ${formatStrategyDataForPrompt(strategyData)}
 Strategy Intelligence:
 
+Strategy Intelligence:
+
 Strategy Overview:
 Total Pillars: ${strategyIntelligence?.overview?.totalPillars || "unknown"}
 Total Keywords: ${strategyIntelligence?.overview?.totalKeywords || "unknown"}
 Mapped Pages: ${strategyIntelligence?.overview?.mappedPageCount || "unknown"}
 Content Gaps: ${strategyIntelligence?.overview?.gapPageCount || "unknown"}
+Blueprint Pages: ${strategyIntelligence?.overview?.blueprintPageCount || "unknown"}
 
 Pillar Strength:
 ${(strategyIntelligence?.pillars || [])
-  .map(p => `- ${p.name}: ${p.keywordCount} keywords, ${p.mappedPageCount} mapped pages, ${p.gapCount} gaps`)
+  .map(
+    (p) =>
+      `- ${p.name}: ${p.keywordCount} keywords, ${p.mappedPageCount} mapped pages, ${p.gapCount} gaps, ${p.blueprintSupportCount} blueprint-supported pages`
+  )
   .join("\n")}
+
+Page Mapping Intelligence:
+${(strategyIntelligence?.pages || [])
+  .map(
+    (p) =>
+      `- ${p.label} | primary: ${p.primaryKeyword || "unknown"} | secondary: ${p.secondaryKeywords?.join(", ") || "none"} | pillars: ${p.relatedPillars?.join(", ") || "unknown"} | blueprint: ${p.hasBlueprint ? "yes" : "no"}`
+  )
+  .join("\n")}
+
+Keyword Coverage:
+Mapped Keywords: ${strategyIntelligence?.coverage?.mappedKeywordCount || "unknown"}
+Unmapped Keywords: ${strategyIntelligence?.coverage?.unmappedKeywordCount || "unknown"}
+Gap Keywords: ${strategyIntelligence?.coverage?.gapKeywordCount || "unknown"}
+Sample Unmapped Keywords: ${(strategyIntelligence?.coverage?.unmappedKeywords || []).join(", ") || "none"}
+
+Weakest Pillar Candidate:
+${strategyIntelligence?.weakestPillar?.name || "unknown"}
 
 Scope guidance:
 You should answer questions if they are either:
@@ -766,7 +923,10 @@ Response rules:
 - If Strategy data is present, use it carefully and only reference values that appear in Current Strategy Data.
 - If a Strategy field is missing, unavailable, or not shown in Current Strategy Data, say you do not have that specific Strategy data yet and then give general guidance.
 - If the user asks what they should do next, use Next Incomplete Major Step first when Strategy data is available.
-- If the user asks what pages to build first, use Mapped Pages or Identified Content Gaps when available.
+- If the user asks what pages to build first, use Strategy Intelligence first, especially content gaps, unmapped keywords, weaker pillars, and blueprint coverage.
+- If a keyword appears in the gap list but does not seem aligned with the business context, say so clearly and do not recommend it as a priority.
+- Do not treat every content gap as a good page idea. Prefer pages that fit the business, target audience, and existing strategy direction.
+- If pillar or page relationships are incomplete, say exactly that instead of pretending certainty.
 - If you are unsure, say so clearly and still give the closest useful answer.`;
 }
 
