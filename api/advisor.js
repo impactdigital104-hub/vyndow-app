@@ -298,6 +298,12 @@ const optimizedPages = blueprintPageDetails.map((page) => page.label).filter(Boo
   .map((kw) => cleanText(kw?.keyword || kw))
   .filter(Boolean);
   const blueprintPageCount = Object.keys(safeObj(pageOptimization.pages)).length;
+  const businessDescription = firstNonEmpty(
+  businessProfile.businessDescription,
+  businessProfile.description,
+  safeObj(businessContext.aiVersion).business_description,
+  safeObj(businessContext.finalVersion).businessDescription
+);
 
   return {
     effectiveUid,
@@ -305,6 +311,7 @@ const optimizedPages = blueprintPageDetails.map((page) => page.label).filter(Boo
     businessName: firstNonEmpty(businessProfile.businessName, websiteDoc.name, websiteDoc.websiteName),
     websiteUrl: firstNonEmpty(websiteDoc.websiteUrl, websiteDoc.domain, websiteDoc.url, websiteDoc.siteUrl),
     industry: firstNonEmpty(businessProfile.industry, safeObj(websiteDoc.profile).industry),
+    businessDescription,
     targetAudience: extractTargetAudience({ businessProfile, businessContext }),
 pillars,
 pillarDetails,
@@ -316,6 +323,7 @@ gapPages,
 gapPageDetails,
 optimizedPages,
 blueprintPageDetails,
+blueprintPageCount,
     authorityPlanExists: Object.keys(authorityPlan).length > 0,
     progress,
   };
@@ -428,9 +436,10 @@ function buildStrategyIntelligence(strategyData) {
   const weakestPillar =
     pillarMetrics.length
       ? [...pillarMetrics].sort((a, b) => {
-          const scoreA = a.mappedPageCount + a.blueprintSupportCount - a.gapCount;
-          const scoreB = b.mappedPageCount + b.blueprintSupportCount - b.gapCount;
-          return scoreA - scoreB;
+          if (a.keywordCount !== b.keywordCount) return a.keywordCount - b.keywordCount;
+          if (a.mappedPageCount !== b.mappedPageCount) return a.mappedPageCount - b.mappedPageCount;
+          if (a.blueprintSupportCount !== b.blueprintSupportCount) return a.blueprintSupportCount - b.blueprintSupportCount;
+          return b.gapCount - a.gapCount;
         })[0]
       : null;
 
@@ -458,6 +467,7 @@ function formatStrategyDataForPrompt(strategyData) {
     ["Business Name", strategyData.businessName],
     ["Website URL", strategyData.websiteUrl],
     ["Industry", strategyData.industry],
+    ["Business Description", strategyData.businessDescription],
     ["Target Audience", strategyData.targetAudience],
   ];
 
@@ -842,7 +852,6 @@ Current Page Fields:
 ${formatPageFieldsForPrompt(pageFields)}
 
 ${formatStrategyDataForPrompt(strategyData)}
-Strategy Intelligence:
 
 Strategy Intelligence:
 
@@ -924,9 +933,11 @@ Response rules:
 - If a Strategy field is missing, unavailable, or not shown in Current Strategy Data, say you do not have that specific Strategy data yet and then give general guidance.
 - If the user asks what they should do next, use Next Incomplete Major Step first when Strategy data is available.
 - If the user asks what pages to build first, use Strategy Intelligence first, especially content gaps, unmapped keywords, weaker pillars, and blueprint coverage.
-- If a keyword appears in the gap list but does not seem aligned with the business context, say so clearly and do not recommend it as a priority.
+- Always check the Business Description, Industry, pillar themes, and current strategy direction before recommending a gap keyword or page.
+- If a keyword appears in the gap list but does not fit the business offering, product category, or strategy direction, say clearly that it looks strategically irrelevant or low priority.
 - Do not treat every content gap as a good page idea. Prefer pages that fit the business, target audience, and existing strategy direction.
 - If pillar or page relationships are incomplete, say exactly that instead of pretending certainty.
+- When giving seed keywords, prefer product-relevant, category-relevant, and commercial-intent phrases over broad generic SEO terms unless the user explicitly asks for broader discovery.
 - If you are unsure, say so clearly and still give the closest useful answer.`;
 }
 
