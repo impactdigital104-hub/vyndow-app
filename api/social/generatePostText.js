@@ -2,6 +2,7 @@
 // Phase 4 v1 — Step 4A Text-first generation (TEXT ONLY)
 
 import admin from "../firebaseAdmin.js";
+import { resolveSocialDocument } from "./socialDocumentResolver.js";
 
 async function getUidFromRequest(req) {
   const authHeader = req.headers.authorization || "";
@@ -11,35 +12,6 @@ async function getUidFromRequest(req) {
   const idToken = match[1];
   const decoded = await admin.auth().verifyIdToken(idToken);
   return decoded.uid;
-}
-
-// Same website ownership/membership model used elsewhere
-async function resolveWebsiteContext({ uid, websiteId }) {
-  const db = admin.firestore();
-
-  const userWebsiteRef = db.doc(`users/${uid}/websites/${websiteId}`);
-  const userWebsiteSnap = await userWebsiteRef.get();
-
-  if (!userWebsiteSnap.exists) {
-    const err = new Error("Website not found for this user.");
-    err.code = "WEBSITE_NOT_FOUND";
-    throw err;
-  }
-
-  const websiteData = userWebsiteSnap.data() || {};
-  const ownerUid = (websiteData.ownerUid || uid).trim();
-
-  if (ownerUid !== uid) {
-    const memberRef = db.doc(`users/${ownerUid}/websites/${websiteId}/members/${uid}`);
-    const memberSnap = await memberRef.get();
-    if (!memberSnap.exists) {
-      const err = new Error("NO_ACCESS");
-      err.code = "NO_ACCESS";
-      throw err;
-    }
-  }
-
-  return { ownerUid };
 }
 
 function safeStr(v) {
@@ -123,23 +95,27 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { ownerUid } = await resolveWebsiteContext({ uid, websiteId });
-
     const db = admin.firestore();
-    const socialRef = db.doc(`users/${ownerUid}/websites/${websiteId}/modules/social`);
-    const snap = await socialRef.get();
-    if (!snap.exists) {
-      res.status(404).json({ error: "Social module not found" });
-      return;
+    let resolved;
+    try {
+      resolved = await resolveSocialDocument({
+        db,
+        uid,
+        websiteId,
+        requiredData: (social) => Boolean(social?.phase3?.phase3Completed),
+      });
+    } catch (e) {
+      if (e?.code === "SOCIAL_NOT_FOUND") {
+        res.status(404).json({ error: "Social module not found" });
+        return;
+      }
+      if (e?.code === "REQUIRED_SOCIAL_DATA_MISSING") {
+        res.status(400).json({ error: "Phase 3 is not completed/locked yet." });
+        return;
+      }
+      throw e;
     }
-
-    const social = snap.data() || {};
-
-    // Must be Phase 3 locked (calendar exists and is completed)
-    if (!social?.phase3?.phase3Completed) {
-      res.status(400).json({ error: "Phase 3 is not completed/locked yet." });
-      return;
-    }
+    const social = resolved.socialData;
 
     // Phase 1 identity inputs (must be respected; text uses voice/guardrails)
     const brandName = safeStr(social.brandName) || "Brand";
