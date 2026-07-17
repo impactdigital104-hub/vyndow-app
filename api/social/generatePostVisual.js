@@ -2,6 +2,24 @@ import crypto from "node:crypto";
 import admin from "../firebaseAdmin.js";
 import { resolveSocialDocument } from "./socialDocumentResolver.js";
 
+const REQUIRED_VISUAL_BRIEF_FIELDS = Object.freeze([
+  "visualConcept",
+  "subject",
+  "environment",
+  "mood",
+  "lighting",
+  "composition",
+  "negativeSpace",
+  "uniquenessNotes",
+]);
+
+const CAROUSEL_ROLES = Object.freeze([
+  "Hero/cover execution of the main visual concept.",
+  "Closer or alternate perspective on the same subject and environment.",
+  "Supporting detail or contextual visual from the same creative world.",
+  "Concluding campaign-style frame using the same art direction.",
+]);
+
 function getBearerToken(req) {
   const h = req.headers?.authorization || "";
   if (!h.startsWith("Bearer ")) return "";
@@ -28,6 +46,172 @@ function getStorageBucketName() {
   }
 
   return `${serviceAccount.project_id}.appspot.com`;
+}
+
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function validateApprovedCreativeBrief(brief) {
+  if (!brief || typeof brief !== "object" || Array.isArray(brief)) {
+    return { ok: false, code: "BRIEF_NOT_FOUND" };
+  }
+
+  if (brief.status !== "approved") {
+    return { ok: false, code: "BRIEF_NOT_APPROVED" };
+  }
+
+  const requiredFieldsValid = REQUIRED_VISUAL_BRIEF_FIELDS.every((field) =>
+    isNonEmptyString(brief[field])
+  );
+
+  const avoidValid =
+    Array.isArray(brief.avoid) &&
+    brief.avoid.every((item) => typeof item === "string" && item.trim().length > 0);
+
+  const canvasValid =
+    brief.canvas &&
+    typeof brief.canvas === "object" &&
+    !Array.isArray(brief.canvas) &&
+    brief.canvas.width === 1080 &&
+    brief.canvas.height === 1080 &&
+    brief.canvas.aspectRatio === "1:1";
+
+  if (!requiredFieldsValid || !avoidValid || !canvasValid) {
+    return { ok: false, code: "INVALID_BRIEF" };
+  }
+
+  return { ok: true };
+}
+
+function creativeBriefErrorResponse(res, validation) {
+  if (validation.code === "BRIEF_NOT_FOUND") {
+    return res.status(400).json({
+      ok: false,
+      error: "Generate and approve the Creative Brief before creating visuals.",
+      code: "BRIEF_NOT_FOUND",
+    });
+  }
+
+  if (validation.code === "BRIEF_NOT_APPROVED") {
+    return res.status(400).json({
+      ok: false,
+      error: "Approve the Creative Brief before creating visuals.",
+      code: "BRIEF_NOT_APPROVED",
+    });
+  }
+
+  return res.status(400).json({
+    ok: false,
+    error: "The approved Creative Brief is incomplete. Edit and approve it again.",
+    code: "INVALID_BRIEF",
+  });
+}
+
+function buildAvoidInstructions(avoid) {
+  const savedAvoid = avoid.map((item) => `- Do not include: ${item.trim()}`);
+  const alwaysAvoid = [
+    "- Do not use generic stock photography.",
+    "- Do not show generic hands typing on a laptop unless the approved brief specifically requires it.",
+    "- Do not use anonymous office-worker imagery unless the approved brief specifically requires it.",
+    "- Do not add unrelated laptops, charts, dashboards, or data screens.",
+    "- Do not add decorative text, fake interface text, meaningless graphs, or visual clichés.",
+    "- Do not create duplicate people, distorted hands, malformed faces, random brand marks, invented logos, or watermark-style marks.",
+    "- Do not replace the requested subject or environment with a generic stock-office composition.",
+  ];
+
+  return [...savedAvoid, ...alwaysAvoid].join("\n");
+}
+
+function buildBasePrompt({
+  creativeBrief,
+  visualHeadline,
+  visualSubHeadline,
+  cta,
+  colors,
+  typography,
+  visualStyle,
+}) {
+  const subHeadlineInstruction = visualSubHeadline
+    ? visualSubHeadline
+    : "(none — do not create a sub-headline)";
+  const ctaInstruction = cta ? cta : "(none — do not create a button or CTA text)";
+
+  return `
+Create a premium square social-media advertising visual.
+
+APPROVED CREATIVE BRIEF — FOLLOW AS THE PRIMARY VISUAL DIRECTION
+The following requirements are mandatory, not optional suggestions. Preserve all specific subject descriptors, including demographic details, exactly as written. Do not generalise the requested subject.
+
+Visual concept:
+${creativeBrief.visualConcept}
+
+Subject:
+${creativeBrief.subject}
+
+Environment:
+${creativeBrief.environment}
+
+Mood:
+${creativeBrief.mood}
+
+Lighting:
+${creativeBrief.lighting}
+
+Composition:
+${creativeBrief.composition}
+
+Negative space:
+${creativeBrief.negativeSpace}
+
+Uniqueness requirement:
+${creativeBrief.uniquenessNotes}
+
+AVOID — NON-NEGOTIABLE
+${buildAvoidInstructions(creativeBrief.avoid)}
+
+PHOTOREALISTIC EXECUTION — NON-NEGOTIABLE
+- Create photorealistic commercial brand photography with premium advertising quality.
+- Use realistic human anatomy, realistic skin texture, an authentic environment, and natural depth and perspective.
+- The result must not look like synthetic stock photography.
+- No illustration, vector art, cartoon treatment, or 3D-render appearance.
+- Preserve the exact human subject and demographic descriptors stated in the approved Creative Brief.
+
+ON-IMAGE TEXT — USE EXACTLY; DO NOT REWRITE
+1) Headline: ${visualHeadline}
+2) Sub-headline: ${subHeadlineInstruction}
+3) Button text: ${ctaInstruction}
+
+TEXT RULES — NON-NEGOTIABLE
+- The image may contain only the supplied headline, supplied sub-headline when present, and supplied button text when present.
+- Do not rewrite, improve, paraphrase, shorten, or add words.
+- Do not print labels such as CTA, Caption, Hashtags, Headline, or Sub-headline.
+- Do not include captions, hashtags, extra copy, explanations, bullets, fine print, paragraphs, lorem ipsum, or invented interface text.
+- Maintain a clear hierarchy: headline largest, optional sub-headline smaller, optional button text smallest.
+- Keep the text readable and restrained; do not turn the visual into a dense poster, flyer, or infographic.
+
+LOGO EXCLUSION AND RESERVED AREA — NON-NEGOTIABLE
+- Do not create, imitate, redraw, approximate, interpret, or invent any brand logo, symbol, or wordmark.
+- Do not write the brand name as a substitute logo unless it appears in the exact supplied on-image text.
+- Leave a clean reserved logo area in the upper-right corner. The real logo will be applied separately by the product pipeline.
+- Keep this upper-right area visually quiet unless doing so materially conflicts with the approved composition.
+
+SUPPORTING BRAND STYLE — LOWER PRIORITY THAN THE APPROVED BRIEF
+- Brand colors, as restrained accents only: ${colors.join(", ") || "not provided"}
+- Typography direction, as styling inspiration only: ${typography || "not provided"}
+- Saved visual style: ${visualStyle || "photorealistic"}
+
+PRIORITY ORDER
+1. Approved Creative Brief.
+2. Exact locked on-image text.
+3. Logo exclusion and reserved upper-right area.
+4. Brand colors and typography.
+5. General layout restraint.
+
+OUTPUT FORMAT
+- One square 1:1 campaign image.
+- Clean, modern, social-feed appropriate execution.
+`.trim();
 }
 
 async function uploadGeneratedImage({ imageBuffer, websiteId, postId, mode, slideNumber }) {
@@ -196,6 +380,12 @@ export default async function handler(req, res) {
     const postSnap = selectedCheck?.postSnap || (await postRef.get());
     const post = postSnap.data() || {};
 
+    const briefValidation = validateApprovedCreativeBrief(post.creativeBrief);
+    if (!briefValidation.ok) {
+      return creativeBriefErrorResponse(res, briefValidation);
+    }
+
+    const creativeBrief = post.creativeBrief;
     const visualHeadline = (post.visualHeadline || "").trim();
     const visualSubHeadline = (post.visualSubHeadline || "").trim();
     const cta = (post.cta || "").trim();
@@ -203,44 +393,27 @@ export default async function handler(req, res) {
     const social = resolved.socialData;
     const visual = social.visual || {};
 
-    const colors = Array.isArray(visual.colors) ? visual.colors : [];
-    const visualStyle = visual.visualStyle || "photorealistic";
-    const typography = visual.typography || "";
-    const logoUrl = visual.logoUrl || "";
+    const colors = Array.isArray(visual.colors)
+      ? visual.colors.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim())
+      : [];
+    const visualStyle = isNonEmptyString(visual.visualStyle)
+      ? visual.visualStyle.trim()
+      : "photorealistic";
+    const typography = isNonEmptyString(visual.typography) ? visual.typography.trim() : "";
 
-    const basePrompt = `
-Create a clean, premium, social-feed marketing visual for a brand.
-
-Brand Inputs:
-- Colors (use as accents; do not overload): ${colors.join(", ") || "not provided"}
-- Typography (style inspiration only): ${typography || "not provided"}
-- Visual Style (style inspiration only): ${visualStyle || "not provided"}
-- Logo URL (if present; optional placement): ${logoUrl || "not provided"}
-
-ON-IMAGE TEXT (USE EXACTLY; do NOT rewrite; do NOT add any other words):
-1) Headline (required): ${visualHeadline}
-2) Sub-headline (optional; MAX one line): ${visualSubHeadline || "(none)"}
-3) Button text (required; short): ${cta || "(none)"}
-
-STRICT RULES (non-negotiable):
-- The image must contain ONLY the headline, optional sub-headline, and the button text. Nothing else.
-- Do NOT print any labels like: "CTA", "Caption", "Hashtags", "Headline", "Sub-headline".
-- Do NOT include caption text. Do NOT include hashtags. Do NOT include any extra copy, explanations, bullets, fine print, or paragraphs.
-- Do NOT generate placeholder/lorem ipsum or tiny decorative text blocks.
-- Do NOT add charts, tables, poll UI, bars, checkboxes, icons with text, or infographic elements.
-- Do NOT rewrite, improve, paraphrase, or add words. Use the provided text exactly as-is.
-
-LAYOUT RESTRAINT:
-- Minimal text overall. Strong hierarchy: Headline (largest) → Sub-headline (small, one line) → Button text (smallest).
-- Button text must be visible but NOT dominant. Render as a small button, tag, or footer strip.
-- Clean layout with whitespace. Avoid clutter.
-- Do NOT create a poster, flyer, infographic, or dense text layout.
-- Social-feed appropriate, modern, brand-appropriate design.
-`.trim();
+    const basePrompt = buildBasePrompt({
+      creativeBrief,
+      visualHeadline,
+      visualSubHeadline,
+      cta,
+      colors,
+      typography,
+      visualStyle,
+    });
 
     if (mode === "static") {
       const imageBuffer = await callOpenAIImage({
-        prompt: `${basePrompt}\n\nOutput: ONE static square image (1:1).`,
+        prompt: `${basePrompt}\n\nSTATIC EXECUTION\nCreate one hero execution using the complete approved Creative Brief.`,
         apiKey: process.env.OPENAI_API_KEY,
       });
 
@@ -267,14 +440,19 @@ LAYOUT RESTRAINT:
     const urls = [];
 
     for (let i = 1; i <= slideCount; i++) {
+      const role = CAROUSEL_ROLES[i - 1];
       const slidePrompt = `${basePrompt}
 
-Carousel Rules:
+CAROUSEL EXECUTION
 - This is slide ${i} of ${slideCount}.
-- Maintain consistent style across all slides.
-- Use the same locked headline/sub-headline text (no rewriting).
-- Slide ${i} should feel like part of a cohesive carousel set.
-Output: ONE square image (1:1) for this slide.`;
+- Visual role for this slide: ${role}
+- Use the same subject, environment, creative world, mood, lighting, brand language, and overall art direction across all four slides.
+- Create a controlled perspective or framing variation appropriate to this slide's role, not an unrelated concept.
+- Keep the reserved upper-right logo area consistent.
+- Use only the existing locked on-image text exactly as specified above; do not invent campaign claims or additional words.
+- The four images must read as one cohesive campaign, not four unrelated stock images.
+
+Output one square 1:1 image for this slide.`;
 
       const imageBuffer = await callOpenAIImage({
         prompt: slidePrompt,
