@@ -161,14 +161,16 @@ Sub-headline: ${subHeadline}
 CTA: ${buttonText}
 
 CREATIVE DIRECTION
-- Build a sophisticated editorial advertising layout with clear hierarchy, confident typography, balanced negative space, and a strong relationship between the human subject, environment, and message.
-- Create photorealistic commercial campaign photography with magazine-quality lighting, authentic skin texture, believable posture and expression, realistic anatomy, natural depth, and a credible professional environment.
-- Preserve every specific subject and demographic descriptor from the brief. Do not generalise or substitute the subject.
-- Integrate the visual concept into the scene in a purposeful, believable, premium way rather than as decorative background clutter.
-- Use modern B2B SaaS design language: clean, intelligent, contemporary, visually distinctive, and suitable for LinkedIn.
-- Make the headline easy to scan at feed size. Use the sub-headline and CTA with restraint. Do not create additional copy.
-- Reserve elegant, genuinely quiet breathing room in the upper-right corner for a real logo to be added later. Keep text, faces, interface elements, bright accents, and important imagery out of that reserved area.
-- Do not generate, imitate, redraw, approximate, spell, or invent any logo, symbol, wordmark, or brand name treatment.
+
+Use the approved Creative Brief below as the sole creative authority.
+
+Create the strongest possible premium LinkedIn campaign visual while remaining completely faithful to that brief.
+
+Use your own professional creative judgement.
+
+Do not invent campaign messages.
+Do not invent logos.
+Do not add any text other than the supplied Headline, Sub-headline and CTA.
 
 SUPPORTING BRAND STYLE
 Brand colors as restrained accents: ${colors.join(", ") || "not provided"}
