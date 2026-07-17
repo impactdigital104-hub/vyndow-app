@@ -3,6 +3,7 @@
 // Phase 2 (Vyndow Social) — generate strategic content themes from Phase 1 Brand Profile
 
 import admin from "../firebaseAdmin.js";
+import { resolveSocialDocument } from "./socialDocumentResolver.js";
 
 
 // Same auth pattern as /api/generate.js and /api/geo/ensure.js
@@ -16,38 +17,6 @@ async function getUidFromRequest(req) {
   return decoded.uid;
 }
 
-// Same website ownership/membership model as GEO/SEO
-async function resolveWebsiteContext({ uid, websiteId }) {
-  const db = admin.firestore();
-
-  const userWebsiteRef = db.doc(`users/${uid}/websites/${websiteId}`);
-  const userWebsiteSnap = await userWebsiteRef.get();
-
-  if (!userWebsiteSnap.exists) {
-    const err = new Error("Website not found for this user.");
-    err.code = "WEBSITE_NOT_FOUND";
-    throw err;
-  }
-
-  const websiteData = userWebsiteSnap.data() || {};
- const ownerUid = safeStr(websiteData.ownerUid) || uid;
-
-
-
-  if (ownerUid !== uid) {
-    const memberRef = admin
-      .firestore()
-      .doc(`users/${ownerUid}/websites/${websiteId}/members/${uid}`);
-    const memberSnap = await memberRef.get();
-    if (!memberSnap.exists) {
-      const err = new Error("NO_ACCESS");
-      err.code = "NO_ACCESS";
-      throw err;
-    }
-  }
-
-  return { ownerUid, websiteData };
-}
 // --- Phase 2 calibration helpers: domain inference from homepage ---
 // Safe timeout fetch for homepage HTML. Never break generation if this fails.
 async function fetchHomepageHtml(url, timeoutMs = 4500) {
@@ -511,35 +480,26 @@ export default async function handler(req, res) {
     const websiteId = req.body?.websiteId || "";
     if (!websiteId) return res.status(400).json({ ok: false, error: "Missing websiteId" });
 
-    const { ownerUid } = await resolveWebsiteContext({ uid, websiteId });
-
     const db = admin.firestore();
-
-    // The Brand Workshop UI reads and writes the Social module beneath the
-    // authenticated user's website document. Read that same record first so
-    // Phase 2 sees the completion state the user just saved.
-    const userSocialRef = db.doc(`users/${uid}/websites/${websiteId}/modules/social`);
-    const userSocialSnap = await userSocialRef.get();
-    let phase1 = userSocialSnap.exists ? userSocialSnap.data() || {} : {};
-
-    // Backward-compatible fallback for records historically stored only under
-    // the owner. This preserves existing owner/member behaviour without
-    // overriding a completed record saved under the authenticated user.
-    if (!phase1?.phase1Completed && ownerUid !== uid) {
-      const ownerSocialRef = db.doc(`users/${ownerUid}/websites/${websiteId}/modules/social`);
-      const ownerSocialSnap = await ownerSocialRef.get();
-      if (ownerSocialSnap.exists) {
-        phase1 = ownerSocialSnap.data() || {};
-      }
-    }
-
-    if (!phase1?.phase1Completed) {
-      return res.status(400).json({
-        ok: false,
-        error: "Complete Phase 1 to proceed.",
-        code: "PHASE1_INCOMPLETE",
+    let resolved;
+    try {
+      resolved = await resolveSocialDocument({
+        db,
+        uid,
+        websiteId,
+        requiredData: (social) => social?.phase1Completed === true,
       });
+    } catch (e) {
+      if (e?.code === "REQUIRED_SOCIAL_DATA_MISSING" || e?.code === "SOCIAL_NOT_FOUND") {
+        return res.status(400).json({
+          ok: false,
+          error: "Complete Phase 1 to proceed.",
+          code: "PHASE1_INCOMPLETE",
+        });
+      }
+      throw e;
     }
+    const { ownerUid, socialData: phase1 } = resolved;
 
     const platformFocus = safeStr(phase1.platformFocus) || "";
     if (!platformFocus) {
