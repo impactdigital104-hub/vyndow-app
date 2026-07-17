@@ -108,26 +108,70 @@ function creativeBriefErrorResponse(res, validation) {
   });
 }
 
-function buildAvoidInstructions(avoid) {
-  const savedAvoid = avoid.map((item) => item.trim()).filter(Boolean);
-  const universalAvoid = [
-    "generic stock-photo composition",
-    "generic hands typing on a laptop unless explicitly required by the brief",
-    "anonymous office worker replacing the specified subject",
-    "unrelated laptops, charts, dashboards, or screens",
-    "fake interface text, invented statistics, meaningless graphs, or filler labels",
-    "clipart, illustration, vector art, cartoon styling, or a 3D-render look",
-    "duplicate people, distorted anatomy, malformed hands, or unnatural facial features",
-    "fake logos, invented wordmarks, watermark-style marks, or random brand symbols",
-    "dense flyer-like clutter, weak hierarchy, or synthetic AI-stock aesthetics",
-  ];
-
-  return [...savedAvoid, ...universalAvoid]
-    .map((item) => `- ${item}`)
-    .join("\n");
+function cleanString(value) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
-function buildBasePrompt({
+function extractResponseText(payload) {
+  if (isNonEmptyString(payload?.output_text)) {
+    return payload.output_text.trim();
+  }
+
+  const chunks = [];
+  const output = Array.isArray(payload?.output) ? payload.output : [];
+
+  for (const item of output) {
+    const content = Array.isArray(item?.content) ? item.content : [];
+    for (const part of content) {
+      if (isNonEmptyString(part?.text)) chunks.push(part.text.trim());
+      if (isNonEmptyString(part?.output_text)) chunks.push(part.output_text.trim());
+    }
+  }
+
+  return chunks.join("\n").trim();
+}
+
+function validateCreativeDirection(direction) {
+  if (!direction || typeof direction !== "object" || Array.isArray(direction)) {
+    return false;
+  }
+
+  const required = [
+    "creativeVision",
+    "visualStory",
+    "subjectDirection",
+    "environmentDirection",
+    "compositionDirection",
+    "cameraAndLighting",
+    "typographyDirection",
+    "negativeSpaceDirection",
+    "staticExecution",
+  ];
+
+  if (!required.every((field) => isNonEmptyString(direction[field]))) {
+    return false;
+  }
+
+  if (
+    !Array.isArray(direction.qualityGuardrails) ||
+    direction.qualityGuardrails.length === 0 ||
+    !direction.qualityGuardrails.every(isNonEmptyString)
+  ) {
+    return false;
+  }
+
+  if (
+    !Array.isArray(direction.carouselExecutions) ||
+    direction.carouselExecutions.length !== 4 ||
+    !direction.carouselExecutions.every(isNonEmptyString)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function buildCreativeDirectorInput({
   creativeBrief,
   visualHeadline,
   visualSubHeadline,
@@ -136,16 +180,186 @@ function buildBasePrompt({
   typography,
   visualStyle,
 }) {
-  const subHeadline = visualSubHeadline || "(none)";
-  const buttonText = cta || "(none)";
-
   return `
-MISSION
-Create a premium, agency-quality square LinkedIn campaign visual. Think and compose like a senior advertising art director, not like a template engine. The final image must feel intentionally designed, visually persuasive, polished, and worthy of a paid B2B campaign.
+Create the art direction for one premium square LinkedIn marketing campaign.
 
-The approved Creative Brief is the creative authority. Interpret it intelligently and faithfully while choosing the strongest possible editorial composition, visual hierarchy, typography, pacing, and use of space.
+APPROVED STRATEGIC BRIEF
+Marketing angle: ${creativeBrief.marketingAngle || ""}
+Audience insight: ${creativeBrief.audienceInsight || ""}
+Core message: ${creativeBrief.coreMessage || ""}
+Campaign objective: ${creativeBrief.campaignObjective || ""}
+Funnel stage: ${creativeBrief.funnelStage || ""}
 
-APPROVED CREATIVE BRIEF
+APPROVED VISUAL BRIEF
+Visual concept: ${creativeBrief.visualConcept}
+Subject: ${creativeBrief.subject}
+Environment: ${creativeBrief.environment}
+Mood: ${creativeBrief.mood}
+Lighting: ${creativeBrief.lighting}
+Composition: ${creativeBrief.composition}
+Negative space: ${creativeBrief.negativeSpace}
+Headline direction: ${creativeBrief.headlineDirection || ""}
+CTA direction: ${creativeBrief.ctaDirection || ""}
+Uniqueness notes: ${creativeBrief.uniquenessNotes}
+Avoid: ${(creativeBrief.avoid || []).join(" | ") || "none supplied"}
+
+LOCKED ON-IMAGE COPY
+Headline: ${visualHeadline}
+Sub-headline: ${visualSubHeadline || "(none)"}
+CTA: ${cta || "(none)"}
+
+SUPPORTING BRAND INPUTS
+Colors: ${colors.join(", ") || "not supplied"}
+Typography: ${typography || "not supplied"}
+Visual style: ${visualStyle || "photorealistic"}
+
+The approved brief and locked copy are fixed. Develop the strongest visual execution without changing their meaning or wording. Do not invent a logo, statistics, labels, campaign claims, or additional copy.
+`.trim();
+}
+
+async function callCreativeDirector({
+  creativeBrief,
+  visualHeadline,
+  visualSubHeadline,
+  cta,
+  colors,
+  typography,
+  visualStyle,
+  apiKey,
+}) {
+  if (!apiKey) {
+    const err = new Error("Missing OPENAI_API_KEY");
+    err.code = "OPENAI_KEY_MISSING";
+    throw err;
+  }
+
+  const schema = {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "creativeVision",
+      "visualStory",
+      "subjectDirection",
+      "environmentDirection",
+      "compositionDirection",
+      "cameraAndLighting",
+      "typographyDirection",
+      "negativeSpaceDirection",
+      "qualityGuardrails",
+      "staticExecution",
+      "carouselExecutions",
+    ],
+    properties: {
+      creativeVision: { type: "string" },
+      visualStory: { type: "string" },
+      subjectDirection: { type: "string" },
+      environmentDirection: { type: "string" },
+      compositionDirection: { type: "string" },
+      cameraAndLighting: { type: "string" },
+      typographyDirection: { type: "string" },
+      negativeSpaceDirection: { type: "string" },
+      qualityGuardrails: {
+        type: "array",
+        minItems: 3,
+        maxItems: 10,
+        items: { type: "string" },
+      },
+      staticExecution: { type: "string" },
+      carouselExecutions: {
+        type: "array",
+        minItems: 4,
+        maxItems: 4,
+        items: { type: "string" },
+      },
+    },
+  };
+
+  const resp = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_CREATIVE_DIRECTOR_MODEL || "gpt-5.6",
+      instructions:
+        "You are an elite executive creative director and advertising art director. Convert an approved marketing and visual brief into precise, original, production-ready art direction for a world-class commercial image model. Think strategically and visually. Preserve all supplied demographic descriptors, brand intent, and exact locked copy. Avoid generic stock-photo solutions. Return only the requested structured JSON.",
+      input: buildCreativeDirectorInput({
+        creativeBrief,
+        visualHeadline,
+        visualSubHeadline,
+        cta,
+        colors,
+        typography,
+        visualStyle,
+      }),
+      text: {
+        format: {
+          type: "json_schema",
+          name: "visual_creative_direction",
+          strict: true,
+          schema,
+        },
+      },
+    }),
+  });
+
+  if (!resp.ok) {
+    console.error("Creative director provider error", { status: resp.status });
+    const err = new Error("Creative direction generation failed");
+    err.code = "CREATIVE_DIRECTOR_ERROR";
+    throw err;
+  }
+
+  const payload = await resp.json();
+  const rawText = extractResponseText(payload);
+  let direction;
+
+  try {
+    direction = JSON.parse(rawText);
+  } catch {
+    const err = new Error("Creative direction was not valid JSON");
+    err.code = "CREATIVE_DIRECTOR_INVALID";
+    throw err;
+  }
+
+  if (!validateCreativeDirection(direction)) {
+    const err = new Error("Creative direction was incomplete");
+    err.code = "CREATIVE_DIRECTOR_INVALID";
+    throw err;
+  }
+
+  return {
+    creativeVision: cleanString(direction.creativeVision),
+    visualStory: cleanString(direction.visualStory),
+    subjectDirection: cleanString(direction.subjectDirection),
+    environmentDirection: cleanString(direction.environmentDirection),
+    compositionDirection: cleanString(direction.compositionDirection),
+    cameraAndLighting: cleanString(direction.cameraAndLighting),
+    typographyDirection: cleanString(direction.typographyDirection),
+    negativeSpaceDirection: cleanString(direction.negativeSpaceDirection),
+    qualityGuardrails: direction.qualityGuardrails.map(cleanString).filter(Boolean),
+    staticExecution: cleanString(direction.staticExecution),
+    carouselExecutions: direction.carouselExecutions.map(cleanString),
+  };
+}
+
+function buildImagePrompt({
+  creativeBrief,
+  creativeDirection,
+  visualHeadline,
+  visualSubHeadline,
+  cta,
+  colors,
+  typography,
+  visualStyle,
+  executionDirection,
+  modeLabel,
+}) {
+  return `
+Create one premium, agency-quality square LinkedIn campaign creative.
+
+APPROVED CREATIVE BRIEF — FIXED
 Visual concept: ${creativeBrief.visualConcept}
 Subject: ${creativeBrief.subject}
 Environment: ${creativeBrief.environment}
@@ -155,33 +369,40 @@ Composition: ${creativeBrief.composition}
 Negative space: ${creativeBrief.negativeSpace}
 Uniqueness: ${creativeBrief.uniquenessNotes}
 
-ON-IMAGE COPY — USE THESE WORDS EXACTLY
+EXECUTIVE CREATIVE DIRECTION
+Creative vision: ${creativeDirection.creativeVision}
+Visual story: ${creativeDirection.visualStory}
+Subject direction: ${creativeDirection.subjectDirection}
+Environment direction: ${creativeDirection.environmentDirection}
+Composition: ${creativeDirection.compositionDirection}
+Camera and lighting: ${creativeDirection.cameraAndLighting}
+Typography and hierarchy: ${creativeDirection.typographyDirection}
+Negative space: ${creativeDirection.negativeSpaceDirection}
+${modeLabel} execution: ${executionDirection}
+
+LOCKED ON-IMAGE COPY — USE EXACTLY
 Headline: ${visualHeadline}
-Sub-headline: ${subHeadline}
-CTA: ${buttonText}
-
-CREATIVE DIRECTION
-
-Use the approved Creative Brief below as the sole creative authority.
-
-Create the strongest possible premium LinkedIn campaign visual while remaining completely faithful to that brief.
-
-Use your own professional creative judgement.
-
-Do not invent campaign messages.
-Do not invent logos.
-Do not add any text other than the supplied Headline, Sub-headline and CTA.
+Sub-headline: ${visualSubHeadline || "(none)"}
+CTA: ${cta || "(none)"}
 
 SUPPORTING BRAND STYLE
-Brand colors as restrained accents: ${colors.join(", ") || "not provided"}
-Typography direction: ${typography || "modern premium sans-serif"}
+Colors: ${colors.join(", ") || "not supplied"}
+Typography: ${typography || "modern premium sans-serif"}
 Visual style: ${visualStyle || "photorealistic"}
 
-AVOID
-${buildAvoidInstructions(creativeBrief.avoid)}
+QUALITY GUARDRAILS
+${creativeDirection.qualityGuardrails.map((item) => `- ${item}`).join("\n")}
+${(creativeBrief.avoid || []).map((item) => `- Avoid: ${item}`).join("\n")}
+- Photorealistic premium commercial campaign quality.
+- Preserve every specific subject and demographic descriptor.
+- Do not replace the specified subject or environment with generic stock-office imagery.
+- Do not add any words beyond the supplied headline, sub-headline, and CTA.
+- Do not invent statistics, dashboard labels, interface copy, logos, wordmarks, symbols, or watermarks.
+- Do not create, imitate, redraw, approximate, or spell a brand logo.
+- Keep the upper-right logo area genuinely quiet and free of text, faces, interface elements, and bright focal details.
+- No illustration, vector art, cartoon, 3D-render look, malformed anatomy, duplicate people, or synthetic stock-photo appearance.
 
-FINAL STANDARD
-Produce one cohesive 1:1 campaign creative, not a generic poster and not a stock photograph with text pasted on top. Use only the supplied headline, sub-headline when present, and CTA when present. No captions, hashtags, labels, fine print, filler copy, lorem ipsum, invented statistics, or fake UI text.
+Use professional visual judgement. The result must feel designed as one cohesive campaign creative, not like a stock photograph with text placed over it.
 `.trim();
 }
 
@@ -372,7 +593,7 @@ export default async function handler(req, res) {
       : "photorealistic";
     const typography = isNonEmptyString(visual.typography) ? visual.typography.trim() : "";
 
-    const basePrompt = buildBasePrompt({
+    const creativeDirection = await callCreativeDirector({
       creativeBrief,
       visualHeadline,
       visualSubHeadline,
@@ -380,11 +601,23 @@ export default async function handler(req, res) {
       colors,
       typography,
       visualStyle,
+      apiKey: process.env.OPENAI_API_KEY,
     });
 
     if (mode === "static") {
       const imageBuffer = await callOpenAIImage({
-        prompt: `${basePrompt}\n\nSTATIC EXECUTION\nCreate one hero execution using the complete approved Creative Brief.`,
+        prompt: buildImagePrompt({
+          creativeBrief,
+          creativeDirection,
+          visualHeadline,
+          visualSubHeadline,
+          cta,
+          colors,
+          typography,
+          visualStyle,
+          executionDirection: creativeDirection.staticExecution,
+          modeLabel: "Static hero",
+        }),
         apiKey: process.env.OPENAI_API_KEY,
       });
 
@@ -412,18 +645,18 @@ export default async function handler(req, res) {
 
     for (let i = 1; i <= slideCount; i++) {
       const role = CAROUSEL_ROLES[i - 1];
-      const slidePrompt = `${basePrompt}
-
-CAROUSEL EXECUTION
-- This is slide ${i} of ${slideCount}.
-- Visual role for this slide: ${role}
-- Use the same subject, environment, creative world, mood, lighting, brand language, and overall art direction across all four slides.
-- Create a controlled perspective or framing variation appropriate to this slide's role, not an unrelated concept.
-- Keep the reserved upper-right logo area consistent.
-- Use only the existing locked on-image text exactly as specified above; do not invent campaign claims or additional words.
-- The four images must read as one cohesive campaign, not four unrelated stock images.
-
-Output one square 1:1 image for this slide.`;
+      const slidePrompt = buildImagePrompt({
+        creativeBrief,
+        creativeDirection,
+        visualHeadline,
+        visualSubHeadline,
+        cta,
+        colors,
+        typography,
+        visualStyle,
+        executionDirection: `${role} ${creativeDirection.carouselExecutions[i - 1]}`,
+        modeLabel: `Carousel slide ${i} of ${slideCount}`,
+      });
 
       const imageBuffer = await callOpenAIImage({
         prompt: slidePrompt,
