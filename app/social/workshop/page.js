@@ -1,3 +1,6 @@
+
+
+
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -53,7 +56,7 @@ function SocialWorkshopInner() {
     // Step 4 (Visual Direction)
   const [colors, setColors] = useState([]); // array of hex strings like "#111111"
   const [colorInput, setColorInput] = useState("#000000");
-  const [visualStyle, setVisualStyle] = useState(""); // minimal|editorial|illustration|photo|data
+  const visualStyle = "photorealistic";
   const [typography, setTypography] = useState(""); // modern|classic|playful|neutral
     // Step 5 (Strategic Intent + Risk Appetite)
   const [primaryObjective, setPrimaryObjective] = useState("");
@@ -184,7 +187,7 @@ const [logoError, setLogoError] = useState(""); // inline validation message
           // Step 4 resume (Visual)
 const v = data?.visual || {};
 if (Array.isArray(v.colors)) setColors(v.colors.slice(0, 2));
-          if (typeof v.visualStyle === "string") setVisualStyle(v.visualStyle);
+          // Version 1 uses one locked visual style. Existing or missing values are normalised on save.
           if (typeof v.typography === "string") setTypography(v.typography);
           if (v.logoAssetRef) setLogoFileMeta(v.logoAssetRef);
           if (typeof v.logoUrl === "string") setLogoUrl(v.logoUrl);
@@ -380,7 +383,7 @@ async function uploadLogo(file) {
         // Step 4 (Visual)
 visual: {
 colors: (colors || []).slice(0, 2),
-  visualStyle: visualStyle || null,
+  visualStyle: "photorealistic",
   typography: typography || null,
 
   // Phase 1.1 — mandatory logo
@@ -1279,25 +1282,20 @@ setColorInput("#000000");
 
     <div style={{ marginTop: 16 }}>
       <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
-        Visual style <span style={{ color: "#b91c1c" }}>*</span>
+        Visual style
       </label>
-      <select
-        value={visualStyle}
-        onChange={(e) => setVisualStyle(e.target.value)}
+      <div
         style={{
           width: "100%",
           padding: "10px 12px",
           borderRadius: 10,
           border: "1px solid #e5e7eb",
+          background: "#f9fafb",
+          color: "#374151",
         }}
       >
-        <option value="">Select</option>
-        <option value="minimal">Minimal</option>
-        <option value="editorial">Editorial</option>
-        <option value="illustration">Illustration</option>
-        <option value="photo">Photo-first</option>
-        <option value="data">Data-led</option>
-      </select>
+        Photorealistic Brand Photography
+      </div>
     </div>
 
     <div style={{ marginTop: 16 }}>
@@ -1377,7 +1375,7 @@ setColorInput("#000000");
 
       <button
         onClick={async () => {
-        if (colors.length === 0 || !visualStyle || !typography || !logoUrl) {
+        if (colors.length === 0 || !typography || !logoUrl) {
   if (!logoUrl) setLogoError("Please upload a transparent PNG logo to continue.");
   return;
 }
@@ -1386,14 +1384,14 @@ setColorInput("#000000");
           setCurrentStep(5);
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
-      disabled={colors.length === 0 || !visualStyle || !typography || !logoUrl}
+      disabled={colors.length === 0 || !typography || !logoUrl}
         style={{
           padding: "10px 14px",
           borderRadius: 10,
           border: "1px solid #e5e7eb",
-background: colors.length && visualStyle && typography && logoUrl ? "white" : "#f3f4f6",
+background: colors.length && typography && logoUrl ? "white" : "#f3f4f6",
 fontWeight: 600,
-cursor: colors.length && visualStyle && typography && logoUrl ? "pointer" : "not-allowed",
+cursor: colors.length && typography && logoUrl ? "pointer" : "not-allowed",
         }}
       >
         Continue
@@ -1765,7 +1763,7 @@ cursor: colors.length && visualStyle && typography && logoUrl ? "pointer" : "not
         </div>
 
         <div style={{ fontSize: 13, color: "#374151" }}>
-          <span style={{ color: "#6b7280" }}>Visual style:</span> {visualStyle || "—"}
+          <span style={{ color: "#6b7280" }}>Visual style:</span> Photorealistic Brand Photography
         </div>
         <div style={{ fontSize: 13, color: "#374151" }}>
           <span style={{ color: "#6b7280" }}>Typography:</span> {typography || "—"}
@@ -1884,3 +1882,4 @@ onClick={async () => {
     </AuthGate>
   );
 }
+
