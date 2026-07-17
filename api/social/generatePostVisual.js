@@ -1,8 +1,6 @@
+import crypto from "node:crypto";
 import admin from "../firebaseAdmin.js";
 import { resolveSocialDocument } from "./socialDocumentResolver.js";
-
-
-
 
 function getBearerToken(req) {
   const h = req.headers?.authorization || "";
@@ -10,8 +8,57 @@ function getBearerToken(req) {
   return h.slice("Bearer ".length).trim();
 }
 
+function getStorageBucketName() {
+  if (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) {
+    return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+  }
+
+  const raw = process.env.FIREBASE_ADMIN_CREDENTIALS;
+  if (!raw) throw new Error("Missing Firebase Storage bucket configuration");
+
+  let serviceAccount;
+  try {
+    serviceAccount = JSON.parse(raw);
+  } catch {
+    serviceAccount = JSON.parse(raw.replace(/\\n/g, "\n"));
+  }
+
+  if (!serviceAccount?.project_id) {
+    throw new Error("Unable to determine Firebase project ID for Storage");
+  }
+
+  return `${serviceAccount.project_id}.appspot.com`;
+}
+
+async function uploadGeneratedImage({ imageBuffer, websiteId, postId, mode, slideNumber }) {
+  const bucketName = getStorageBucketName();
+  const bucket = admin.storage().bucket(bucketName);
+  const token = crypto.randomUUID();
+  const suffix = slideNumber ? `-slide-${slideNumber}` : "";
+  const filePath = `social/${websiteId}/phase4/${postId}/${mode}${suffix}-${Date.now()}.png`;
+  const file = bucket.file(filePath);
+
+  await file.save(imageBuffer, {
+    resumable: false,
+    contentType: "image/png",
+    metadata: {
+      cacheControl: "public,max-age=31536000,immutable",
+      metadata: {
+        firebaseStorageDownloadTokens: token,
+      },
+    },
+  });
+
+  return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucketName)}/o/${encodeURIComponent(filePath)}?alt=media&token=${token}`;
+}
 
 async function callOpenAIImage({ prompt, apiKey }) {
+  if (!apiKey) {
+    const err = new Error("Missing OPENAI_API_KEY");
+    err.code = "OPENAI_KEY_MISSING";
+    throw err;
+  }
+
   const resp = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {
@@ -19,9 +66,10 @@ async function callOpenAIImage({ prompt, apiKey }) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "dall-e-3",
+      model: "gpt-image-1",
       prompt,
       size: "1024x1024",
+      quality: "medium",
     }),
   });
 
@@ -34,19 +82,18 @@ async function callOpenAIImage({ prompt, apiKey }) {
 
   const data = await resp.json();
   const first = data?.data?.[0] || {};
-  const url = first?.url;
+  const base64Image = first?.b64_json;
 
-  if (!url) {
-    const err = new Error("OpenAI returned no image URL");
+  if (!base64Image) {
+    const err = new Error("OpenAI returned no base64 image data");
     err.code = "OPENAI_NO_IMAGE";
     throw err;
   }
 
-  return url;
+  return Buffer.from(base64Image, "base64");
 }
 
 export default async function handler(req, res) {
-
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -75,6 +122,7 @@ export default async function handler(req, res) {
     const db = admin.firestore();
     const candidateChecks = new Map();
     let resolved;
+
     try {
       resolved = await resolveSocialDocument({
         db,
@@ -83,60 +131,83 @@ export default async function handler(req, res) {
         requiredData: async (socialData, context) => {
           const socialValid = socialData?.phase1Completed === true;
           const postRef = context.socialRef.collection("phase4Posts").doc(postId);
+
           if (!socialValid) {
-            candidateChecks.set(context.resolvedUid, { socialValid: false, postRef, postSnap: null, postExists: false, copyLocked: false, headlinePresent: false });
+            candidateChecks.set(context.resolvedUid, {
+              socialValid: false,
+              postRef,
+              postSnap: null,
+              postExists: false,
+              copyLocked: false,
+              headlinePresent: false,
+            });
             return false;
           }
+
           const postSnap = await postRef.get();
           const postData = postSnap.exists ? postSnap.data() || {} : {};
           const copyLocked = postData.copyLocked === true;
-          const headlinePresent = typeof postData.visualHeadline === "string" && postData.visualHeadline.trim().length > 0;
-          candidateChecks.set(context.resolvedUid, { socialValid: true, postRef, postSnap, postExists: postSnap.exists, copyLocked, headlinePresent });
+          const headlinePresent =
+            typeof postData.visualHeadline === "string" &&
+            postData.visualHeadline.trim().length > 0;
+
+          candidateChecks.set(context.resolvedUid, {
+            socialValid: true,
+            postRef,
+            postSnap,
+            postExists: postSnap.exists,
+            copyLocked,
+            headlinePresent,
+          });
+
           return postSnap.exists && copyLocked && headlinePresent;
         },
       });
     } catch (e) {
-      if (e?.code === "WEBSITE_NOT_FOUND") return res.status(404).json({ ok: false, error: "Website not found" });
-      if (e?.code === "NO_ACCESS") return res.status(403).json({ ok: false, error: "Access denied" });
+      if (e?.code === "WEBSITE_NOT_FOUND") {
+        return res.status(404).json({ ok: false, error: "Website not found" });
+      }
+      if (e?.code === "NO_ACCESS") {
+        return res.status(403).json({ ok: false, error: "Access denied" });
+      }
       if (e?.code === "SOCIAL_NOT_FOUND" || e?.code === "REQUIRED_SOCIAL_DATA_MISSING") {
         const checks = Array.from(candidateChecks.values());
         const anyPost = checks.some((check) => check.postExists);
         const anyLockedPost = checks.some((check) => check.postExists && check.copyLocked);
         const anyValidSocial = checks.some((check) => check.socialValid);
-        if (!anyValidSocial) return res.status(400).json({ ok: false, error: "Complete Phase 1 to proceed" });
-        if (!anyPost) return res.status(404).json({ ok: false, error: "Post draft not found" });
-        if (!anyLockedPost) return res.status(400).json({ ok: false, error: "Copy is not locked" });
+
+        if (!anyValidSocial) {
+          return res.status(400).json({ ok: false, error: "Complete Phase 1 to proceed" });
+        }
+        if (!anyPost) {
+          return res.status(404).json({ ok: false, error: "Post draft not found" });
+        }
+        if (!anyLockedPost) {
+          return res.status(400).json({ ok: false, error: "Copy is not locked" });
+        }
         return res.status(400).json({ ok: false, error: "Locked headline missing" });
       }
       throw e;
     }
 
     const selectedCheck = candidateChecks.get(resolved.resolvedUid);
-    const postRef = selectedCheck?.postRef || resolved.socialRef.collection("phase4Posts").doc(postId);
+    const postRef =
+      selectedCheck?.postRef || resolved.socialRef.collection("phase4Posts").doc(postId);
     const postSnap = selectedCheck?.postSnap || (await postRef.get());
     const post = postSnap.data() || {};
 
-    // Locked copy fields ONLY
     const visualHeadline = (post.visualHeadline || "").trim();
     const visualSubHeadline = (post.visualSubHeadline || "").trim();
-    const caption = (post.caption || "").trim();
     const cta = (post.cta || "").trim();
-    const hashtags = Array.isArray(post.hashtags) ? post.hashtags : [];
 
-    // Phase 1 brand inputs (read-only) from the same UID tree as the post.
     const social = resolved.socialData;
     const visual = social.visual || {};
 
-    const colors = visual.colors || [];
+    const colors = Array.isArray(visual.colors) ? visual.colors : [];
     const visualStyle = visual.visualStyle || "photorealistic";
     const typography = visual.typography || "";
     const logoUrl = visual.logoUrl || "";
-    const logoAssetRef = visual.logoAssetRef || null;
 
-    // Prompt (no text regeneration; only visual composition)
-    // VISUAL CONTRACT v1.1:
-    // Allowed inside image text ONLY: visualHeadline, optional visualSubHeadline (1 line), cta (short).
-    // Forbidden inside image: caption, hashtags, body copy, explanations, bullets, long CTAs.
     const basePrompt = `
 Create a clean, premium, social-feed marketing visual for a brand.
 
@@ -165,21 +236,20 @@ LAYOUT RESTRAINT:
 - Clean layout with whitespace. Avoid clutter.
 - Do NOT create a poster, flyer, infographic, or dense text layout.
 - Social-feed appropriate, modern, brand-appropriate design.
-
 `.trim();
 
-
     if (mode === "static") {
-           const url = await callOpenAIImage({
-        prompt: basePrompt + "\n\nOutput: ONE static square image (1:1).",
+      const imageBuffer = await callOpenAIImage({
+        prompt: `${basePrompt}\n\nOutput: ONE static square image (1:1).`,
         apiKey: process.env.OPENAI_API_KEY,
       });
 
-if (!url) {
-  return res.status(500).json({ ok: false, error: "No image returned" });
-}
-
-
+      const url = await uploadGeneratedImage({
+        imageBuffer,
+        websiteId,
+        postId,
+        mode: "static",
+      });
 
       await postRef.set(
         {
@@ -193,14 +263,11 @@ if (!url) {
       return res.status(200).json({ ok: true, url });
     }
 
-    // carousel mode: 4 slides (within your 3–5 rule)
     const slideCount = 4;
     const urls = [];
 
     for (let i = 1; i <= slideCount; i++) {
-      const slidePrompt =
-        basePrompt +
-        `
+      const slidePrompt = `${basePrompt}
 
 Carousel Rules:
 - This is slide ${i} of ${slideCount}.
@@ -209,16 +276,20 @@ Carousel Rules:
 - Slide ${i} should feel like part of a cohesive carousel set.
 Output: ONE square image (1:1) for this slide.`;
 
-     const url = await callOpenAIImage({
+      const imageBuffer = await callOpenAIImage({
         prompt: slidePrompt,
         apiKey: process.env.OPENAI_API_KEY,
       });
 
-   if (!url) {
-        return res.status(500).json({ ok: false, error: `No image returned for slide ${i}` });
-      }
+      const url = await uploadGeneratedImage({
+        imageBuffer,
+        websiteId,
+        postId,
+        mode: "carousel",
+        slideNumber: i,
+      });
 
-urls.push(url);
+      urls.push(url);
     }
 
     await postRef.set(
