@@ -387,27 +387,52 @@ async function generateVisual(mode) {
 async function downloadStaticImage() {
   if (!staticImageUrl || downloadLoading) return;
 
+  const filename = `vyndow-social-static-${postId}.png`;
+
+  function openDirectDownloadFallback() {
+    const link = document.createElement("a");
+    link.href = staticImageUrl;
+    link.download = filename;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
   try {
     setDownloadError("");
     setDownloadLoading(true);
 
-    const response = await fetch(staticImageUrl);
-    if (!response.ok) {
-      throw new Error(`Download failed with status ${response.status}`);
-    }
+    try {
+      const response = await fetch(staticImageUrl, {
+        method: "GET",
+        mode: "cors",
+        cache: "no-store",
+      });
 
-    const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = objectUrl;
-    link.download = `vyndow-social-static-${postId}.png`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(objectUrl);
+      if (!response.ok) {
+        throw new Error(`Download failed with status ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (fetchError) {
+      console.warn("Blob download unavailable; using direct download fallback:", fetchError);
+      openDirectDownloadFallback();
+    }
   } catch (e) {
     console.error("downloadStaticImage error:", e);
-    setDownloadError("Could not download the static image. Please try again.");
+    setDownloadError(
+      "Could not start the image download. Please try again."
+    );
   } finally {
     setDownloadLoading(false);
   }
@@ -818,7 +843,19 @@ async function generateText() {
     <div style={{ marginTop: 14 }}>
       <div style={{ fontWeight: 800, marginBottom: 8 }}>Static preview</div>
       <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#f9fafb" }}>
-        <img src={staticImageUrl} alt="Static visual" style={{ width: "100%", display: "block" }} />
+        <img
+          src={staticImageUrl}
+          alt="Static visual"
+          style={{
+            width: "100%",
+            maxWidth: 760,
+            height: "auto",
+            maxHeight: "78vh",
+            objectFit: "contain",
+            display: "block",
+            margin: "0 auto",
+          }}
+        />
       </div>
       <button
         type="button"
