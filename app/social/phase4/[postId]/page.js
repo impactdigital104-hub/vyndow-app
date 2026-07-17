@@ -9,6 +9,71 @@ import { auth, db } from "../../../firebaseClient";
 
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
+const EMPTY_CREATIVE_BRIEF = {
+  marketingAngle: "",
+  audienceInsight: "",
+  coreMessage: "",
+  campaignObjective: "",
+  funnelStage: "awareness",
+  visualConcept: "",
+  subject: "",
+  environment: "",
+  mood: "",
+  lighting: "",
+  composition: "",
+  negativeSpace: "",
+  headlineDirection: "",
+  ctaDirection: "",
+  avoid: [],
+  uniquenessNotes: "",
+};
+
+const CREATIVE_BRIEF_FIELDS = [
+  ["marketingAngle", "Marketing angle"],
+  ["audienceInsight", "Audience insight"],
+  ["coreMessage", "Core message"],
+  ["campaignObjective", "Campaign objective"],
+  ["visualConcept", "Visual concept"],
+  ["subject", "Subject"],
+  ["environment", "Environment"],
+  ["mood", "Mood"],
+  ["lighting", "Lighting"],
+  ["composition", "Composition"],
+  ["negativeSpace", "Negative space"],
+  ["headlineDirection", "Headline direction"],
+  ["ctaDirection", "CTA direction"],
+  ["uniquenessNotes", "Uniqueness notes"],
+];
+
+function editableBriefFrom(value) {
+  const brief = value && typeof value === "object" ? value : {};
+  return {
+    ...EMPTY_CREATIVE_BRIEF,
+    ...Object.fromEntries(
+      CREATIVE_BRIEF_FIELDS.map(([key]) => [
+        key,
+        typeof brief[key] === "string" ? brief[key] : "",
+      ])
+    ),
+    funnelStage: ["awareness", "consideration", "conversion", "retention"].includes(brief.funnelStage)
+      ? brief.funnelStage
+      : "awareness",
+    avoid: Array.isArray(brief.avoid)
+      ? brief.avoid.filter((item) => typeof item === "string")
+      : [],
+  };
+}
+
+function formatBriefDate(value) {
+  if (!value) return "-";
+  let date = null;
+  if (typeof value === "string" || typeof value === "number") date = new Date(value);
+  else if (typeof value?.toDate === "function") date = value.toDate();
+  else if (typeof value?._seconds === "number") date = new Date(value._seconds * 1000);
+  else if (typeof value?.seconds === "number") date = new Date(value.seconds * 1000);
+  return date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : "-";
+}
+
 
 // IMPORTANT: Suspense wrapper (required for useSearchParams in Next App Router)
 export default function SocialPhase4PostPage() {
@@ -54,6 +119,13 @@ const [staticImageUrl, setStaticImageUrl] = useState("");
 const [carouselImageUrls, setCarouselImageUrls] = useState([]);
 const [downloadLoading, setDownloadLoading] = useState(false);
 const [downloadError, setDownloadError] = useState("");
+
+const [creativeBrief, setCreativeBrief] = useState(null);
+const [creativeBriefForm, setCreativeBriefForm] = useState(EMPTY_CREATIVE_BRIEF);
+const [creativeBriefLoading, setCreativeBriefLoading] = useState(false);
+const [creativeBriefAction, setCreativeBriefAction] = useState("");
+const [creativeBriefError, setCreativeBriefError] = useState("");
+const [creativeBriefEditing, setCreativeBriefEditing] = useState(false);
 
 
  async function lockCopyNow() {
@@ -171,6 +243,45 @@ useEffect(() => {
   });
   return () => unsub();
 }, []);
+
+
+useEffect(() => {
+  if (!idToken || !websiteId || !postId) return;
+
+  let cancelled = false;
+
+  async function loadCreativeBrief() {
+    try {
+      setCreativeBriefLoading(true);
+      setCreativeBriefError("");
+      const response = await fetch("/api/social/generateCreativeBrief", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ action: "load", websiteId, postId }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || "Could not load the creative brief.");
+      }
+      if (cancelled) return;
+      setCreativeBrief(data.brief || null);
+      setCreativeBriefForm(editableBriefFrom(data.brief));
+      setCreativeBriefEditing(data.brief?.status !== "approved");
+    } catch (error) {
+      if (!cancelled) setCreativeBriefError(error?.message || "Could not load the creative brief.");
+    } finally {
+      if (!cancelled) setCreativeBriefLoading(false);
+    }
+  }
+
+  loadCreativeBrief();
+  return () => {
+    cancelled = true;
+  };
+}, [idToken, websiteId, postId]);
 
 
   useEffect(() => {
@@ -307,6 +418,58 @@ const saveRef = doc(
 
   return () => clearTimeout(t);
 }, [text, post, copyLocked]);
+
+
+async function runCreativeBriefAction(action) {
+  if (creativeBriefLoading) return;
+
+  try {
+    setCreativeBriefError("");
+    if (!idToken) {
+      setCreativeBriefError("Not logged in. Please refresh and try again.");
+      return;
+    }
+
+    if (action === "generate" && creativeBrief) {
+      const confirmed = window.confirm(
+        "The current creative brief will be replaced and approval will reset to Draft. Existing copy and images will remain unchanged."
+      );
+      if (!confirmed) return;
+    }
+
+    setCreativeBriefLoading(true);
+    setCreativeBriefAction(action);
+
+    const payload = { action, websiteId, postId };
+    if (action === "save" || action === "approve") payload.brief = creativeBriefForm;
+
+    const response = await fetch("/api/social/generateCreativeBrief", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || "Could not update the creative brief.");
+    }
+
+    setCreativeBrief(data.brief || null);
+    setCreativeBriefForm(editableBriefFrom(data.brief));
+    setCreativeBriefEditing(data.brief?.status !== "approved");
+  } catch (error) {
+    setCreativeBriefError(error?.message || "Could not update the creative brief.");
+  } finally {
+    setCreativeBriefLoading(false);
+    setCreativeBriefAction("");
+  }
+}
+
+function updateCreativeBriefField(key, value) {
+  setCreativeBriefForm((current) => ({ ...current, [key]: value }));
+}
 
 async function generateVisual(mode) {
   if (visualLoading) return;
@@ -549,9 +712,9 @@ async function generateText() {
             </div>
           </div>
 
-          {/* Step 3 — Creative Brief Preview (Read-only) */}
+          {/* Existing post context */}
           <div style={{ marginTop: 14, padding: 14, borderRadius: 14, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
-            <div style={{ fontWeight: 800, marginBottom: 10 }}>Creative brief (read-only)</div>
+            <div style={{ fontWeight: 800, marginBottom: 10 }}>Post context</div>
 
             <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 10, fontSize: 14 }}>
               <div style={{ color: "#6b7280" }}>Platform</div>
@@ -570,6 +733,111 @@ async function generateText() {
               <div>{riskLabel}</div>
             </div>
           </div>
+
+
+
+{/* Phase 2A-1 — Creative Brief */}
+<div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: "1px solid #dbeafe", background: "#ffffff" }}>
+  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+    <div>
+      <div style={{ fontWeight: 800, fontSize: 17 }}>Creative Brief</div>
+      <div style={{ marginTop: 4, color: "#6b7280", fontSize: 13 }}>
+        Define and approve the strategic and visual direction for this post. Approval is not yet required for copy or image generation.
+      </div>
+    </div>
+    {creativeBrief ? (
+      <span style={{ padding: "6px 10px", borderRadius: 999, fontSize: 12, fontWeight: 800, background: creativeBrief.status === "approved" ? "#dcfce7" : "#fef3c7", color: creativeBrief.status === "approved" ? "#166534" : "#92400e" }}>
+        {creativeBrief.status === "approved" ? "Approved" : "Draft"}
+      </span>
+    ) : null}
+  </div>
+
+  {creativeBriefError ? (
+    <div role="alert" style={{ marginTop: 12, padding: 12, borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13 }}>
+      {creativeBriefError}
+    </div>
+  ) : null}
+
+  {creativeBriefLoading && creativeBriefAction === "" ? (
+    <div style={{ marginTop: 12, color: "#6b7280", fontSize: 13 }}>Loading creative brief…</div>
+  ) : null}
+
+  {!creativeBrief && !creativeBriefLoading ? (
+    <div style={{ marginTop: 14, padding: 14, borderRadius: 12, border: "1px dashed #cbd5e1", background: "#f8fafc" }}>
+      <div style={{ fontWeight: 700 }}>No creative brief has been generated for this post.</div>
+      <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>Generate one from the confirmed brand, calendar post and selected theme.</div>
+      <button type="button" onClick={() => runCreativeBriefAction("generate")} disabled={creativeBriefLoading} style={{ marginTop: 12, padding: "10px 14px", borderRadius: 10, border: "1px solid #2563eb", background: creativeBriefLoading ? "#f3f4f6" : "#2563eb", color: creativeBriefLoading ? "#6b7280" : "white", cursor: creativeBriefLoading ? "not-allowed" : "pointer", fontWeight: 800 }}>
+        {creativeBriefAction === "generate" ? "Generating…" : "Generate Creative Brief"}
+      </button>
+    </div>
+  ) : null}
+
+  {creativeBrief ? (
+    <>
+      <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button type="button" onClick={() => runCreativeBriefAction("generate")} disabled={creativeBriefLoading} style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", background: creativeBriefLoading ? "#f3f4f6" : "white", cursor: creativeBriefLoading ? "not-allowed" : "pointer", fontWeight: 800 }}>
+          {creativeBriefAction === "generate" ? "Regenerating…" : "Regenerate Creative Brief"}
+        </button>
+        {creativeBrief.status === "approved" && !creativeBriefEditing ? (
+          <button type="button" onClick={() => setCreativeBriefEditing(true)} disabled={creativeBriefLoading} style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontWeight: 800 }}>Edit approved brief</button>
+        ) : null}
+        {creativeBriefEditing ? (
+          <>
+            <button type="button" onClick={() => runCreativeBriefAction("save")} disabled={creativeBriefLoading} style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", background: creativeBriefLoading ? "#f3f4f6" : "white", cursor: creativeBriefLoading ? "not-allowed" : "pointer", fontWeight: 800 }}>
+              {creativeBriefAction === "save" ? "Saving…" : "Save changes"}
+            </button>
+            <button type="button" onClick={() => runCreativeBriefAction("approve")} disabled={creativeBriefLoading} style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #166534", background: creativeBriefLoading ? "#f3f4f6" : "#166534", color: creativeBriefLoading ? "#6b7280" : "white", cursor: creativeBriefLoading ? "not-allowed" : "pointer", fontWeight: 800 }}>
+              {creativeBriefAction === "approve" ? "Approving…" : "Approve brief"}
+            </button>
+          </>
+        ) : null}
+      </div>
+
+      <div style={{ marginTop: 12, padding: 12, borderRadius: 10, border: "1px solid #fde68a", background: "#fffbeb", color: "#92400e", fontSize: 13 }}>
+        The current creative brief will be replaced and approval will reset to Draft. Existing copy and images will remain unchanged.
+      </div>
+
+      {creativeBrief.status === "approved" ? (
+        <div style={{ marginTop: 12, padding: 12, borderRadius: 10, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#166534", fontSize: 13 }}>
+          <b>Approved by you</b> · {formatBriefDate(creativeBrief.approvedAt)}
+        </div>
+      ) : null}
+
+      <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>Funnel stage</div>
+          <select value={creativeBriefForm.funnelStage} disabled={!creativeBriefEditing} onChange={(e) => updateCreativeBriefField("funnelStage", e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #e5e7eb", background: creativeBriefEditing ? "white" : "#f3f4f6", fontSize: 14 }}>
+            <option value="awareness">Awareness</option>
+            <option value="consideration">Consideration</option>
+            <option value="conversion">Conversion</option>
+            <option value="retention">Retention</option>
+          </select>
+        </div>
+        <div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>Canvas (fixed)</div>
+          <div style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #e5e7eb", background: "#f3f4f6", fontSize: 14 }}>1080 × 1080 · 1:1</div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }}>
+        {CREATIVE_BRIEF_FIELDS.map(([key, label]) => (
+          <div key={key}>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>{label}</div>
+            <textarea value={creativeBriefForm[key]} disabled={!creativeBriefEditing} onChange={(e) => updateCreativeBriefField(key, e.target.value)} rows={key === "coreMessage" || key === "visualConcept" || key === "uniquenessNotes" ? 4 : 3} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #e5e7eb", background: creativeBriefEditing ? "white" : "#f3f4f6", fontSize: 14, resize: "vertical" }} />
+          </div>
+        ))}
+        <div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>Avoid — one item per line</div>
+          <textarea value={(creativeBriefForm.avoid || []).join("\n")} disabled={!creativeBriefEditing} onChange={(e) => updateCreativeBriefField("avoid", e.target.value.split("\n").map((item) => item.trim()).filter(Boolean))} rows={5} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #e5e7eb", background: creativeBriefEditing ? "white" : "#f3f4f6", fontSize: 14, resize: "vertical" }} />
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12, color: "#6b7280", fontSize: 12 }}>
+        Generated: {formatBriefDate(creativeBrief.generatedAt)} · Last updated: {formatBriefDate(creativeBrief.updatedAt)}
+      </div>
+    </>
+  ) : null}
+</div>
 
 {/* Step 4A — TEXT FIRST GENERATION (TEXT ONLY) */}
 <div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: "1px solid #e5e7eb", background: "white" }}>
