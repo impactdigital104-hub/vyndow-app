@@ -48,9 +48,12 @@ const [textError, setTextError] = useState("");
   const [copyLocked, setCopyLocked] = useState(false);
 const [lockSaving, setLockSaving] = useState(false);
   const [visualLoading, setVisualLoading] = useState(false);
+const [visualLoadingMode, setVisualLoadingMode] = useState("");
 const [visualError, setVisualError] = useState("");
 const [staticImageUrl, setStaticImageUrl] = useState("");
 const [carouselImageUrls, setCarouselImageUrls] = useState([]);
+const [downloadLoading, setDownloadLoading] = useState(false);
+const [downloadError, setDownloadError] = useState("");
 
 
  async function lockCopyNow() {
@@ -306,6 +309,8 @@ const saveRef = doc(
 }, [text, post, copyLocked]);
 
 async function generateVisual(mode) {
+  if (visualLoading) return;
+
   try {
     setVisualError("");
 
@@ -321,6 +326,7 @@ async function generateVisual(mode) {
     }
 
     setVisualLoading(true);
+    setVisualLoadingMode(mode);
 
     const response = await fetch("/api/social/generatePostVisual", {
       method: "POST",
@@ -336,30 +342,26 @@ async function generateVisual(mode) {
     });
 
     const raw = await response.text();
-let data = null;
-try {
-  data = raw ? JSON.parse(raw) : null;
-} catch (e) {
-  data = null;
-}
+    let data = null;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      data = null;
+    }
 
-
-if (!response.ok || !data?.ok) {
-  const msg =
-    data?.error ||
-    (raw && raw.length ? raw.slice(0, 200) : "") ||
-    "Could not generate visual. Please try again.";
-  setVisualError(msg);
-  setVisualLoading(false);
-  return;
-}
-
+    if (!response.ok || !data?.ok) {
+      const msg =
+        data?.error ||
+        (raw && raw.length ? raw.slice(0, 200) : "") ||
+        "Could not generate visual. Please try again.";
+      setVisualError(msg);
+      return;
+    }
 
     if (mode === "static") {
       const url = data?.url || "";
       if (!url) {
         setVisualError("No static image URL returned.");
-        setVisualLoading(false);
         return;
       }
       setStaticImageUrl(url);
@@ -369,17 +371,45 @@ if (!response.ok || !data?.ok) {
       const urls = Array.isArray(data?.urls) ? data.urls : [];
       if (!urls.length) {
         setVisualError("No carousel image URLs returned.");
-        setVisualLoading(false);
         return;
       }
       setCarouselImageUrls(urls);
     }
-
-    setVisualLoading(false);
   } catch (e) {
     console.error("generateVisual UI error:", e);
     setVisualError("Could not generate visual. Please try again.");
+  } finally {
     setVisualLoading(false);
+    setVisualLoadingMode("");
+  }
+}
+
+async function downloadStaticImage() {
+  if (!staticImageUrl || downloadLoading) return;
+
+  try {
+    setDownloadError("");
+    setDownloadLoading(true);
+
+    const response = await fetch(staticImageUrl);
+    if (!response.ok) {
+      throw new Error(`Download failed with status ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `vyndow-social-static-${postId}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch (e) {
+    console.error("downloadStaticImage error:", e);
+    setDownloadError("Could not download the static image. Please try again.");
+  } finally {
+    setDownloadLoading(false);
   }
 }
 
@@ -712,7 +742,11 @@ async function generateText() {
         fontWeight: 800,
       }}
     >
-      {staticImageUrl ? "Regenerate static" : "Generate static"}
+      {visualLoadingMode === "static"
+        ? "Generating static…"
+        : staticImageUrl
+          ? "Regenerate static"
+          : "Generate static"}
     </button>
 
     <button
@@ -727,7 +761,11 @@ async function generateText() {
         fontWeight: 800,
       }}
     >
-      {carouselImageUrls?.length ? "Regenerate carousel" : "Generate carousel"}
+      {visualLoadingMode === "carousel"
+        ? "Generating carousel…"
+        : carouselImageUrls?.length
+          ? "Regenerate carousel"
+          : "Generate carousel"}
     </button>
   </div>
 
@@ -737,9 +775,42 @@ async function generateText() {
     </div>
   ) : null}
 
+  {visualLoading ? (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        marginTop: 10,
+        padding: 12,
+        borderRadius: 10,
+        border: "1px solid #bfdbfe",
+        background: "#eff6ff",
+        color: "#1e3a8a",
+        fontSize: 13,
+      }}
+    >
+      {visualLoadingMode === "static"
+        ? "Image is being generated. Please wait — this may take up to a minute."
+        : "Carousel is being generated. Please wait — this may take up to a minute."}
+    </div>
+  ) : null}
+
   {visualError ? (
-    <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>
-      {visualError}
+    <div
+      role="alert"
+      style={{
+        marginTop: 10,
+        padding: 12,
+        borderRadius: 10,
+        border: "1px solid #fecaca",
+        background: "#fef2f2",
+        color: "#991b1b",
+        fontSize: 13,
+      }}
+    >
+      <div style={{ fontWeight: 800 }}>Image generation failed</div>
+      <div style={{ marginTop: 4 }}>{visualError}</div>
+      <div style={{ marginTop: 4 }}>Please try again.</div>
     </div>
   ) : null}
 
@@ -749,6 +820,38 @@ async function generateText() {
       <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#f9fafb" }}>
         <img src={staticImageUrl} alt="Static visual" style={{ width: "100%", display: "block" }} />
       </div>
+      <button
+        type="button"
+        disabled={downloadLoading}
+        onClick={downloadStaticImage}
+        style={{
+          marginTop: 10,
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: downloadLoading ? "#f3f4f6" : "white",
+          cursor: downloadLoading ? "not-allowed" : "pointer",
+          fontWeight: 800,
+        }}
+      >
+        {downloadLoading ? "Preparing download…" : "Download Static Image"}
+      </button>
+      {downloadError ? (
+        <div
+          role="alert"
+          style={{
+            marginTop: 10,
+            padding: 10,
+            borderRadius: 10,
+            border: "1px solid #fecaca",
+            background: "#fef2f2",
+            color: "#991b1b",
+            fontSize: 13,
+          }}
+        >
+          {downloadError}
+        </div>
+      ) : null}
     </div>
   ) : null}
 
