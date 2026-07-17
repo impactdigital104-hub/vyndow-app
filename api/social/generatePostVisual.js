@@ -109,18 +109,22 @@ function creativeBriefErrorResponse(res, validation) {
 }
 
 function buildAvoidInstructions(avoid) {
-  const savedAvoid = avoid.map((item) => `- Do not include: ${item.trim()}`);
-  const alwaysAvoid = [
-    "- Do not use generic stock photography.",
-    "- Do not show generic hands typing on a laptop unless the approved brief specifically requires it.",
-    "- Do not use anonymous office-worker imagery unless the approved brief specifically requires it.",
-    "- Do not add unrelated laptops, charts, dashboards, or data screens.",
-    "- Do not add decorative text, fake interface text, meaningless graphs, or visual clichés.",
-    "- Do not create duplicate people, distorted hands, malformed faces, random brand marks, invented logos, or watermark-style marks.",
-    "- Do not replace the requested subject or environment with a generic stock-office composition.",
+  const savedAvoid = avoid.map((item) => item.trim()).filter(Boolean);
+  const universalAvoid = [
+    "generic stock-photo composition",
+    "generic hands typing on a laptop unless explicitly required by the brief",
+    "anonymous office worker replacing the specified subject",
+    "unrelated laptops, charts, dashboards, or screens",
+    "fake interface text, invented statistics, meaningless graphs, or filler labels",
+    "clipart, illustration, vector art, cartoon styling, or a 3D-render look",
+    "duplicate people, distorted anatomy, malformed hands, or unnatural facial features",
+    "fake logos, invented wordmarks, watermark-style marks, or random brand symbols",
+    "dense flyer-like clutter, weak hierarchy, or synthetic AI-stock aesthetics",
   ];
 
-  return [...savedAvoid, ...alwaysAvoid].join("\n");
+  return [...savedAvoid, ...universalAvoid]
+    .map((item) => `- ${item}`)
+    .join("\n");
 }
 
 function buildBasePrompt({
@@ -132,85 +136,50 @@ function buildBasePrompt({
   typography,
   visualStyle,
 }) {
-  const subHeadlineInstruction = visualSubHeadline
-    ? visualSubHeadline
-    : "(none — do not create a sub-headline)";
-  const ctaInstruction = cta ? cta : "(none — do not create a button or CTA text)";
+  const subHeadline = visualSubHeadline || "(none)";
+  const buttonText = cta || "(none)";
 
   return `
-Create a premium square social-media advertising visual.
+MISSION
+Create a premium, agency-quality square LinkedIn campaign visual. Think and compose like a senior advertising art director, not like a template engine. The final image must feel intentionally designed, visually persuasive, polished, and worthy of a paid B2B campaign.
 
-APPROVED CREATIVE BRIEF — FOLLOW AS THE PRIMARY VISUAL DIRECTION
-The following requirements are mandatory, not optional suggestions. Preserve all specific subject descriptors, including demographic details, exactly as written. Do not generalise the requested subject.
+The approved Creative Brief is the creative authority. Interpret it intelligently and faithfully while choosing the strongest possible editorial composition, visual hierarchy, typography, pacing, and use of space.
 
-Visual concept:
-${creativeBrief.visualConcept}
+APPROVED CREATIVE BRIEF
+Visual concept: ${creativeBrief.visualConcept}
+Subject: ${creativeBrief.subject}
+Environment: ${creativeBrief.environment}
+Mood: ${creativeBrief.mood}
+Lighting: ${creativeBrief.lighting}
+Composition: ${creativeBrief.composition}
+Negative space: ${creativeBrief.negativeSpace}
+Uniqueness: ${creativeBrief.uniquenessNotes}
 
-Subject:
-${creativeBrief.subject}
+ON-IMAGE COPY — USE THESE WORDS EXACTLY
+Headline: ${visualHeadline}
+Sub-headline: ${subHeadline}
+CTA: ${buttonText}
 
-Environment:
-${creativeBrief.environment}
+CREATIVE DIRECTION
+- Build a sophisticated editorial advertising layout with clear hierarchy, confident typography, balanced negative space, and a strong relationship between the human subject, environment, and message.
+- Create photorealistic commercial campaign photography with magazine-quality lighting, authentic skin texture, believable posture and expression, realistic anatomy, natural depth, and a credible professional environment.
+- Preserve every specific subject and demographic descriptor from the brief. Do not generalise or substitute the subject.
+- Integrate the visual concept into the scene in a purposeful, believable, premium way rather than as decorative background clutter.
+- Use modern B2B SaaS design language: clean, intelligent, contemporary, visually distinctive, and suitable for LinkedIn.
+- Make the headline easy to scan at feed size. Use the sub-headline and CTA with restraint. Do not create additional copy.
+- Reserve elegant, genuinely quiet breathing room in the upper-right corner for a real logo to be added later. Keep text, faces, interface elements, bright accents, and important imagery out of that reserved area.
+- Do not generate, imitate, redraw, approximate, spell, or invent any logo, symbol, wordmark, or brand name treatment.
 
-Mood:
-${creativeBrief.mood}
+SUPPORTING BRAND STYLE
+Brand colors as restrained accents: ${colors.join(", ") || "not provided"}
+Typography direction: ${typography || "modern premium sans-serif"}
+Visual style: ${visualStyle || "photorealistic"}
 
-Lighting:
-${creativeBrief.lighting}
-
-Composition:
-${creativeBrief.composition}
-
-Negative space:
-${creativeBrief.negativeSpace}
-
-Uniqueness requirement:
-${creativeBrief.uniquenessNotes}
-
-AVOID — NON-NEGOTIABLE
+AVOID
 ${buildAvoidInstructions(creativeBrief.avoid)}
 
-PHOTOREALISTIC EXECUTION — NON-NEGOTIABLE
-- Create photorealistic commercial brand photography with premium advertising quality.
-- Use realistic human anatomy, realistic skin texture, an authentic environment, and natural depth and perspective.
-- The result must not look like synthetic stock photography.
-- No illustration, vector art, cartoon treatment, or 3D-render appearance.
-- Preserve the exact human subject and demographic descriptors stated in the approved Creative Brief.
-
-ON-IMAGE TEXT — USE EXACTLY; DO NOT REWRITE
-1) Headline: ${visualHeadline}
-2) Sub-headline: ${subHeadlineInstruction}
-3) Button text: ${ctaInstruction}
-
-TEXT RULES — NON-NEGOTIABLE
-- The image may contain only the supplied headline, supplied sub-headline when present, and supplied button text when present.
-- Do not rewrite, improve, paraphrase, shorten, or add words.
-- Do not print labels such as CTA, Caption, Hashtags, Headline, or Sub-headline.
-- Do not include captions, hashtags, extra copy, explanations, bullets, fine print, paragraphs, lorem ipsum, or invented interface text.
-- Maintain a clear hierarchy: headline largest, optional sub-headline smaller, optional button text smallest.
-- Keep the text readable and restrained; do not turn the visual into a dense poster, flyer, or infographic.
-
-LOGO EXCLUSION AND RESERVED AREA — NON-NEGOTIABLE
-- Do not create, imitate, redraw, approximate, interpret, or invent any brand logo, symbol, or wordmark.
-- Do not write the brand name as a substitute logo unless it appears in the exact supplied on-image text.
-- Leave a clean reserved logo area in the upper-right corner. The real logo will be applied separately by the product pipeline.
-- Keep this upper-right area visually quiet unless doing so materially conflicts with the approved composition.
-
-SUPPORTING BRAND STYLE — LOWER PRIORITY THAN THE APPROVED BRIEF
-- Brand colors, as restrained accents only: ${colors.join(", ") || "not provided"}
-- Typography direction, as styling inspiration only: ${typography || "not provided"}
-- Saved visual style: ${visualStyle || "photorealistic"}
-
-PRIORITY ORDER
-1. Approved Creative Brief.
-2. Exact locked on-image text.
-3. Logo exclusion and reserved upper-right area.
-4. Brand colors and typography.
-5. General layout restraint.
-
-OUTPUT FORMAT
-- One square 1:1 campaign image.
-- Clean, modern, social-feed appropriate execution.
+FINAL STANDARD
+Produce one cohesive 1:1 campaign creative, not a generic poster and not a stock photograph with text pasted on top. Use only the supplied headline, sub-headline when present, and CTA when present. No captions, hashtags, labels, fine print, filler copy, lorem ipsum, invented statistics, or fake UI text.
 `.trim();
 }
 
@@ -253,7 +222,7 @@ async function callOpenAIImage({ prompt, apiKey }) {
       model: "gpt-image-1",
       prompt,
       size: "1024x1024",
-      quality: "medium",
+      quality: "high",
     }),
   });
 
