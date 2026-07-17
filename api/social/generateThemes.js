@@ -514,9 +514,24 @@ export default async function handler(req, res) {
     const { ownerUid } = await resolveWebsiteContext({ uid, websiteId });
 
     const db = admin.firestore();
-    const socialRef = db.doc(`users/${ownerUid}/websites/${websiteId}/modules/social`);
-    const socialSnap = await socialRef.get();
-    const phase1 = socialSnap.exists ? socialSnap.data() || {} : {};
+
+    // The Brand Workshop UI reads and writes the Social module beneath the
+    // authenticated user's website document. Read that same record first so
+    // Phase 2 sees the completion state the user just saved.
+    const userSocialRef = db.doc(`users/${uid}/websites/${websiteId}/modules/social`);
+    const userSocialSnap = await userSocialRef.get();
+    let phase1 = userSocialSnap.exists ? userSocialSnap.data() || {} : {};
+
+    // Backward-compatible fallback for records historically stored only under
+    // the owner. This preserves existing owner/member behaviour without
+    // overriding a completed record saved under the authenticated user.
+    if (!phase1?.phase1Completed && ownerUid !== uid) {
+      const ownerSocialRef = db.doc(`users/${ownerUid}/websites/${websiteId}/modules/social`);
+      const ownerSocialSnap = await ownerSocialRef.get();
+      if (ownerSocialSnap.exists) {
+        phase1 = ownerSocialSnap.data() || {};
+      }
+    }
 
     if (!phase1?.phase1Completed) {
       return res.status(400).json({
