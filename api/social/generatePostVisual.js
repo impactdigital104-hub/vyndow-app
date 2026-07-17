@@ -1,4 +1,5 @@
 import admin from "../firebaseAdmin.js";
+import { resolveSocialDocument } from "./socialDocumentResolver.js";
 
 
 
@@ -72,27 +73,48 @@ export default async function handler(req, res) {
     }
 
     const db = admin.firestore();
-
-    // Phase 4 post doc (must already contain locked copy)
-    const postRef = db
-      .collection("users")
-      .doc(uid)
-      .collection("websites")
-      .doc(websiteId)
-      .collection("modules")
-      .doc("social")
-      .collection("phase4Posts")
-      .doc(postId);
-
-    const postSnap = await postRef.get();
-    if (!postSnap.exists) {
-      return res.status(404).json({ ok: false, error: "Post draft not found" });
+    const candidateChecks = new Map();
+    let resolved;
+    try {
+      resolved = await resolveSocialDocument({
+        db,
+        uid,
+        websiteId,
+        requiredData: async (socialData, context) => {
+          const socialValid = socialData?.phase1Completed === true;
+          const postRef = context.socialRef.collection("phase4Posts").doc(postId);
+          if (!socialValid) {
+            candidateChecks.set(context.resolvedUid, { socialValid: false, postRef, postSnap: null, postExists: false, copyLocked: false, headlinePresent: false });
+            return false;
+          }
+          const postSnap = await postRef.get();
+          const postData = postSnap.exists ? postSnap.data() || {} : {};
+          const copyLocked = postData.copyLocked === true;
+          const headlinePresent = typeof postData.visualHeadline === "string" && postData.visualHeadline.trim().length > 0;
+          candidateChecks.set(context.resolvedUid, { socialValid: true, postRef, postSnap, postExists: postSnap.exists, copyLocked, headlinePresent });
+          return postSnap.exists && copyLocked && headlinePresent;
+        },
+      });
+    } catch (e) {
+      if (e?.code === "WEBSITE_NOT_FOUND") return res.status(404).json({ ok: false, error: "Website not found" });
+      if (e?.code === "NO_ACCESS") return res.status(403).json({ ok: false, error: "Access denied" });
+      if (e?.code === "SOCIAL_NOT_FOUND" || e?.code === "REQUIRED_SOCIAL_DATA_MISSING") {
+        const checks = Array.from(candidateChecks.values());
+        const anyPost = checks.some((check) => check.postExists);
+        const anyLockedPost = checks.some((check) => check.postExists && check.copyLocked);
+        const anyValidSocial = checks.some((check) => check.socialValid);
+        if (!anyValidSocial) return res.status(400).json({ ok: false, error: "Complete Phase 1 to proceed" });
+        if (!anyPost) return res.status(404).json({ ok: false, error: "Post draft not found" });
+        if (!anyLockedPost) return res.status(400).json({ ok: false, error: "Copy is not locked" });
+        return res.status(400).json({ ok: false, error: "Locked headline missing" });
+      }
+      throw e;
     }
 
+    const selectedCheck = candidateChecks.get(resolved.resolvedUid);
+    const postRef = selectedCheck?.postRef || resolved.socialRef.collection("phase4Posts").doc(postId);
+    const postSnap = selectedCheck?.postSnap || (await postRef.get());
     const post = postSnap.data() || {};
-    if (!post.copyLocked) {
-      return res.status(400).json({ ok: false, error: "Copy is not locked" });
-    }
 
     // Locked copy fields ONLY
     const visualHeadline = (post.visualHeadline || "").trim();
@@ -101,26 +123,15 @@ export default async function handler(req, res) {
     const cta = (post.cta || "").trim();
     const hashtags = Array.isArray(post.hashtags) ? post.hashtags : [];
 
-    if (!visualHeadline) {
-      return res.status(400).json({ ok: false, error: "Locked headline missing" });
-    }
+    // Phase 1 brand inputs (read-only) from the same UID tree as the post.
+    const social = resolved.socialData;
+    const visual = social.visual || {};
 
-    // Phase 1 brand inputs (read-only)
-    const socialRef = db
-      .collection("users")
-      .doc(uid)
-      .collection("websites")
-      .doc(websiteId)
-      .collection("modules")
-      .doc("social");
-
-    const socialSnap = await socialRef.get();
-    const social = socialSnap.exists ? socialSnap.data() || {} : {};
-
-    const colors = Array.isArray(social.colors) ? social.colors : [];
-    const typography = social.typography || "";
-    const visualStyle = social.visualStyle || "";
-    const logoUrl = social.logoUrl || "";
+    const colors = visual.colors || [];
+    const visualStyle = visual.visualStyle || "photorealistic";
+    const typography = visual.typography || "";
+    const logoUrl = visual.logoUrl || "";
+    const logoAssetRef = visual.logoAssetRef || null;
 
     // Prompt (no text regeneration; only visual composition)
     // VISUAL CONTRACT v1.1:
